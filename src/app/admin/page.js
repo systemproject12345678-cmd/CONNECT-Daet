@@ -18,29 +18,48 @@ const EVENT_THUMB =
 
 const getImageUrl = (urlField) => {
   if (!urlField) return "";
+  if (typeof urlField === "function") return "";
   if (typeof urlField === "string") {
     if (urlField.startsWith("[")) {
       try {
         const parsed = JSON.parse(urlField);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+        if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "string") return parsed[0];
       } catch (e) {}
     }
     return urlField;
   }
   if (Array.isArray(urlField) && urlField.length > 0) {
-    return urlField[0];
+    return typeof urlField[0] === "string" ? urlField[0] : "";
+  }
+  if (typeof urlField === "object") {
+    return typeof urlField.url === "string" ? urlField.url : "";
   }
   return "";
 };
 
-const norm = (v) => (v || "").toString().trim().toLowerCase();
+const toSafeDisplayValue = (val) => {
+  if (val === undefined || val === null || val === "") return "";
+  if (typeof val === "function") return "";
+  if (typeof val === "object") {
+    try {
+      return JSON.stringify(val);
+    } catch (e) {
+      return "";
+    }
+  }
+  return String(val);
+};
+
+const norm = (v) => (typeof v === "string" || typeof v === "number" ? String(v).trim().toLowerCase() : "");
 
 const isImageSrc = (v) => typeof v === "string" && (v.startsWith("data:image") || v.startsWith("http"));
 
 const formatDate = (v) => {
-  if (!v) return "N/A";
-  const d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T00:00:00`) : new Date(v);
-  return isNaN(d.getTime()) ? v : d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+  if (!v || typeof v === "function") return "N/A";
+  const raw = typeof v === "object" ? "" : String(v);
+  if (!raw) return "N/A";
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? new Date(`${raw}T00:00:00`) : new Date(raw);
+  return isNaN(d.getTime()) ? raw : d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
 };
 
 const expandRegistration = (r) => {
@@ -92,7 +111,7 @@ const accountMatches = (acct, q) => {
     acct.home_address,
     acct.status,
   ]
-    .filter(Boolean)
+    .filter((f) => f && typeof f !== "function")
     .some((f) => String(f).toLowerCase().includes(q));
 };
 
@@ -202,7 +221,7 @@ export default function UnifiedAdminDashboard() {
     if (!silent) setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session?.user) {
         router.push("/login");
         return;
@@ -228,7 +247,7 @@ export default function UnifiedAdminDashboard() {
         .order("created_at", { ascending: false });
 
       if (profilesErr) console.warn("Profiles fetch warning:", profilesErr.message);
-      
+
       const allProfiles = profilesData || [];
       setOrganizers(allProfiles.filter((p) => p.role === "organizer"));
       setTourists(allProfiles.filter((p) => p.role === "tourist" || !p.role));
@@ -348,7 +367,6 @@ export default function UnifiedAdminDashboard() {
   };
 
   const handleToggleUserSuspension = async (userId, currentSuspendedState) => {
-    const action = currentSuspendedState ? "reactivate" : "suspend";
     const ok = await askConfirm({
       title: currentSuspendedState ? "Reactivate this account?" : "Suspend this account?",
       message: currentSuspendedState
@@ -404,8 +422,27 @@ export default function UnifiedAdminDashboard() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
         body: JSON.stringify({ userId: account.id }),
       });
-      const out = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(out.error || `Request failed (${res.status})`);
+
+      if (res.status === 404) {
+        if (kind === "organizer") {
+          if (ownedIds.length > 0) {
+            await supabase.from("event_registrations").delete().in("event_id", ownedIds);
+            await supabase.from("tourism_programs").delete().eq("organizer_id", account.id);
+          }
+        } else {
+          await supabase.from("event_registrations").delete().eq("user_id", account.id);
+        }
+
+        const { error: profileDeleteError } = await supabase
+          .from("profiles")
+          .delete()
+          .eq("id", account.id);
+
+        if (profileDeleteError) throw profileDeleteError;
+      } else {
+        const out = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(out.error || `Request failed (${res.status})`);
+      }
 
       setViewingAccount(null);
       setViewingProfileOrganizer(null);
@@ -838,10 +875,10 @@ export default function UnifiedAdminDashboard() {
                       <tr key={org.id}>
                         <td className="p-4 flex items-center gap-3">
                           {resolvedLogo && (
-                            <img 
-                              src={resolvedLogo} 
-                              alt="Logo" 
-                              className="w-10 h-10 object-cover rounded-lg border" 
+                            <img
+                              src={resolvedLogo}
+                              alt="Logo"
+                              className="w-10 h-10 object-cover rounded-lg border"
                               onError={(e) => {
                                 e.target.src = "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=200&q=80";
                               }}
@@ -1438,10 +1475,10 @@ export default function UnifiedAdminDashboard() {
                 <p className="text-gray-600 mb-1 font-bold">BIR TIN (TAX ID) PHOTO</p>
                 {inspectingOrganizer.bir_tin ? (
                   <button type="button" onClick={() => setViewerSrc(getImageUrl(inspectingOrganizer.bir_tin))} className="block w-full" aria-label="View full BIR TIN Document">
-                    <img 
-                      src={getImageUrl(inspectingOrganizer.bir_tin)} 
-                      alt="BIR TIN Document" 
-                      className="w-full h-40 object-cover rounded-xl border shadow-sm hover:opacity-90" 
+                    <img
+                      src={getImageUrl(inspectingOrganizer.bir_tin)}
+                      alt="BIR TIN Document"
+                      className="w-full h-40 object-cover rounded-xl border shadow-sm hover:opacity-90"
                       onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=600&q=80"; }}
                     />
                   </button>
@@ -1454,10 +1491,10 @@ export default function UnifiedAdminDashboard() {
                 <p className="text-gray-600 mb-1 font-bold">DTI / SEC REGISTRATION PHOTO</p>
                 {inspectingOrganizer.dti_sec_reg ? (
                   <button type="button" onClick={() => setViewerSrc(getImageUrl(inspectingOrganizer.dti_sec_reg))} className="block w-full" aria-label="View full DTI/SEC Document">
-                    <img 
-                      src={getImageUrl(inspectingOrganizer.dti_sec_reg)} 
-                      alt="DTI/SEC Document" 
-                      className="w-full h-40 object-cover rounded-xl border shadow-sm hover:opacity-90" 
+                    <img
+                      src={getImageUrl(inspectingOrganizer.dti_sec_reg)}
+                      alt="DTI/SEC Document"
+                      className="w-full h-40 object-cover rounded-xl border shadow-sm hover:opacity-90"
                       onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=600&q=80"; }}
                     />
                   </button>
@@ -1470,10 +1507,10 @@ export default function UnifiedAdminDashboard() {
                 <p className="text-gray-600 mb-1 font-bold">BUSINESS PERMIT PHOTO</p>
                 {inspectingOrganizer.business_permit_no ? (
                   <button type="button" onClick={() => setViewerSrc(getImageUrl(inspectingOrganizer.business_permit_no))} className="block w-full" aria-label="View full Business Permit">
-                    <img 
-                      src={getImageUrl(inspectingOrganizer.business_permit_no)} 
-                      alt="Business Permit" 
-                      className="w-full h-40 object-cover rounded-xl border shadow-sm hover:opacity-90" 
+                    <img
+                      src={getImageUrl(inspectingOrganizer.business_permit_no)}
+                      alt="Business Permit"
+                      className="w-full h-40 object-cover rounded-xl border shadow-sm hover:opacity-90"
                       onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=600&q=80"; }}
                     />
                   </button>
@@ -1486,10 +1523,10 @@ export default function UnifiedAdminDashboard() {
                 <p className="text-gray-600 mb-1 font-bold">REPRESENTATIVE VALID ID</p>
                 {inspectingOrganizer.valid_id_url ? (
                   <button type="button" onClick={() => setViewerSrc(getImageUrl(inspectingOrganizer.valid_id_url))} className="block w-full" aria-label="View full Valid ID">
-                    <img 
-                      src={getImageUrl(inspectingOrganizer.valid_id_url)} 
-                      alt="Valid ID" 
-                      className="w-full h-40 object-cover rounded-xl border shadow-sm hover:opacity-90" 
+                    <img
+                      src={getImageUrl(inspectingOrganizer.valid_id_url)}
+                      alt="Valid ID"
+                      className="w-full h-40 object-cover rounded-xl border shadow-sm hover:opacity-90"
                       onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=600&q=80"; }}
                     />
                   </button>
@@ -1502,10 +1539,10 @@ export default function UnifiedAdminDashboard() {
                 <p className="text-gray-600 mb-1 font-bold">ORGANIZATION LOGO</p>
                 {inspectingOrganizer.logo_url ? (
                   <button type="button" onClick={() => setViewerSrc(getImageUrl(inspectingOrganizer.logo_url))} className="block w-full" aria-label="View full Logo">
-                    <img 
-                      src={getImageUrl(inspectingOrganizer.logo_url)} 
-                      alt="Logo" 
-                      className="w-full h-40 object-cover rounded-xl border shadow-sm hover:opacity-90" 
+                    <img
+                      src={getImageUrl(inspectingOrganizer.logo_url)}
+                      alt="Logo"
+                      className="w-full h-40 object-cover rounded-xl border shadow-sm hover:opacity-90"
                       onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=600&q=80"; }}
                     />
                   </button>
@@ -1904,34 +1941,34 @@ export default function UnifiedAdminDashboard() {
       )}
 
       {viewingAccount && (() => {
-        const acct = viewingAccount.data;
+        const acct = viewingAccount.data || {};
         const isOrg = viewingAccount.kind === "organizer";
         const acctEvents = isOrg ? events.filter((e) => eventBelongsToOrganizer(e, acct)) : [];
         const acctRegs = !isOrg ? registrations.filter((r) => r.user_id === acct.id) : [];
 
         const rows = isOrg
           ? [
-              ["Organization", acct.organization],
-              ["Representative", acct.organizer_full_name || acct.full_name],
-              ["Email", acct.email],
-              ["Contact number", acct.contact_number || acct.phone],
-              ["Organization type", acct.org_type],
-              ["Office address", acct.address],
-              ["Website / social media", acct.website_link],
-              ["Verification status", acct.status || "Pending"],
+              ["Organization", toSafeDisplayValue(acct.organization)],
+              ["Representative", toSafeDisplayValue(acct.organizer_full_name || acct.full_name)],
+              ["Email", toSafeDisplayValue(acct.email)],
+              ["Contact number", toSafeDisplayValue(acct.contact_number || acct.phone)],
+              ["Organization type", toSafeDisplayValue(acct.org_type)],
+              ["Office address", toSafeDisplayValue(acct.address)],
+              ["Website / social media", toSafeDisplayValue(acct.website_link)],
+              ["Verification status", toSafeDisplayValue(acct.status) || "Pending"],
               ["Account state", acct.is_suspended ? "Suspended" : "Active"],
               ["Joined", acct.created_at ? formatDate(acct.created_at) : null],
-              ...(acct.rejection_reason ? [["Rejection reason", acct.rejection_reason]] : []),
+              ...(acct.rejection_reason ? [["Rejection reason", toSafeDisplayValue(acct.rejection_reason)]] : []),
             ]
           : [
-              ["Full name", acct.full_name],
-              ["Email", acct.email],
-              ["Phone number", acct.contact_number || acct.phone_number || acct.phone],
-              ["Age", acct.age],
-              ["Sex / gender", acct.sex || acct.gender],
-              ["Civil status", acct.civil_status],
-              ["Home address", acct.address || acct.home_address],
-              ["Verification status", acct.status],
+              ["Full name", toSafeDisplayValue(acct.full_name)],
+              ["Email", toSafeDisplayValue(acct.email)],
+              ["Phone number", toSafeDisplayValue(acct.contact_number || acct.phone_number || acct.phone)],
+              ["Age", toSafeDisplayValue(acct.age)],
+              ["Sex / gender", toSafeDisplayValue(acct.sex || acct.gender)],
+              ["Civil status", toSafeDisplayValue(acct.civil_status)],
+              ["Home address", toSafeDisplayValue(acct.address || acct.home_address)],
+              ["Verification status", toSafeDisplayValue(acct.status)],
               ["Account state", acct.is_suspended ? "Suspended" : "Active"],
               ["Joined", acct.created_at ? formatDate(acct.created_at) : null],
             ];
@@ -1943,8 +1980,12 @@ export default function UnifiedAdminDashboard() {
               ["Business permit", acct.business_permit_no],
               ["BIR TIN", acct.bir_tin],
               ["DTI / SEC registration", acct.dti_sec_reg],
-            ].filter(([, v]) => v)
+            ].filter(([, v]) => Boolean(toSafeDisplayValue(v)))
           : [];
+
+        const headingText = isOrg
+          ? toSafeDisplayValue(acct.organization || acct.organizer_full_name || acct.full_name) || "Unnamed Organizer"
+          : toSafeDisplayValue(acct.full_name) || "Unnamed Tourist";
 
         return (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -1955,20 +1996,24 @@ export default function UnifiedAdminDashboard() {
                     {isOrg ? "Organizer account" : "Tourist account"}
                   </span>
                   <h3 className="text-lg font-black text-slate-900 mt-2">
-                    {isOrg ? acct.organization || acct.organizer_full_name || acct.full_name : acct.full_name || "Unnamed Tourist"}
+                    {headingText}
                   </h3>
                 </div>
-                <button onClick={() => setViewingAccount(null)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold whitespace-nowrap transition-all">
+                <button
+                  type="button"
+                  onClick={() => setViewingAccount(null)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold whitespace-nowrap transition-all"
+                >
                   ← Back to User Management
                 </button>
               </div>
 
               <dl className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
-                {rows.map(([label, value]) => (
-                  <div key={label} className="grid grid-cols-3 gap-4 px-4 py-3">
+                {rows.map(([label, value], idx) => (
+                  <div key={`${label}-${idx}`} className="grid grid-cols-3 gap-4 px-4 py-3">
                     <dt className="font-bold text-gray-500">{label}</dt>
                     <dd className="col-span-2 text-slate-800 break-words">
-                      {value !== undefined && value !== null && value !== "" ? String(value) : <span className="text-gray-300">Not provided</span>}
+                      {value ? value : <span className="text-gray-300">Not provided</span>}
                     </dd>
                   </div>
                 ))}
@@ -1978,22 +2023,23 @@ export default function UnifiedAdminDashboard() {
                 <div className="space-y-2">
                   <h4 className="text-xs font-black text-slate-900 uppercase">Submitted documents</h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {docs.map(([label, value]) => {
+                    {docs.map(([label, value], idx) => {
                       const resolvedDocUrl = getImageUrl(value);
+                      const fallbackText = toSafeDisplayValue(value);
                       return (
-                        <div key={label} className="space-y-1">
+                        <div key={`${label}-${idx}`} className="space-y-1">
                           <p className="text-gray-500 font-bold">{label}</p>
                           {isImageSrc(resolvedDocUrl) ? (
                             <button type="button" onClick={() => setViewerSrc(resolvedDocUrl)} className="block w-full" aria-label={`View full ${label}`}>
-                              <img 
-                                src={resolvedDocUrl} 
-                                alt={label} 
-                                className="w-full h-28 object-cover rounded-xl border hover:opacity-90" 
+                              <img
+                                src={resolvedDocUrl}
+                                alt={label}
+                                className="w-full h-28 object-cover rounded-xl border hover:opacity-90"
                                 onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=300&q=80"; }}
                               />
                             </button>
                           ) : (
-                            <p className="p-3 bg-gray-50 border rounded-xl text-slate-800 break-words">{value}</p>
+                            <p className="p-3 bg-gray-50 border rounded-xl text-slate-800 break-words">{fallbackText}</p>
                           )}
                         </div>
                       );
@@ -2011,8 +2057,8 @@ export default function UnifiedAdminDashboard() {
                     <ul className="space-y-2">
                       {acctEvents.map((ev) => (
                         <li key={ev.id} className="flex items-center justify-between gap-3 p-3 border border-gray-200 rounded-xl">
-                          <span className="font-bold text-slate-900 truncate">{ev.event_name}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${statusBadgeClass(ev.status)}`}>{ev.status || "Pending"}</span>
+                          <span className="font-bold text-slate-900 truncate">{toSafeDisplayValue(ev.event_name)}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${statusBadgeClass(ev.status)}`}>{toSafeDisplayValue(ev.status) || "Pending"}</span>
                         </li>
                       ))}
                     </ul>
@@ -2029,7 +2075,7 @@ export default function UnifiedAdminDashboard() {
                         const ev = events.find((e) => String(e.id) === String(r.event_id));
                         return (
                           <li key={r.id} className="flex items-center justify-between gap-3 p-3 border border-gray-200 rounded-xl">
-                            <span className="font-bold text-slate-900 truncate">{ev?.event_name || "Removed event"}</span>
+                            <span className="font-bold text-slate-900 truncate">{toSafeDisplayValue(ev?.event_name) || "Removed event"}</span>
                             <span className="text-gray-500 flex items-center gap-2">
                               {regState(r) !== "confirmed" && (
                                 <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${regState(r) === "pending" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700"}`}>
@@ -2048,7 +2094,7 @@ export default function UnifiedAdminDashboard() {
             </div>
           </div>
         );
-      })}
+      })()}
 
       {viewerSrc && <ImageLightbox src={viewerSrc} alt="Photo" onClose={() => setViewerSrc(null)} />}
 
