@@ -42,10 +42,8 @@ export default function LoginPage() {
 
       // 3. Redirection Logic
       if (profile?.role === "admin") {
-        alert("Welcome, Tourism Administrator!");
         router.push("/admin");
       } else if (profile?.status === "Approved") {
-        alert("Welcome back! You can now submit and manage event proposals.");
         router.push("/programs");
       } else if (profile?.status === "Rejected") {
         alert("Your account registration was declined. Please contact the Municipal Tourism Office.");

@@ -9,35 +9,29 @@ import Button from "@/components/ui/Button";
 export default function RegisterPage() {
   const router = useRouter();
 
-  // Selected Role Tab ('tourist' | 'organizer')
   const [roleTab, setRoleTab] = useState("tourist");
   const [loading, setLoading] = useState(false);
 
-  // Common Fields
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [address, setAddress] = useState("");
 
-  // Tourist Specific Fields
   const [age, setAge] = useState("");
   const [sex, setSex] = useState("Male");
 
-  // Organizer Specific Credibility Fields
   const [organization, setOrganization] = useState("");
   const [organizerFullName, setOrganizerFullName] = useState("");
   const [orgType, setOrgType] = useState("Company");
   const [websiteLink, setWebsiteLink] = useState("");
 
-  // Organizer Attachments State (BIR, DTI/SEC, Business Permit, Valid ID, Logo)
   const [birTinUrl, setBirTinUrl] = useState("");
   const [dtiSecUrl, setDtiSecUrl] = useState("");
   const [businessPermitUrl, setBusinessPermitUrl] = useState("");
   const [validIdUrl, setValidIdUrl] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
 
-  // Helper to convert uploaded image to Base64 string for storage
   const handleFileUpload = (e, field) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -75,8 +69,8 @@ export default function RegisterPage() {
       if (!organization.trim() || !organizerFullName.trim() || !contactNumber.trim()) {
         return alert("Organizers must fill in all required organization name, representative full name, and contact number.");
       }
-      if (!birTinUrl || !dtiSecUrl || !businessPermitUrl || !validIdUrl || !logoUrl) {
-        return alert("Organizers must attach all required verification photos: BIR TIN, DTI/SEC Registration, Business Permit, Representative Valid ID, and Organization Logo.");
+      if (!validIdUrl || !logoUrl) {
+        return alert("Organizers must attach both the Representative Valid ID and the Organization Logo.");
       }
     }
 
@@ -85,7 +79,6 @@ export default function RegisterPage() {
     const activeFullName = roleTab === "organizer" ? organizerFullName.trim() : fullName.trim();
 
     try {
-      // 1. Sign up user in Supabase Auth & pass metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
@@ -107,7 +100,6 @@ export default function RegisterPage() {
       const userId = authData.user?.id;
 
       if (userId) {
-        // 2. Prepare Profile Payload based on account type
         const profilePayload = {
           id: userId,
           full_name: activeFullName,
@@ -115,7 +107,7 @@ export default function RegisterPage() {
           role: roleTab,
           contact_number: contactNumber.trim() || null,
           address: address.trim() || null,
-          status: roleTab === "organizer" ? "Pending" : "Approved", // Organizers require admin review
+          status: roleTab === "organizer" ? "Pending" : "Approved",
         };
 
         if (roleTab === "tourist") {
@@ -127,16 +119,15 @@ export default function RegisterPage() {
           profilePayload.organization = organization.trim();
           profilePayload.organizer_full_name = organizerFullName.trim();
           profilePayload.org_type = orgType;
-          profilePayload.bir_tin = birTinUrl;
-          profilePayload.dti_sec_reg = dtiSecUrl;
-          profilePayload.business_permit_no = businessPermitUrl;
+          profilePayload.bir_tin = birTinUrl || null;
+          profilePayload.dti_sec_reg = dtiSecUrl || null;
+          profilePayload.business_permit_no = businessPermitUrl || null;
           profilePayload.website_link = websiteLink.trim() || null;
           profilePayload.bir_status = "Pending Verification";
           profilePayload.valid_id_url = validIdUrl;
           profilePayload.logo_url = logoUrl;
         }
 
-        // 3. Upsert into public.profiles
         const { error: profileError } = await supabase.from("profiles").upsert(
           [profilePayload],
           { onConflict: "id" }
@@ -146,7 +137,7 @@ export default function RegisterPage() {
       }
 
       if (roleTab === "organizer") {
-        alert("Organizer registration submitted! Your credibility credentials and attachments are pending review by the Municipal Tourism Office.");
+        alert("Registration successful! Your credentials are now pending review by the Municipal Tourism Office.");
         router.push("/pending-approval");
       } else {
         alert("Tourist account created successfully! You can now log in and participate in municipal events.");
@@ -163,7 +154,6 @@ export default function RegisterPage() {
   return (
     <div className="max-w-2xl mx-auto py-10 px-4">
       <div className="bg-white p-8 md:p-10 rounded-[35px] shadow-2xl border border-blue-50 space-y-8">
-        {/* Page Header */}
         <div className="text-center space-y-2">
           <span className="px-3 py-1 bg-blue-100 text-blue-800 text-[10px] font-black rounded-full uppercase tracking-wider">
             CONNECT-Daet System Registration
@@ -176,7 +166,6 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {/* Role Selector Tabs */}
         <div className="grid grid-cols-2 p-1.5 bg-gray-100 rounded-2xl gap-1">
           <button
             type="button"
@@ -202,17 +191,15 @@ export default function RegisterPage() {
           </button>
         </div>
 
-        {/* Form Body */}
         <form onSubmit={handleRegister} className="space-y-4 text-xs font-semibold">
           <div className="bg-blue-50/60 p-4 rounded-2xl border border-blue-100">
             <p className="text-[11px] text-blue-800 leading-relaxed">
               {roleTab === "tourist"
                 ? "Tourist Registration: Allows you to view and register to participate in official municipal events across Daet."
-                : "Organizer Credibility Registration: Attach official verification documents (BIR TIN, DTI/SEC, Business Permit, Valid ID, Logo) to create and host official events."}
+                : "Organizer Credibility Registration: Attach your Representative Valid ID and Organization Logo to host official events. You can remove or re-upload any attached photo if needed."}
             </p>
           </div>
 
-          {/* TOURIST FIELDS */}
           {roleTab === "tourist" ? (
             <div className="space-y-4">
               <div>
@@ -253,7 +240,6 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* AGE AND SEX FIELDS */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-600 mb-1">AGE *</label>
@@ -308,7 +294,6 @@ export default function RegisterPage() {
               </div>
             </div>
           ) : (
-            /* EVENT ORGANIZER FIELDS */
             <div className="space-y-4 pt-2">
               <h3 className="text-xs font-bold text-blue-900 uppercase tracking-wider">
                 Organizer Credibility & Verification Info
@@ -420,47 +405,76 @@ export default function RegisterPage() {
                 />
               </div>
 
-              {/* ATTACHMENTS SECTION */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                 <div className="p-4 bg-gray-50 border border-dashed border-gray-300 rounded-2xl space-y-2">
-                  <label className="block text-slate-900 font-bold">BIR TIN (TAX ID) PHOTO *</label>
+                  <label className="block text-slate-900 font-bold">
+                    BIR TIN (TAX ID) PHOTO <span className="text-gray-400 font-normal">(OPTIONAL)</span>
+                  </label>
                   <input
                     type="file"
                     accept="image/*"
-                    required
                     onChange={(e) => handleFileUpload(e, "birTin")}
                     className="text-[11px] text-gray-500"
                   />
                   {birTinUrl && (
-                    <img src={birTinUrl} alt="BIR TIN Preview" className="h-20 object-cover rounded-lg border mt-2" />
+                    <div className="flex items-center gap-3 mt-2">
+                      <img src={birTinUrl} alt="BIR TIN Preview" className="h-20 w-20 object-cover rounded-lg border" />
+                      <button
+                        type="button"
+                        onClick={() => setBirTinUrl("")}
+                        className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl text-xs font-bold transition-all"
+                      >
+                        Remove Photo
+                      </button>
+                    </div>
                   )}
                 </div>
 
                 <div className="p-4 bg-gray-50 border border-dashed border-gray-300 rounded-2xl space-y-2">
-                  <label className="block text-slate-900 font-bold">DTI / SEC REGISTRATION PHOTO *</label>
+                  <label className="block text-slate-900 font-bold">
+                    DTI / SEC REGISTRATION PHOTO <span className="text-gray-400 font-normal">(OPTIONAL)</span>
+                  </label>
                   <input
                     type="file"
                     accept="image/*"
-                    required
                     onChange={(e) => handleFileUpload(e, "dtiSec")}
                     className="text-[11px] text-gray-500"
                   />
                   {dtiSecUrl && (
-                    <img src={dtiSecUrl} alt="DTI/SEC Preview" className="h-20 object-cover rounded-lg border mt-2" />
+                    <div className="flex items-center gap-3 mt-2">
+                      <img src={dtiSecUrl} alt="DTI/SEC Preview" className="h-20 w-20 object-cover rounded-lg border" />
+                      <button
+                        type="button"
+                        onClick={() => setDtiSecUrl("")}
+                        className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl text-xs font-bold transition-all"
+                      >
+                        Remove Photo
+                      </button>
+                    </div>
                   )}
                 </div>
 
                 <div className="p-4 bg-gray-50 border border-dashed border-gray-300 rounded-2xl space-y-2">
-                  <label className="block text-slate-900 font-bold">BUSINESS PERMIT PHOTO *</label>
+                  <label className="block text-slate-900 font-bold">
+                    BUSINESS PERMIT PHOTO <span className="text-gray-400 font-normal">(OPTIONAL)</span>
+                  </label>
                   <input
                     type="file"
                     accept="image/*"
-                    required
                     onChange={(e) => handleFileUpload(e, "businessPermit")}
                     className="text-[11px] text-gray-500"
                   />
                   {businessPermitUrl && (
-                    <img src={businessPermitUrl} alt="Business Permit Preview" className="h-20 object-cover rounded-lg border mt-2" />
+                    <div className="flex items-center gap-3 mt-2">
+                      <img src={businessPermitUrl} alt="Business Permit Preview" className="h-20 w-20 object-cover rounded-lg border" />
+                      <button
+                        type="button"
+                        onClick={() => setBusinessPermitUrl("")}
+                        className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl text-xs font-bold transition-all"
+                      >
+                        Remove Photo
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -469,12 +483,20 @@ export default function RegisterPage() {
                   <input
                     type="file"
                     accept="image/*"
-                    required
                     onChange={(e) => handleFileUpload(e, "validId")}
                     className="text-[11px] text-gray-500"
                   />
                   {validIdUrl && (
-                    <img src={validIdUrl} alt="Valid ID Preview" className="h-20 object-cover rounded-lg border mt-2" />
+                    <div className="flex items-center gap-3 mt-2">
+                      <img src={validIdUrl} alt="Valid ID Preview" className="h-20 w-20 object-cover rounded-lg border" />
+                      <button
+                        type="button"
+                        onClick={() => setValidIdUrl("")}
+                        className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl text-xs font-bold transition-all"
+                      >
+                        Remove Photo
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -483,12 +505,20 @@ export default function RegisterPage() {
                   <input
                     type="file"
                     accept="image/*"
-                    required
                     onChange={(e) => handleFileUpload(e, "logo")}
                     className="text-[11px] text-gray-500"
                   />
                   {logoUrl && (
-                    <img src={logoUrl} alt="Logo Preview" className="h-20 object-cover rounded-lg border mt-2" />
+                    <div className="flex items-center gap-3 mt-2">
+                      <img src={logoUrl} alt="Logo Preview" className="h-20 w-20 object-cover rounded-lg border" />
+                      <button
+                        type="button"
+                        onClick={() => setLogoUrl("")}
+                        className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl text-xs font-bold transition-all"
+                      >
+                        Remove Photo
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
