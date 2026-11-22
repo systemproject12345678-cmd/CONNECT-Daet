@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import ImageLightbox from "@/components/ui/ImageLightbox";
 import { useFeedback } from "@/components/ui/Feedback";
 import DashboardShell from "@/components/ui/DashboardShell";
+import EventCalendar from "@/components/ui/EventCalendar";
 import { AttachmentList, FilePicker } from "@/components/ui/Attachments";
 import { ImageCarousel } from "@/components/ui/ImageCarousel";
 import { uploadAttachments, validateFiles, peso, regState, getImageList } from "@/lib/eventHelpers";
@@ -702,6 +703,7 @@ export default function UnifiedAdminDashboard() {
           { key: "overview", label: "Overview", icon: "home" },
           { key: "organizer-approvals", label: "Organizer verifications", icon: "shield", badge: activePendingOrganizersCount, tone: "amber" },
           { key: "event-approvals", label: "Event proposals", icon: "calendar-check", badge: activePendingEventsCount, tone: "amber" },
+          { key: "calendar", label: "Event calendar", icon: "calendar" },
           { key: "cancellation-requests", label: "Cancellation requests", icon: "x-circle", badge: activeCancellationRequests, tone: "red" },
           { key: "user-management", label: "Users", icon: "users" },
           { key: "admin-settings", label: "Profile and settings", icon: "settings" },
@@ -1123,6 +1125,34 @@ export default function UnifiedAdminDashboard() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {!loading && activeTab === "calendar" && (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
+              <div>
+                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Official Event Calendar</h1>
+                <p className="text-xs text-gray-500 font-semibold mt-0.5">
+                  View all official posted municipal programs across a 1-year schedule and check same-day events.
+                </p>
+              </div>
+              <button
+                onClick={() => setActiveTab("overview")}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all whitespace-nowrap"
+              >
+                ← Back to Overview
+              </button>
+            </div>
+
+            <EventCalendar
+              events={events}
+              role="admin"
+              onSelectEvent={(ev) => {
+                setReviewTab("details");
+                setReviewingEventId(ev.id);
+              }}
+            />
           </div>
         )}
 

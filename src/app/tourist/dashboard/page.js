@@ -8,6 +8,7 @@ import ImageLightbox from "@/components/ui/ImageLightbox";
 import { useFeedback } from "@/components/ui/Feedback";
 import DashboardShell from "@/components/ui/DashboardShell";
 import { FilePicker } from "@/components/ui/Attachments";
+import EventCalendar from "@/components/ui/EventCalendar";
 import { uploadAttachments, validateFiles, peso, regState } from "@/lib/eventHelpers";
 import {
   withLiveStatus,
@@ -17,6 +18,7 @@ import {
   msUntilStart,
   DAY_MS,
   regTypeOf,
+  REG_TYPE_LABEL,
   teamMembersOf,
 } from "@/lib/eventSchedule";
 
@@ -77,10 +79,12 @@ export default function TouristDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [registrations, setRegistrations] = useState([]);
   const [rawEventsMap, setEventsMap] = useState({});
+  const [rawAllEvents, setRawAllEvents] = useState([]);
   const [interestedRaw, setInterestedRaw] = useState([]);
   const now = useNow(30000);
 
   const [dismissedNotifs, setDismissedNotifs] = useState(new Set());
+  const [calendarSelectedEvent, setCalendarSelectedEvent] = useState(null);
   
   const eventsMap = useMemo(() => {
     const live = {};
@@ -89,6 +93,11 @@ export default function TouristDashboardPage() {
     });
     return live;
   }, [rawEventsMap, now]);
+
+  const allEvents = useMemo(
+    () => rawAllEvents.map((ev) => withLiveStatus(ev, now)),
+    [rawAllEvents, now]
+  );
   
   const interestedEvents = useMemo(
     () => interestedRaw.map((ev) => withLiveStatus(ev, now)),
@@ -128,6 +137,13 @@ export default function TouristDashboardPage() {
         .single();
 
       setProfile(userProfile);
+
+      const { data: allProgramsData } = await supabase
+        .from("tourism_programs")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      setRawAllEvents(allProgramsData || []);
 
       const { data: regsData, error: regErr } = await supabase
         .from("event_registrations")
@@ -403,6 +419,7 @@ export default function TouristDashboardPage() {
         nav={[
           { key: "my-events", label: "My events", icon: "ticket" },
           { key: "interested", label: "Interested events", icon: "calendar-check", badge: upcomingInterested.length, tone: "blue" },
+          { key: "calendar", label: "Event calendar", icon: "calendar" },
           { key: "notifications", label: "Notifications", icon: "bell", badge: totalActiveNotifications, tone: "blue" },
           { key: "account", label: "Account details", icon: "user" },
           { key: "settings", label: "Account settings", icon: "settings" },
@@ -439,6 +456,8 @@ export default function TouristDashboardPage() {
                   const event = eventsMap[reg.event_id] || {};
                   const st = regState(reg);
                   const resolvedImg = getImageUrl(event.image_url);
+                  const startDateVal = event.event_date || event.date;
+                  const endDateVal = event.event_end_date || event.end_date;
                   return (
                     <div key={reg.id} className="bg-white p-5 rounded-2xl border border-gray-200 flex flex-col md:flex-row gap-5 shadow-sm">
                       {resolvedImg ? (
@@ -488,7 +507,10 @@ export default function TouristDashboardPage() {
                         <div className="text-xs font-semibold text-gray-500 space-y-0.5 bg-gray-50 p-3 rounded-xl border border-gray-100">
                           <p><strong>Organizer:</strong> {event.organizer_name || "Municipal Tourism Office"}</p>
                           <p><strong>Venue:</strong> {event.venue || "TBA"}</p>
-                          <p><strong>Date & Time:</strong> {formatDate(event.event_date || event.date)} | {formatTimeRange(event) || "TBA"}</p>
+                          <p>
+                            <strong>Date & Time:</strong> {formatDate(startDateVal)}
+                            {endDateVal && endDateVal !== startDateVal ? ` – ${formatDate(endDateVal)}` : ""} | {formatTimeRange(event) || "TBA"}
+                          </p>
                           {reg.team_name && (
                             <p><strong>Team:</strong> {reg.team_name} ({teamMembersOf(reg).length} members)</p>
                           )}
@@ -595,6 +617,8 @@ export default function TouristDashboardPage() {
               <div className="grid grid-cols-1 gap-4">
                 {upcomingInterested.map((ev) => {
                   const img = getImageUrl(ev.image_urls?.[0] || ev.image_url);
+                  const startDateVal = ev.event_date || ev.date;
+                  const endDateVal = ev.event_end_date || ev.end_date;
                   return (
                     <div key={ev.id} className="bg-white p-5 rounded-2xl border border-gray-200 flex flex-col md:flex-row gap-5 shadow-sm">
                       {img ? (
@@ -622,7 +646,10 @@ export default function TouristDashboardPage() {
                         <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{ev.description || "No event description provided."}</p>
                         <div className="text-xs font-semibold text-gray-500 space-y-0.5 bg-gray-50 p-3 rounded-xl border border-gray-100">
                           <p><strong>Venue:</strong> {ev.venue || "TBA"}</p>
-                          <p><strong>Date & Time:</strong> {formatDate(ev.event_date || ev.date)} | {formatTimeRange(ev) || "TBA"}</p>
+                          <p>
+                            <strong>Date & Time:</strong> {formatDate(startDateVal)}
+                            {endDateVal && endDateVal !== startDateVal ? ` – ${formatDate(endDateVal)}` : ""} | {formatTimeRange(ev) || "TBA"}
+                          </p>
                           {ev.is_paid && <p><strong>Fee:</strong> {peso(ev.fee_amount)}</p>}
                         </div>
                       </div>
@@ -644,6 +671,33 @@ export default function TouristDashboardPage() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === "calendar" && (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
+              <div>
+                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Official Event Calendar</h1>
+                <p className="text-xs text-gray-500 font-semibold mt-0.5">
+                  Explore the 1-year municipal event schedule across Daet and inspect same-day activities.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <BackButton />
+                <Link href="/programs">
+                  <button className="px-4 py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-xs transition-all whitespace-nowrap shadow-sm">
+                    Join Events →
+                  </button>
+                </Link>
+              </div>
+            </div>
+
+            <EventCalendar
+              events={allEvents}
+              role="tourist"
+              onSelectEvent={(ev) => setCalendarSelectedEvent(ev)}
+            />
           </div>
         )}
 
@@ -829,6 +883,107 @@ export default function TouristDashboardPage() {
           </div>
         )}
       </DashboardShell>
+
+      {calendarSelectedEvent && (() => {
+        const img = getImageUrl(calendarSelectedEvent.image_urls?.[0] || calendarSelectedEvent.image_url);
+        const startDateVal = calendarSelectedEvent.event_date || calendarSelectedEvent.date;
+        const endDateVal = calendarSelectedEvent.event_end_date || calendarSelectedEvent.end_date;
+        const alreadyRegistered = registrations.some((r) => String(r.event_id) === String(calendarSelectedEvent.id));
+        const alreadyInterested = interestedEvents.some((ev) => String(ev.id) === String(calendarSelectedEvent.id));
+
+        return (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={() => setCalendarSelectedEvent(null)}
+          >
+            <div
+              className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto text-xs font-semibold"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {img && (
+                <button
+                  type="button"
+                  onClick={() => setViewerSrc(img)}
+                  className="relative w-full aspect-[16/9] bg-slate-100 block group overflow-hidden"
+                >
+                  <img
+                    src={img}
+                    alt={calendarSelectedEvent.event_name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=600&q=80";
+                    }}
+                  />
+                  <span className="absolute bottom-2.5 right-2.5 px-2.5 py-1 bg-black/65 text-white text-[10px] font-bold rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                    View full photo
+                  </span>
+                </button>
+              )}
+
+              <div className="p-6 sm:p-8 space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`px-2.5 py-1 text-[10px] font-black rounded-full uppercase ${phaseBadge[getPhase(calendarSelectedEvent.status)]}`}>
+                    {getPhase(calendarSelectedEvent.status) === "Ongoing" ? "Happening now" : getPhase(calendarSelectedEvent.status)}
+                  </span>
+                  <span className="px-2.5 py-1 text-[10px] font-bold rounded-full uppercase bg-slate-100 text-slate-600">
+                    {REG_TYPE_LABEL[regTypeOf(calendarSelectedEvent)]}
+                  </span>
+                  {alreadyRegistered && (
+                    <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-emerald-100 text-emerald-800">
+                      Registered
+                    </span>
+                  )}
+                  {!alreadyRegistered && alreadyInterested && (
+                    <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-800">
+                      ★ Interested
+                    </span>
+                  )}
+                </div>
+
+                <h3 className="text-xl font-black text-slate-900 leading-snug">{calendarSelectedEvent.event_name}</h3>
+
+                <p className="text-gray-600 leading-relaxed whitespace-pre-line">
+                  {calendarSelectedEvent.description || "No event description provided."}
+                </p>
+
+                <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-1.5 text-gray-600">
+                  <p><strong>Organizer:</strong> {calendarSelectedEvent.organizer_name || "Municipal Tourism Office"}</p>
+                  <p><strong>Venue:</strong> {calendarSelectedEvent.venue || "TBA"}</p>
+                  <p>
+                    <strong>Date:</strong> {formatDate(startDateVal)}
+                    {endDateVal && endDateVal !== startDateVal ? ` – ${formatDate(endDateVal)}` : ""}
+                  </p>
+                  <p><strong>Time:</strong> {formatTimeRange(calendarSelectedEvent) || "TBA"}</p>
+                  <p>
+                    <strong>Fee:</strong>{" "}
+                    {calendarSelectedEvent.is_paid
+                      ? `${peso(calendarSelectedEvent.fee_amount)}${regTypeOf(calendarSelectedEvent) === "group" ? " per team" : ""}`
+                      : "Free"}
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <Link href="/programs" className="flex-1">
+                    <button
+                      type="button"
+                      className="w-full py-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
+                    >
+                      {alreadyRegistered ? "Open Public Schedule" : "Go to Programs to Join →"}
+                    </button>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setCalendarSelectedEvent(null)}
+                    className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold transition-all"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {resubmitReg && (() => {
         const event = eventsMap[resubmitReg.event_id] || {};

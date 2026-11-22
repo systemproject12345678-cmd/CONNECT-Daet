@@ -12,6 +12,7 @@ import { ImageCarousel } from "@/components/ui/ImageCarousel";
 import { uploadAttachments, validateFiles, peso, regState, getImageList } from "@/lib/eventHelpers";
 import { withLiveStatus, useNow, formatTimeRange, regTypeOf, REG_TYPE_LABEL, teamMembersOf } from "@/lib/eventSchedule";
 import TimePicker from "@/components/ui/TimePicker";
+import EventCalendar from "@/components/ui/EventCalendar";
 
 const EVENT_THUMB =
   "relative w-full md:w-56 h-44 md:h-40 flex-shrink-0 self-start rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/80 group";
@@ -59,6 +60,9 @@ const statusBadge = (status) => {
   }
 };
 
+/**
+- Clean TeamDetails component embedded directly with No Photo boxes completely removed.
+ */
 function TeamDetails({ registration, onPreview }) {
   const members = teamMembersOf(registration);
   const [showMembers, setShowMembers] = useState(true);
@@ -147,11 +151,14 @@ export default function OrganizerDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   const [rawEvents, setEvents] = useState([]);
+  const [rawAllEvents, setAllEvents] = useState([]);
   const now = useNow(30000);
   const events = useMemo(() => rawEvents.map((e) => withLiveStatus(e, now)), [rawEvents, now]);
+  const allEvents = useMemo(() => rawAllEvents.map((e) => withLiveStatus(e, now)), [rawAllEvents, now]);
   const [attendees, setAttendees] = useState([]);
   const [interestedByEvent, setInterestedByEvent] = useState({});
   const [viewingTeam, setViewingTeam] = useState(null);
+  const [calendarSelectedEvent, setCalendarSelectedEvent] = useState(null);
 
   const [editingEvent, setEditingEvent] = useState(null);
   const [editFiles, setEditFiles] = useState([]);
@@ -213,6 +220,8 @@ export default function OrganizerDashboardPage() {
     if (eventsErr) {
       console.error("Error fetching events:", eventsErr.message);
     }
+
+    setAllEvents(allEventsData || []);
 
     const orgId = session.user.id;
     const orgName = (userProfile.organization || "").trim().toLowerCase();
@@ -304,7 +313,7 @@ export default function OrganizerDashboardPage() {
           image_url: finalImageUrl,
           description: editingEvent.description,
           event_date: editingEvent.event_date || null,
-          end_date: editingEvent.end_date || null,
+          event_end_date: editingEvent.event_end_date || null,
           event_time: editingEvent.event_time || null,
           event_end_time: editingEvent.event_end_time || null,
           status: "Pending",
@@ -491,7 +500,8 @@ export default function OrganizerDashboardPage() {
         onNavigate={setActiveTab}
         nav={[
           { key: "overview", label: "Overview", icon: "home" },
-          { key: "my-events", label: "My events", icon: "calendar" },
+          { key: "my-events", label: "My events", icon: "calendar-check" },
+          { key: "calendar", label: "Event calendar", icon: "calendar" },
           { key: "attendees", label: "Attendees and payments", icon: "users", badge: pendingPaymentCount, tone: "amber" },
           { key: "notifications", label: "Notifications", icon: "bell", badge: activeNotifsCount > 0 ? activeNotifsCount : undefined, tone: "blue" },
           { key: "profile", label: "Organizer profile", icon: "user" },
@@ -671,7 +681,7 @@ export default function OrganizerDashboardPage() {
                             <strong className="text-slate-800">Venue:</strong> {event.venue || "TBA"}
                           </span>
                           <span className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100">
-                            <strong className="text-slate-800">Date:</strong> {event.event_date || "TBA"} {event.end_date && event.end_date !== event.event_date ? `to ${event.end_date}` : ""}
+                            <strong className="text-slate-800">Date:</strong> {event.event_date || "TBA"} {event.event_end_date && event.event_end_date !== event.event_date ? `to ${event.event_end_date}` : ""}
                           </span>
                           <span className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100">
                             <strong className="text-slate-800">Time:</strong> {formatTimeRange(event) || "TBA"}
@@ -771,6 +781,40 @@ export default function OrganizerDashboardPage() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === "calendar" && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 dash-pagehead">
+              <div>
+                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Event Schedule Calendar</h1>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                  Browse all official events posted in the main programs, or switch to view solely your own event schedule.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActiveTab("overview")}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-all whitespace-nowrap"
+                >
+                  ← Overview
+                </button>
+                <Link href="/programs/submit">
+                  <button className="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-xs transition-all whitespace-nowrap shadow-sm">
+                    + Propose Event
+                  </button>
+                </Link>
+              </div>
+            </div>
+
+            <EventCalendar
+              events={allEvents}
+              role="organizer"
+              organizerProfile={profile}
+              organizerEvents={events}
+              onSelectEvent={(ev) => setCalendarSelectedEvent(ev)}
+            />
           </div>
         )}
 
@@ -1414,6 +1458,58 @@ export default function OrganizerDashboardPage() {
         )}
       </DashboardShell>
 
+      {calendarSelectedEvent && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto border border-slate-100 text-xs font-semibold">
+            <div className="flex justify-between items-start gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase ${statusBadge(calendarSelectedEvent.status)}`}>
+                    {calendarSelectedEvent.status || "Official"}
+                  </span>
+                  <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase bg-slate-100 text-slate-600">
+                    {REG_TYPE_LABEL[regTypeOf(calendarSelectedEvent)]}
+                  </span>
+                </div>
+                <h3 className="text-lg font-black text-slate-900 mt-2">{calendarSelectedEvent.event_name}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCalendarSelectedEvent(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold whitespace-nowrap transition-colors"
+              >
+                Close
+              </button>
+            </div>
+
+            {getImageList(calendarSelectedEvent.image_url).length > 0 && (
+              <ImageCarousel
+                images={getImageList(calendarSelectedEvent.image_url)}
+                onPreview={setViewerSrc}
+                className="w-full h-44 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200"
+              />
+            )}
+
+            <p className="text-slate-600 leading-relaxed whitespace-pre-line">
+              {calendarSelectedEvent.description || "No description provided."}
+            </p>
+
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-1.5 text-slate-700">
+              <p><strong>Organizer:</strong> {calendarSelectedEvent.organizer_name || "Municipal Tourism"}</p>
+              <p><strong>Venue:</strong> {calendarSelectedEvent.venue || "TBA"}</p>
+              <p>
+                <strong>Date:</strong> {calendarSelectedEvent.event_date || "TBA"}
+                {calendarSelectedEvent.event_end_date && calendarSelectedEvent.event_end_date !== calendarSelectedEvent.event_date
+                  ? ` to ${calendarSelectedEvent.event_end_date}`
+                  : ""}
+              </p>
+              <p><strong>Time:</strong> {formatTimeRange(calendarSelectedEvent) || "TBA"}</p>
+              <p><strong>Fee:</strong> {calendarSelectedEvent.is_paid ? peso(calendarSelectedEvent.fee_amount) : "Free"}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {viewingTeam && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl max-w-3xl w-full p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto border border-slate-100">
@@ -1591,8 +1687,8 @@ export default function OrganizerDashboardPage() {
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">End Date (optional)</label>
                     <input
                       type="date"
-                      value={editingEvent.end_date || ""}
-                      onChange={(e) => setEditingEvent({ ...editingEvent, end_date: e.target.value })}
+                      value={editingEvent.event_end_date || ""}
+                      onChange={(e) => setEditingEvent({ ...editingEvent, event_end_date: e.target.value })}
                       className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
                     />
                   </div>

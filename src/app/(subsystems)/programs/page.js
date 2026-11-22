@@ -9,6 +9,7 @@ import ImageLightbox from "@/components/ui/ImageLightbox";
 import { useFeedback } from "@/components/ui/Feedback";
 import { FilePicker } from "@/components/ui/Attachments";
 import { ImageCarousel } from "@/components/ui/ImageCarousel";
+import EventCalendar from "@/components/ui/EventCalendar";
 import { uploadAttachments, validateFiles, peso, getImageList } from "@/lib/eventHelpers";
 import {
   withLiveStatus,
@@ -78,6 +79,7 @@ export default function ProgramsPage() {
   const [interestedEvents, setInterestedEvents] = useState([]);
   const [fetchingEvents, setFetchingEvents] = useState(true);
   const [activeFilter, setActiveFilter] = useState("All");
+  const [scheduleView, setScheduleView] = useState("list"); // "list" | "calendar"
   const [search, setSearch] = useState("");
 
   const [viewingDetailsEvent, setViewingDetailsEvent] = useState(null);
@@ -719,25 +721,53 @@ export default function ProgramsPage() {
           <div>
             <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Official Event Schedule</h2>
             <p className="text-xs font-semibold text-gray-500 mt-0.5">
-              Showing {visibleEvents.length} verified {visibleEvents.length === 1 ? "event" : "events"}
-              {search.trim() ? ` matching "${search.trim()}"` : ""}
+              {scheduleView === "calendar"
+                ? `Viewing 1-year official schedule (${events.length} verified ${events.length === 1 ? "event" : "events"})`
+                : `Showing ${visibleEvents.length} verified ${visibleEvents.length === 1 ? "event" : "events"}${
+                    search.trim() ? ` matching "${search.trim()}"` : ""
+                  }`}
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-1.5 bg-white p-1.5 rounded-2xl border border-gray-200" role="tablist" aria-label="Filter events by status">
-            {["All", "Upcoming", "Ongoing", "Rescheduled", "Completed"].map((filter) => (
+          <div className="flex flex-wrap items-center gap-2.5">
+            {scheduleView === "list" && (
+              <div className="flex flex-wrap gap-1.5 bg-white p-1.5 rounded-2xl border border-gray-200" role="tablist" aria-label="Filter events by status">
+                {["All", "Upcoming", "Ongoing", "Rescheduled", "Completed"].map((filter) => (
+                  <button
+                    key={filter}
+                    role="tab"
+                    aria-selected={activeFilter === filter}
+                    onClick={() => setActiveFilter(filter)}
+                    className={`px-4 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                      activeFilter === filter ? "bg-blue-900 text-white shadow-sm" : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    {filter} <span className={activeFilter === filter ? "text-blue-100 font-semibold" : "text-gray-400 font-semibold"}>{counts[filter]}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="inline-flex bg-slate-100 p-1.5 rounded-2xl border border-gray-200">
               <button
-                key={filter}
-                role="tab"
-                aria-selected={activeFilter === filter}
-                onClick={() => setActiveFilter(filter)}
-                className={`px-4 py-1.5 text-xs font-bold rounded-xl transition-all ${
-                  activeFilter === filter ? "bg-blue-900 text-white shadow-sm" : "text-gray-600 hover:bg-gray-100"
+                type="button"
+                onClick={() => setScheduleView("list")}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                  scheduleView === "list" ? "bg-white text-blue-900 shadow-sm" : "text-gray-600 hover:text-slate-900"
                 }`}
               >
-                {filter} <span className={activeFilter === filter ? "text-blue-100 font-semibold" : "text-gray-400 font-semibold"}>{counts[filter]}</span>
+                Card List
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={() => setScheduleView("calendar")}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                  scheduleView === "calendar" ? "bg-blue-900 text-white shadow-sm" : "text-gray-600 hover:text-slate-900"
+                }`}
+              >
+                1-Year Calendar
+              </button>
+            </div>
           </div>
         </div>
 
@@ -756,7 +786,18 @@ export default function ProgramsPage() {
           </div>
         )}
 
-        {!fetchingEvents && visibleEvents.length === 0 && (
+        {!fetchingEvents && scheduleView === "calendar" && (
+          <EventCalendar
+            events={events}
+            role="guest"
+            onSelectEvent={(ev) => {
+              setActiveImageIdx(0);
+              setViewingDetailsEvent(ev);
+            }}
+          />
+        )}
+
+        {!fetchingEvents && scheduleView === "list" && visibleEvents.length === 0 && (
           <div className="text-center py-14 bg-white rounded-2xl border border-dashed border-gray-200 space-y-3">
             <p className="text-sm font-bold text-gray-500">
               {search.trim() || activeFilter !== "All"
@@ -774,7 +815,7 @@ export default function ProgramsPage() {
           </div>
         )}
 
-        {!fetchingEvents && visibleEvents.length > 0 && (
+        {!fetchingEvents && scheduleView === "list" && visibleEvents.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {visibleEvents.map((item) => {
               const phase = getPhase(item.status);
