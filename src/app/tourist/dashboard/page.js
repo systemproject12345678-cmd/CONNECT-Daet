@@ -25,6 +25,8 @@ import {
 const EVENT_THUMB =
   "relative w-full md:w-56 h-44 md:h-40 flex-shrink-0 self-start rounded-xl overflow-hidden bg-slate-100 group";
 
+const TOURIST_REG_OVERRIDE_KEY = "daet_tourist_reg_overrides_v1";
+
 const getImageUrl = (urlField) => {
   if (!urlField) return "";
   if (typeof urlField === "string") {
@@ -42,7 +44,79 @@ const getImageUrl = (urlField) => {
   return "";
 };
 
-const norm = (s) => (s || "").trim().toLowerCase();
+const norm = (s) => (typeof s === "string" || typeof s === "number" ? String(s).trim().toLowerCase() : "");
+
+const toEventDateKey = (raw) => {
+  if (!raw || typeof raw === "function" || typeof raw === "object") return "";
+  const match = String(raw).trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : "";
+};
+
+const findDuplicateEvents = (targetEvent, allEvents) => {
+  if (!targetEvent || !Array.isArray(allEvents)) return [];
+  const targetId = String(targetEvent.id);
+  const targetName = norm(targetEvent.event_name);
+  const targetDate = toEventDateKey(targetEvent.event_date || targetEvent.date);
+  const targetVenue = norm(targetEvent.venue);
+
+  return allEvents.filter((other) => {
+    if (String(other.id) === targetId) return false;
+    const otherStatus = norm(other.status);
+    if (otherStatus === "rejected" || otherStatus === "cancelled") return false;
+
+    const otherName = norm(other.event_name);
+    const otherDate = toEventDateKey(other.event_date || other.date);
+    const otherVenue = norm(other.venue);
+
+    const sameName = Boolean(targetName && otherName && targetName === otherName);
+    const sameDate = Boolean(targetDate && otherDate && targetDate === otherDate);
+    const sameVenue = Boolean(targetVenue && otherVenue && targetVenue === otherVenue);
+
+    return sameName || (sameDate && sameVenue);
+  });
+};
+
+const resolveRegistrationSerial = (r) => {
+  if (!r) return "";
+  if (r.serial_id) return String(r.serial_id);
+  if (r.ticket_serial) return String(r.ticket_serial);
+  if (r.serial_number) return String(r.serial_number);
+  if (regState(r) === "confirmed" && r.id != null) {
+    const evPart = String(r.event_id || "0").replace(/[^a-zA-Z0-9]/g, "").slice(0, 4).toUpperCase() || "EV";
+    const idPart = String(r.id).replace(/[^a-zA-Z0-9]/g, "").slice(-6).toUpperCase().padStart(6, "0");
+    return `DAET-${evPart}-${idPart}`;
+  }
+  return "";
+};
+
+const resolveAttendanceState = (r) => {
+  if (!r) return "unmarked";
+  const raw = norm(r.attendance_status);
+  if (
+    raw === "confirmed" ||
+    raw === "present" ||
+    r.attendance_confirmed === true ||
+    r.organizer_confirmed_attendance === true
+  ) {
+    return "confirmed";
+  }
+  if (
+    raw === "marked" ||
+    raw === "checked_in" ||
+    raw === "pending_confirmation" ||
+    r.tourist_checked_in === true ||
+    Boolean(r.checked_in_at)
+  ) {
+    return "marked";
+  }
+  return "unmarked";
+};
+
+const isMissingColumnError = (err) => {
+  const msg = norm(err?.message || "");
+  const code = String(err?.code || "");
+  return code === "PGRST204" || msg.includes("column") || msg.includes("schema cache");
+};
 
 const getPhase = (status) => {
   const st = norm(status);
@@ -77,7 +151,24 @@ export default function TouristDashboardPage() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [registrations, setRegistrations] = useState([]);
+  const [rawRegistrations, setRegistrations] = useState([]);
+  const [regOverrides, setRegOverrides] = useState(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const saved = window.localStorage.getItem(TOURIST_REG_OVERRIDE_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+  const registrations = useMemo(
+    () =>
+      rawRegistrations.map((r) => {
+        const ov = regOverrides[String(r.id)];
+        return ov ? { ...r, ...ov } : r;
+      }),
+    [rawRegistrations, regOverrides]
+  );
   const [rawEventsMap, setEventsMap] = useState({});
   const [rawAllEvents, setRawAllEvents] = useState([]);
   const [interestedRaw, setInterestedRaw] = useState([]);
@@ -85,7 +176,8 @@ export default function TouristDashboardPage() {
 
   const [dismissedNotifs, setDismissedNotifs] = useState(new Set());
   const [calendarSelectedEvent, setCalendarSelectedEvent] = useState(null);
-  
+  const [busyCheckInId, setBusyCheckInId] = useState(null);
+
   const eventsMap = useMemo(() => {
     const live = {};
     Object.entries(rawEventsMap).forEach(([id, ev]) => {
@@ -98,12 +190,12 @@ export default function TouristDashboardPage() {
     () => rawAllEvents.map((ev) => withLiveStatus(ev, now)),
     [rawAllEvents, now]
   );
-  
+
   const interestedEvents = useMemo(
     () => interestedRaw.map((ev) => withLiveStatus(ev, now)),
     [interestedRaw, now]
   );
-  
+
   const [eventsFetchOk, setEventsFetchOk] = useState(true);
   const [viewerSrc, setViewerSrc] = useState(null);
 
@@ -116,6 +208,17 @@ export default function TouristDashboardPage() {
 
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
+
+  const persistRegOverride = (regId, patch) => {
+    setRegOverrides((prev) => {
+      const key = String(regId);
+      const next = { ...prev, [key]: { ...(prev[key] || {}), ...patch } };
+      try {
+        window.localStorage.setItem(TOURIST_REG_OVERRIDE_KEY, JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  };
 
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -254,6 +357,81 @@ export default function TouristDashboardPage() {
     }
   };
 
+  const handleTouristCheckIn = async (reg) => {
+    const event = eventsMap[reg.event_id] || {};
+    const serialId = resolveRegistrationSerial(reg);
+    const ok = await askConfirm({
+      title: "Mark yourself present at this event?",
+      message: `Confirm your attendance check-in for "${event.event_name || "this event"}"${serialId ? ` with Serial ID ${serialId}` : ""}? The event organizer will see your check-in and confirm your presence.`,
+      confirmLabel: "Yes, I am present",
+    });
+    if (!ok) return;
+
+    setBusyCheckInId(reg.id);
+    const patch = {
+      attendance_status: "Marked",
+      checked_in_at: new Date().toISOString(),
+    };
+    try {
+      const { error } = await supabase
+        .from("event_registrations")
+        .update(patch)
+        .eq("id", reg.id)
+        .eq("user_id", user.id);
+
+      if (error) {
+        if (isMissingColumnError(error)) {
+          persistRegOverride(reg.id, patch);
+          setRegistrations((prev) => prev.map((r) => (r.id === reg.id ? { ...r, ...patch } : r)));
+          notify("Attendance check-in recorded. Present your Serial ID to the organizer for verification.");
+          return;
+        }
+        throw error;
+      }
+
+      persistRegOverride(reg.id, patch);
+      setRegistrations((prev) => prev.map((r) => (r.id === reg.id ? { ...r, ...patch } : r)));
+      notify("Attendance check-in sent! The organizer can now confirm your presence.");
+    } catch (err) {
+      console.error("Tourist check-in error:", err);
+      notify("Error recording attendance check-in: " + (err.message || "Unknown error"));
+    } finally {
+      setBusyCheckInId(null);
+    }
+  };
+
+  const handleUndoTouristCheckIn = async (reg) => {
+    const ok = await askConfirm({
+      title: "Cancel attendance check-in?",
+      message: "Remove your pending attendance check-in for this ongoing event?",
+      confirmLabel: "Remove check-in",
+      tone: "danger",
+    });
+    if (!ok) return;
+
+    setBusyCheckInId(reg.id);
+    const patch = {
+      attendance_status: null,
+      checked_in_at: null,
+    };
+    try {
+      const { error } = await supabase
+        .from("event_registrations")
+        .update(patch)
+        .eq("id", reg.id)
+        .eq("user_id", user.id);
+
+      if (error && !isMissingColumnError(error)) throw error;
+      persistRegOverride(reg.id, patch);
+      setRegistrations((prev) => prev.map((r) => (r.id === reg.id ? { ...r, ...patch } : r)));
+    } catch (err) {
+      console.error("Undo check-in error:", err);
+      notify("Error updating attendance check-in: " + (err.message || "Unknown error"));
+    } finally {
+      setBusyCheckInId(null);
+    }
+  };
+
   const openResubmit = (reg) => {
     setResubForm({
       method: (reg.payment_method || "").toLowerCase() === "online" ? "online" : "cash",
@@ -340,6 +518,15 @@ export default function TouristDashboardPage() {
     if (!ev) return !eventsFetchOk;
     return norm(ev.status) !== "cancelled";
   });
+
+  const duplicatesByEventId = useMemo(() => {
+    const map = new Map();
+    allEvents.forEach((ev) => {
+      const matches = findDuplicateEvents(ev, allEvents);
+      if (matches.length > 0) map.set(String(ev.id), matches);
+    });
+    return map;
+  }, [allEvents]);
 
   const removeInterest = async (eventId) => {
     if (!user?.id) return;
@@ -432,7 +619,9 @@ export default function TouristDashboardPage() {
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
                 <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">My Registered Events</h1>
-                <p className="text-xs text-gray-500 font-semibold mt-0.5">Manage and view the status of events you are participating in.</p>
+                <p className="text-xs text-gray-500 font-semibold mt-0.5">
+                  View your official Serial IDs, check in when events are happening now, and manage your registrations.
+                </p>
               </div>
               <Link href="/programs">
                 <button className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs transition-all shadow-sm">
@@ -455,9 +644,16 @@ export default function TouristDashboardPage() {
                 {visibleRegistrations.map((reg) => {
                   const event = eventsMap[reg.event_id] || {};
                   const st = regState(reg);
+                  const phase = getPhase(event.status);
+                  const isOngoing = phase === "Ongoing";
+                  const serialId = resolveRegistrationSerial(reg);
+                  const attendance = resolveAttendanceState(reg);
+                  const duplicateMatches = duplicatesByEventId.get(String(reg.event_id)) || [];
                   const resolvedImg = getImageUrl(event.image_url);
                   const startDateVal = event.event_date || event.date;
                   const endDateVal = event.event_end_date || event.end_date;
+                  const members = teamMembersOf(reg);
+
                   return (
                     <div key={reg.id} className="bg-white p-5 rounded-2xl border border-gray-200 flex flex-col md:flex-row gap-5 shadow-sm">
                       {resolvedImg ? (
@@ -467,10 +663,10 @@ export default function TouristDashboardPage() {
                           className={EVENT_THUMB}
                           aria-label={`View full photo of ${event.event_name}`}
                         >
-                          <img 
-                            src={resolvedImg} 
-                            alt={event.event_name} 
-                            className="w-full h-full object-cover" 
+                          <img
+                            src={resolvedImg}
+                            alt={event.event_name}
+                            className="w-full h-full object-cover"
                             onError={(e) => {
                               e.target.src = "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=600&q=80";
                             }}
@@ -485,8 +681,8 @@ export default function TouristDashboardPage() {
                         </div>
                       )}
 
-                      <div className="space-y-2 flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-3">
+                      <div className="space-y-2.5 flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
                           <h3 className="font-black text-base text-slate-900">{event.event_name || "Municipal Event"}</h3>
                           <span
                             className={`px-2.5 py-1 text-[10px] font-black rounded-full uppercase ${
@@ -499,12 +695,54 @@ export default function TouristDashboardPage() {
                           >
                             {st === "pending" ? "Pending approval" : st === "rejected" ? "Rejected" : "Registered"}
                           </span>
-                          <span className={`px-2.5 py-1 text-[10px] font-black rounded-full uppercase ${phaseBadge[getPhase(event.status)]}`}>
-                            {getPhase(event.status) === "Ongoing" ? "Happening now" : getPhase(event.status)}
+                          <span className={`px-2.5 py-1 text-[10px] font-black rounded-full uppercase ${phaseBadge[phase]}`}>
+                            {isOngoing ? "Happening now" : phase}
                           </span>
+                          {st === "confirmed" && attendance === "confirmed" && (
+                            <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-emerald-600 text-white">
+                              Attendance Confirmed
+                            </span>
+                          )}
+                          {st === "confirmed" && attendance === "marked" && (
+                            <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                              Checked In (Awaiting Confirmation)
+                            </span>
+                          )}
                         </div>
+
+                        {st === "confirmed" && serialId && (
+                          <div className="bg-blue-950 text-white rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-200 block">
+                                Official Attendee Serial ID
+                              </span>
+                              <span className="font-mono text-base font-black tracking-wider">{serialId}</span>
+                            </div>
+                            <span className="text-[11px] text-blue-100 font-medium">
+                              Present this Serial ID at the venue for attendance verification.
+                            </span>
+                          </div>
+                        )}
+
+                        {duplicateMatches.length > 0 && (
+                          <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-0.5">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                              Duplicate / Overlapping Event Notice
+                            </p>
+                            <p className="font-medium">
+                              Another scheduled event matches this title or date/venue:{" "}
+                              {duplicateMatches
+                                .slice(0, 2)
+                                .map((m) => `"${m.event_name}" (${m.event_date || "TBA"} at ${m.venue || "TBA"})`)
+                                .join(", ")}
+                              .
+                            </p>
+                          </div>
+                        )}
+
                         <p className="text-xs text-gray-600 leading-relaxed">{event.description || "No event description provided."}</p>
-                        <div className="text-xs font-semibold text-gray-500 space-y-0.5 bg-gray-50 p-3 rounded-xl border border-gray-100">
+
+                        <div className="text-xs font-semibold text-gray-500 space-y-1 bg-gray-50 p-3 rounded-xl border border-gray-100">
                           <p><strong>Organizer:</strong> {event.organizer_name || "Municipal Tourism Office"}</p>
                           <p><strong>Venue:</strong> {event.venue || "TBA"}</p>
                           <p>
@@ -512,10 +750,51 @@ export default function TouristDashboardPage() {
                             {endDateVal && endDateVal !== startDateVal ? ` – ${formatDate(endDateVal)}` : ""} | {formatTimeRange(event) || "TBA"}
                           </p>
                           {reg.team_name && (
-                            <p><strong>Team:</strong> {reg.team_name} ({teamMembersOf(reg).length} members)</p>
+                            <div className="pt-1 space-y-1">
+                              <p><strong>Team:</strong> {reg.team_name} ({members.length} members)</p>
+                              {st === "confirmed" && serialId && members.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                  {members.map((m, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="px-2 py-0.5 rounded-md bg-white border border-gray-200 text-[10px] font-mono font-bold text-slate-700"
+                                    >
+                                      {serialId}-{idx + 1}: {m.first_name} {m.last_name}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           )}
                           {event.is_paid && <p><strong>Fee:</strong> {peso(event.fee_amount)}{regTypeOf(event) === "group" ? " per team" : ""}</p>}
                         </div>
+
+                        {st === "confirmed" && isOngoing && (
+                          <div
+                            className={`rounded-xl border p-3 text-xs space-y-1 ${
+                              attendance === "confirmed"
+                                ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                                : attendance === "marked"
+                                ? "bg-amber-50 border-amber-200 text-amber-900"
+                                : "bg-blue-50 border-blue-200 text-blue-950"
+                            }`}
+                          >
+                            <p className="text-[10px] font-black uppercase tracking-wider">
+                              {attendance === "confirmed"
+                                ? "Official Attendance Confirmed"
+                                : attendance === "marked"
+                                ? "Attendance Check-In Sent"
+                                : "Event Is Happening Now — Attendance Check-In Open"}
+                            </p>
+                            <p className="font-medium">
+                              {attendance === "confirmed"
+                                ? "The organizer has verified your Serial ID and confirmed you as present."
+                                : attendance === "marked"
+                                ? "You marked yourself present. The organizer can now see your check-in and confirm your attendance."
+                                : "Tap \"Check In / Mark Present\" on the right to notify the organizer that you are at the venue."}
+                            </p>
+                          </div>
+                        )}
 
                         {event.is_paid && (
                           <div
@@ -548,7 +827,7 @@ export default function TouristDashboardPage() {
                             )}
                             {st === "pending" && (
                               <p className="font-medium">
-                                You will be notified once the organizer approves your registration. Until then you are not on the official attendee list.
+                                You will receive your official Serial ID once the organizer approves your payment. Until then you are not on the official attendee list.
                               </p>
                             )}
                             {st === "rejected" && (
@@ -561,12 +840,32 @@ export default function TouristDashboardPage() {
                       </div>
 
                       <div className="flex flex-col justify-center items-stretch gap-2.5 min-w-[180px]">
-                        {getPhase(event.status) === "Completed" ? (
+                        {phase === "Completed" ? (
                           <span className="w-full py-2.5 bg-gray-100 text-gray-500 text-xs font-bold rounded-xl uppercase text-center shadow-sm">
                             Event completed
                           </span>
                         ) : (
                           <>
+                            {st === "confirmed" && isOngoing && attendance === "unmarked" && (
+                              <button
+                                type="button"
+                                onClick={() => handleTouristCheckIn(reg)}
+                                disabled={busyCheckInId === reg.id}
+                                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
+                              >
+                                {busyCheckInId === reg.id ? "Checking In..." : "Check In / Mark Present"}
+                              </button>
+                            )}
+                            {st === "confirmed" && isOngoing && attendance === "marked" && (
+                              <button
+                                type="button"
+                                onClick={() => handleUndoTouristCheckIn(reg)}
+                                disabled={busyCheckInId === reg.id}
+                                className="w-full py-2.5 bg-amber-100 hover:bg-amber-200 disabled:opacity-60 text-amber-900 text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
+                              >
+                                Undo Check-In
+                              </button>
+                            )}
                             {st === "rejected" && (
                               <button
                                 onClick={() => openResubmit(reg)}
@@ -619,6 +918,8 @@ export default function TouristDashboardPage() {
                   const img = getImageUrl(ev.image_urls?.[0] || ev.image_url);
                   const startDateVal = ev.event_date || ev.date;
                   const endDateVal = ev.event_end_date || ev.end_date;
+                  const duplicateMatches = duplicatesByEventId.get(String(ev.id)) || [];
+
                   return (
                     <div key={ev.id} className="bg-white p-5 rounded-2xl border border-gray-200 flex flex-col md:flex-row gap-5 shadow-sm">
                       {img ? (
@@ -643,6 +944,19 @@ export default function TouristDashboardPage() {
                           </span>
                           <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-800">{startsLabel(ev)}</span>
                         </div>
+                        {duplicateMatches.length > 0 && (
+                          <div className="bg-amber-50 border border-amber-300 rounded-xl p-2.5 text-xs text-amber-950">
+                            <strong className="uppercase text-[10px] tracking-wider text-amber-800 block">
+                              Duplicate / Overlapping Event Notice
+                            </strong>
+                            Another scheduled event matches this title or date/venue:{" "}
+                            {duplicateMatches
+                              .slice(0, 2)
+                              .map((m) => `"${m.event_name}" (${m.event_date || "TBA"} at ${m.venue || "TBA"})`)
+                              .join(", ")}
+                            .
+                          </div>
+                        )}
                         <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{ev.description || "No event description provided."}</p>
                         <div className="text-xs font-semibold text-gray-500 space-y-0.5 bg-gray-50 p-3 rounded-xl border border-gray-100">
                           <p><strong>Venue:</strong> {ev.venue || "TBA"}</p>
@@ -755,13 +1069,23 @@ export default function TouristDashboardPage() {
                     const event = eventsMap[reg.event_id] || {};
                     const phase = getPhase(event.status);
                     const st = regState(reg);
+                    const serialId = resolveRegistrationSerial(reg);
+                    const attendance = resolveAttendanceState(reg);
+
                     return (
                       <div key={reg.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm relative flex gap-3 items-start">
                         <div className="flex-1 min-w-0 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black text-blue-900 uppercase tracking-wider">
-                              {st === "pending" ? "Awaiting Approval" : st === "rejected" ? "Registration Rejected" : phase === "Upcoming" ? "Registration Notice" : "Event Update"}
-                            </span>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[10px] font-black text-blue-900 uppercase tracking-wider">
+                                {st === "pending" ? "Awaiting Approval" : st === "rejected" ? "Registration Rejected" : phase === "Upcoming" ? "Registration Notice" : "Event Update"}
+                              </span>
+                              {st === "confirmed" && serialId && (
+                                <span className="px-2 py-0.5 rounded-md bg-blue-950 text-white font-mono text-[10px] font-bold">
+                                  Serial: {serialId}
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[10px] text-gray-400 font-semibold">{new Date(reg.created_at).toLocaleDateString()}</span>
                           </div>
                           <p className="text-xs font-bold text-slate-900">
@@ -771,7 +1095,9 @@ export default function TouristDashboardPage() {
                               : st === "rejected"
                               ? "registration was rejected. Please resubmit it from My Events."
                               : phase === "Ongoing"
-                              ? "is happening now. Enjoy the event!"
+                              ? attendance === "confirmed"
+                                ? "is happening now and your attendance has been confirmed!"
+                                : "is happening now. Go to My Events to check in and show your Serial ID."
                               : phase === "Completed"
                               ? "has been completed. Thank you for taking part."
                               : "registration is confirmed. You are on the official attendee list."}
@@ -888,8 +1214,11 @@ export default function TouristDashboardPage() {
         const img = getImageUrl(calendarSelectedEvent.image_urls?.[0] || calendarSelectedEvent.image_url);
         const startDateVal = calendarSelectedEvent.event_date || calendarSelectedEvent.date;
         const endDateVal = calendarSelectedEvent.event_end_date || calendarSelectedEvent.end_date;
-        const alreadyRegistered = registrations.some((r) => String(r.event_id) === String(calendarSelectedEvent.id));
+        const matchedReg = registrations.find((r) => String(r.event_id) === String(calendarSelectedEvent.id));
+        const alreadyRegistered = Boolean(matchedReg);
+        const matchedSerial = matchedReg ? resolveRegistrationSerial(matchedReg) : "";
         const alreadyInterested = interestedEvents.some((ev) => String(ev.id) === String(calendarSelectedEvent.id));
+        const duplicateMatches = duplicatesByEventId.get(String(calendarSelectedEvent.id)) || [];
 
         return (
           <div
@@ -933,6 +1262,11 @@ export default function TouristDashboardPage() {
                       Registered
                     </span>
                   )}
+                  {matchedSerial && (
+                    <span className="px-2.5 py-1 text-[10px] font-mono font-bold rounded-full bg-blue-950 text-white">
+                      {matchedSerial}
+                    </span>
+                  )}
                   {!alreadyRegistered && alreadyInterested && (
                     <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-800">
                       ★ Interested
@@ -941,6 +1275,22 @@ export default function TouristDashboardPage() {
                 </div>
 
                 <h3 className="text-xl font-black text-slate-900 leading-snug">{calendarSelectedEvent.event_name}</h3>
+
+                {duplicateMatches.length > 0 && (
+                  <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-0.5">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                      Duplicate / Overlapping Event Notice
+                    </p>
+                    <p className="font-medium">
+                      Matches{" "}
+                      {duplicateMatches
+                        .slice(0, 2)
+                        .map((m) => `"${m.event_name}" (${m.event_date || "TBA"} at ${m.venue || "TBA"})`)
+                        .join(", ")}
+                      .
+                    </p>
+                  </div>
+                )}
 
                 <p className="text-gray-600 leading-relaxed whitespace-pre-line">
                   {calendarSelectedEvent.description || "No event description provided."}

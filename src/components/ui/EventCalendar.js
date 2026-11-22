@@ -54,6 +54,17 @@ const formatReadableDate = (key) => {
   });
 };
 
+const formatShortDate = (key) => {
+  if (!key) return "TBA";
+  const { year, month, day } = parseDateParts(key);
+  const d = new Date(year, month, day);
+  return d.toLocaleDateString("en-PH", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+};
+
 // Expands an event across all dates from event_date to event_end_date/end_date (capped at 60 days).
 const expandEventDates = (ev) => {
   const startKey = toDateKey(ev.event_date || ev.date);
@@ -78,6 +89,31 @@ const expandEventDates = (ev) => {
     guard += 1;
   }
   return keys;
+};
+
+// Matches the Admin Dashboard duplicate/conflict rules: same title OR same date + same venue.
+const findMatchingConflicts = (targetEvent, allEvents) => {
+  if (!targetEvent || !Array.isArray(allEvents)) return [];
+  const targetId = String(targetEvent.id);
+  const targetName = norm(targetEvent.event_name);
+  const targetVenue = norm(targetEvent.venue);
+  const targetDates = new Set(expandEventDates(targetEvent));
+
+  return allEvents.filter((other) => {
+    if (String(other.id) === targetId) return false;
+    const otherStatus = norm(other.status);
+    if (otherStatus === "rejected" || otherStatus === "cancelled") return false;
+
+    const otherName = norm(other.event_name);
+    const otherVenue = norm(other.venue);
+    const otherDates = expandEventDates(other);
+
+    const sameName = Boolean(targetName && otherName && targetName === otherName);
+    const sharesDate = otherDates.some((d) => targetDates.has(d));
+    const sameVenue = Boolean(targetVenue && otherVenue && targetVenue === otherVenue);
+
+    return sameName || (sharesDate && sameVenue);
+  });
 };
 
 const statusPillStyle = (status) => {
@@ -178,6 +214,16 @@ export default function EventCalendar({
     });
   }, [events, organizerEvents, ownedIdSet, role, organizerScope, organizerProfile, searchQuery]);
 
+  // Detect duplicate / same-venue conflicts across scheduled events
+  const conflictsByEventId = useMemo(() => {
+    const map = new Map();
+    scopedEvents.forEach((ev) => {
+      const matches = findMatchingConflicts(ev, scopedEvents);
+      if (matches.length > 0) map.set(String(ev.id), matches);
+    });
+    return map;
+  }, [scopedEvents]);
+
   // Group events by YYYY-MM-DD and sort same-day events chronologically
   const eventsByDate = useMemo(() => {
     const map = {};
@@ -222,7 +268,73 @@ export default function EventCalendar({
     return { totalEvents: uniqueIds.size, busyDays };
   }, [eventsByDate, selectedYear]);
 
+  // Complete organized list of all events occurring inside the focused month
+  const focusedMonthSchedule = useMemo(() => {
+    const monthPrefix = `${selectedYear}-${String(focusedMonth + 1).padStart(2, "0")}-`;
+    const seen = new Map();
+
+    Object.entries(eventsByDate)
+      .filter(([key]) => key.startsWith(monthPrefix))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([dateKey, dayItems]) => {
+        dayItems.forEach((ev) => {
+          const idKey = String(ev.id);
+          if (!seen.has(idKey)) {
+            seen.set(idKey, {
+              event: ev,
+              firstDateInMonth: dateKey,
+              lastDateInMonth: dateKey,
+              daysInMonthCount: 1,
+            });
+          } else {
+            const entry = seen.get(idKey);
+            entry.lastDateInMonth = dateKey;
+            entry.daysInMonthCount += 1;
+          }
+        });
+      });
+
+    return Array.from(seen.values()).sort((a, b) => {
+      if (a.firstDateInMonth !== b.firstDateInMonth) {
+        return a.firstDateInMonth.localeCompare(b.firstDateInMonth);
+      }
+      const tA = a.event.event_time || "99:99";
+      const tB = b.event.event_time || "99:99";
+      if (tA !== tB) return tA.localeCompare(tB);
+      return String(a.event.event_name || "").localeCompare(String(b.event.event_name || ""));
+    });
+  }, [eventsByDate, selectedYear, focusedMonth]);
+
   const selectedDayEvents = eventsByDate[selectedDate] || [];
+
+  const selectedDayConflicts = useMemo(() => {
+    if (selectedDayEvents.length < 2) return [];
+    const warnings = [];
+    const seenNames = new Map();
+    const seenVenues = new Map();
+
+    selectedDayEvents.forEach((ev) => {
+      const n = norm(ev.event_name);
+      const v = norm(ev.venue);
+      if (n) {
+        if (seenNames.has(n)) {
+          warnings.push(`Duplicate event title "${ev.event_name}" scheduled multiple times on this date.`);
+        } else {
+          seenNames.set(n, ev);
+        }
+      }
+      if (v && v !== "tba") {
+        if (seenVenues.has(v)) {
+          const prev = seenVenues.get(v);
+          warnings.push(`Same venue (${ev.venue}) shared by "${prev.event_name}" and "${ev.event_name}".`);
+        } else {
+          seenVenues.set(v, ev);
+        }
+      }
+    });
+
+    return [...new Set(warnings)];
+  }, [selectedDayEvents]);
 
   const handleJumpToday = () => {
     const now = new Date();
@@ -236,9 +348,19 @@ export default function EventCalendar({
     if (typeof monthIdx === "number") setFocusedMonth(monthIdx);
   };
 
+  const syncDateToMonth = (year, monthIdx) => {
+    const monthPrefix = `${year}-${String(monthIdx + 1).padStart(2, "0")}-`;
+    if (selectedDate && selectedDate.startsWith(monthPrefix)) return;
+    const firstBusyKey = Object.keys(eventsByDate)
+      .filter((k) => k.startsWith(monthPrefix) && eventsByDate[k].length > 0)
+      .sort()[0];
+    setSelectedDate(firstBusyKey || `${monthPrefix}01`);
+  };
+
   const openMonthDetail = (monthIdx) => {
     setFocusedMonth(monthIdx);
     setViewMode("month");
+    syncDateToMonth(selectedYear, monthIdx);
   };
 
   const buildMonthCells = (year, monthIdx) => {
@@ -344,7 +466,7 @@ export default function EventCalendar({
               </button>
               <button
                 type="button"
-                onClick={() => setViewMode("month")}
+                onClick={() => openMonthDetail(focusedMonth)}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   viewMode === "month"
                     ? "bg-white text-blue-900 shadow-sm"
@@ -386,8 +508,8 @@ export default function EventCalendar({
 
       {/* Main Split Layout: Calendar Grid + Selected Day Multi-Event Agenda */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: 1-Year 12-Month Grid OR Expanded Month Grid */}
-        <div className="lg:col-span-8">
+        {/* Left Column: 1-Year 12-Month Grid OR Expanded Month Grid + Full Monthly Event List */}
+        <div className="lg:col-span-8 space-y-6">
           {viewMode === "year" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {MONTHS.map((monthName, monthIdx) => {
@@ -408,15 +530,23 @@ export default function EventCalendar({
                           type="button"
                           onClick={() => openMonthDetail(monthIdx)}
                           className="text-sm font-black text-slate-900 hover:text-blue-700 transition-colors"
-                          title={`Expand ${monthName} ${selectedYear}`}
+                          title={`Open complete ${monthName} ${selectedYear} view`}
                         >
                           {monthName}
                         </button>
-                        {monthEventCount > 0 && (
-                          <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-900 text-[10px] font-bold">
-                            {monthEventCount} {monthEventCount === 1 ? "event" : "events"}
-                          </span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => openMonthDetail(monthIdx)}
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                            monthEventCount > 0
+                              ? "bg-blue-50 hover:bg-blue-100 text-blue-900"
+                              : "bg-gray-100 hover:bg-gray-200 text-gray-500"
+                          }`}
+                        >
+                          {monthEventCount > 0
+                            ? `${monthEventCount} ${monthEventCount === 1 ? "event" : "events"}`
+                            : "View month"}
+                        </button>
                       </div>
 
                       <div className="grid grid-cols-7 gap-1 text-center mb-1">
@@ -480,132 +610,260 @@ export default function EventCalendar({
               })}
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (focusedMonth === 0) {
-                        setSelectedYear((y) => y - 1);
-                        setFocusedMonth(11);
-                      } else {
-                        setFocusedMonth((m) => m - 1);
-                      }
+            <>
+              {/* Expanded Complete Month Grid */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("year")}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 transition-all"
+                    >
+                      ← All Months
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextYear = focusedMonth === 0 ? selectedYear - 1 : selectedYear;
+                        const nextMonth = focusedMonth === 0 ? 11 : focusedMonth - 1;
+                        setSelectedYear(nextYear);
+                        setFocusedMonth(nextMonth);
+                        syncDateToMonth(nextYear, nextMonth);
+                      }}
+                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs font-bold text-slate-700"
+                    >
+                      ← Prev
+                    </button>
+                    <h3 className="text-base font-black text-slate-900 px-2">
+                      {MONTHS[focusedMonth]} {selectedYear}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextYear = focusedMonth === 11 ? selectedYear + 1 : selectedYear;
+                        const nextMonth = focusedMonth === 11 ? 0 : focusedMonth + 1;
+                        setSelectedYear(nextYear);
+                        setFocusedMonth(nextMonth);
+                        syncDateToMonth(nextYear, nextMonth);
+                      }}
+                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs font-bold text-slate-700"
+                    >
+                      Next →
+                    </button>
+                  </div>
+
+                  <select
+                    value={focusedMonth}
+                    onChange={(e) => {
+                      const nextMonth = Number(e.target.value);
+                      setFocusedMonth(nextMonth);
+                      syncDateToMonth(selectedYear, nextMonth);
                     }}
-                    className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs font-bold text-slate-700"
+                    className="px-3 py-1.5 border border-gray-200 rounded-xl text-xs font-bold text-slate-700 bg-white"
+                    aria-label="Jump to month"
                   >
-                    ← Prev
-                  </button>
-                  <h3 className="text-base font-black text-slate-900 px-2">
-                    {MONTHS[focusedMonth]} {selectedYear}
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (focusedMonth === 11) {
-                        setSelectedYear((y) => y + 1);
-                        setFocusedMonth(0);
-                      } else {
-                        setFocusedMonth((m) => m + 1);
-                      }
-                    }}
-                    className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs font-bold text-slate-700"
-                  >
-                    Next →
-                  </button>
+                    {MONTHS.map((m, idx) => (
+                      <option key={m} value={idx}>
+                        {m} {selectedYear}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <select
-                  value={focusedMonth}
-                  onChange={(e) => setFocusedMonth(Number(e.target.value))}
-                  className="px-3 py-1.5 border border-gray-200 rounded-xl text-xs font-bold text-slate-700 bg-white"
-                  aria-label="Jump to month"
-                >
-                  {MONTHS.map((m, idx) => (
-                    <option key={m} value={idx}>
-                      {m} {selectedYear}
-                    </option>
+                <div className="grid grid-cols-7 gap-1.5 text-center">
+                  {WEEKDAYS_LONG.map((w) => (
+                    <div key={w} className="text-[11px] font-bold text-gray-500 py-1">
+                      {w}
+                    </div>
                   ))}
-                </select>
-              </div>
+                </div>
 
-              <div className="grid grid-cols-7 gap-1.5 text-center">
-                {WEEKDAYS_LONG.map((w) => (
-                  <div key={w} className="text-[11px] font-bold text-gray-500 py-1">
-                    {w}
-                  </div>
-                ))}
-              </div>
+                <div className="grid grid-cols-7 gap-1.5">
+                  {buildMonthCells(selectedYear, focusedMonth).map((cell, idx) => {
+                    if (!cell) {
+                      return (
+                        <div
+                          key={`m-empty-${idx}`}
+                          className="min-h-[96px] rounded-xl bg-gray-50/60 border border-transparent"
+                        />
+                      );
+                    }
 
-              <div className="grid grid-cols-7 gap-1.5">
-                {buildMonthCells(selectedYear, focusedMonth).map((cell, idx) => {
-                  if (!cell) {
+                    const count = cell.items.length;
+                    const isSelected = cell.key === selectedDate;
+                    const isToday = cell.key === todayKey;
+
                     return (
                       <div
-                        key={`m-empty-${idx}`}
-                        className="min-h-[96px] rounded-xl bg-gray-50/60 border border-transparent"
-                      />
+                        key={cell.key}
+                        onClick={() => handleSelectDate(cell.key, focusedMonth)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") handleSelectDate(cell.key, focusedMonth);
+                        }}
+                        className={`min-h-[96px] p-1.5 rounded-xl border text-left cursor-pointer transition-all flex flex-col gap-1 ${
+                          isSelected
+                            ? "border-slate-900 bg-blue-50/40 ring-2 ring-slate-900/20"
+                            : count > 1
+                            ? "border-amber-300 bg-amber-50/30 hover:border-amber-500"
+                            : count === 1
+                            ? "border-blue-200 bg-white hover:border-blue-400"
+                            : "border-gray-100 bg-white hover:bg-gray-50"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span
+                            className={`text-xs font-bold px-1.5 py-0.5 rounded-md ${
+                              isToday ? "bg-blue-900 text-white" : "text-slate-700"
+                            }`}
+                          >
+                            {cell.day}
+                          </span>
+                          {count > 1 && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black">
+                              {count} events
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="space-y-1 overflow-hidden">
+                          {cell.items.slice(0, 2).map((ev) => (
+                            <div
+                              key={`${ev.id}-${cell.key}`}
+                              className="px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-950 text-[10px] font-bold truncate"
+                              title={`${ev.event_name}${formatTimeRange(ev) ? ` (${formatTimeRange(ev)})` : ""}`}
+                            >
+                              {ev.event_name}
+                            </div>
+                          ))}
+                          {count > 2 && (
+                            <div className="text-[10px] font-black text-blue-700 pl-1">
+                              +{count - 2} more...
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     );
-                  }
+                  })}
+                </div>
+              </div>
 
-                  const count = cell.items.length;
-                  const isSelected = cell.key === selectedDate;
-                  const isToday = cell.key === todayKey;
+              {/* Complete Organized List of All Events in the Clicked Month */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">
+                      All Events in {MONTHS[focusedMonth]} {selectedYear}
+                    </h3>
+                    <p className="text-xs text-gray-500 font-semibold mt-0.5">
+                      Complete chronological directory of scheduled programs for this month
+                    </p>
+                  </div>
+                  <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-900 text-xs font-black">
+                    {focusedMonthSchedule.length}{" "}
+                    {focusedMonthSchedule.length === 1 ? "event" : "events"}
+                  </span>
+                </div>
 
-                  return (
-                    <div
-                      key={cell.key}
-                      onClick={() => handleSelectDate(cell.key, focusedMonth)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") handleSelectDate(cell.key, focusedMonth);
-                      }}
-                      className={`min-h-[96px] p-1.5 rounded-xl border text-left cursor-pointer transition-all flex flex-col gap-1 ${
-                        isSelected
-                          ? "border-slate-900 bg-blue-50/40 ring-2 ring-slate-900/20"
-                          : count > 0
-                          ? "border-blue-200 bg-white hover:border-blue-400"
-                          : "border-gray-100 bg-white hover:bg-gray-50"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span
-                          className={`text-xs font-bold px-1.5 py-0.5 rounded-md ${
-                            isToday ? "bg-blue-900 text-white" : "text-slate-700"
+                {focusedMonthSchedule.length === 0 ? (
+                  <div className="p-8 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center space-y-1">
+                    <p className="text-xs font-bold text-gray-500">
+                      No events scheduled in {MONTHS[focusedMonth]} {selectedYear}
+                    </p>
+                    <p className="text-[11px] text-gray-400">
+                      Use Previous/Next or switch back to the 1-Year Overview to browse other months.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
+                    {focusedMonthSchedule.map(({ event: ev, firstDateInMonth, lastDateInMonth, daysInMonthCount }, idx) => {
+                      const timeText = formatTimeRange(ev);
+                      const isMine = role === "organizer" && isOwnedEvent(ev);
+                      const conflictMatches = conflictsByEventId.get(String(ev.id)) || [];
+                      const isSelectedDay =
+                        selectedDate >= firstDateInMonth && selectedDate <= lastDateInMonth;
+
+                      return (
+                        <div
+                          key={`${ev.id}-${firstDateInMonth}`}
+                          className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors ${
+                            isSelectedDay ? "bg-blue-50/50" : "bg-white hover:bg-gray-50"
                           }`}
                         >
-                          {cell.day}
-                        </span>
-                        {count > 1 && (
-                          <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black">
-                            {count} events
-                          </span>
-                        )}
-                      </div>
+                          <div className="space-y-1.5 min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="px-2 py-0.5 rounded-md bg-slate-900 text-white text-[10px] font-black">
+                                #{idx + 1}
+                              </span>
+                              <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-950 text-[10px] font-black">
+                                {daysInMonthCount > 1
+                                  ? `${formatShortDate(firstDateInMonth)} – ${formatShortDate(lastDateInMonth)}`
+                                  : formatShortDate(firstDateInMonth)}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${statusPillStyle(
+                                  ev.status
+                                )}`}
+                              >
+                                {ev.status || "Official"}
+                              </span>
+                              {isMine && organizerScope === "all" && (
+                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold">
+                                  Your Event
+                                </span>
+                              )}
+                              {conflictMatches.length > 0 && (
+                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black">
+                                  Matching Event Warning
+                                </span>
+                              )}
+                            </div>
 
-                      <div className="space-y-1 overflow-hidden">
-                        {cell.items.slice(0, 2).map((ev) => (
-                          <div
-                            key={`${ev.id}-${cell.key}`}
-                            className="px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-950 text-[10px] font-bold truncate"
-                            title={`${ev.event_name}${formatTimeRange(ev) ? ` (${formatTimeRange(ev)})` : ""}`}
-                          >
-                            {ev.event_name}
+                            <h4 className="text-sm font-black text-slate-900">{ev.event_name}</h4>
+
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 font-medium">
+                              <span>
+                                <strong>Time:</strong> {timeText || "Time TBA"}
+                              </span>
+                              <span>
+                                <strong>Venue:</strong> {ev.venue || "TBA"}
+                              </span>
+                              <span>
+                                <strong>Organizer:</strong> {ev.organizer_name || "Municipal Tourism"}
+                              </span>
+                              <span>
+                                <strong>Fee:</strong> {ev.is_paid ? peso(ev.fee_amount) : "Free"}
+                              </span>
+                            </div>
                           </div>
-                        ))}
-                        {count > 2 && (
-                          <div className="text-[10px] font-black text-blue-700 pl-1">
-                            +{count - 2} more...
+
+                          <div className="flex sm:flex-col items-stretch gap-2 flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleSelectDate(firstDateInMonth, focusedMonth)}
+                              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all whitespace-nowrap"
+                            >
+                              Focus Day
+                            </button>
+                            {typeof onSelectEvent === "function" && (
+                              <button
+                                type="button"
+                                onClick={() => onSelectEvent(ev)}
+                                className="px-3.5 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-bold transition-all whitespace-nowrap"
+                              >
+                                View Details
+                              </button>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
+            </>
           )}
         </div>
 
@@ -618,7 +876,13 @@ export default function EventCalendar({
                   ? "My Event Schedule"
                   : "Official Schedule"}
               </span>
-              <span className="text-xs font-bold text-slate-700">
+              <span
+                className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
+                  selectedDayEvents.length > 1
+                    ? "bg-amber-100 text-amber-900"
+                    : "bg-slate-100 text-slate-700"
+                }`}
+              >
                 {selectedDayEvents.length}{" "}
                 {selectedDayEvents.length === 1 ? "event" : "events"}
               </span>
@@ -628,11 +892,27 @@ export default function EventCalendar({
             </h3>
           </div>
 
+          {selectedDayEvents.length > 1 && (
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950 space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                Multiple Official Events Scheduled ({selectedDayEvents.length})
+              </p>
+              <p className="font-medium leading-snug">
+                This date has {selectedDayEvents.length} scheduled events listed chronologically below.
+              </p>
+              {selectedDayConflicts.map((warn, i) => (
+                <p key={i} className="text-[11px] font-bold text-red-700 pt-1">
+                  Warning: {warn}
+                </p>
+              ))}
+            </div>
+          )}
+
           {selectedDayEvents.length === 0 ? (
             <div className="p-8 bg-gray-50 rounded-xl border border-dashed border-gray-200 text-center space-y-1">
               <p className="text-xs font-bold text-gray-500">No events scheduled on this date</p>
               <p className="text-[11px] text-gray-400">
-                Select any highlighted date on the 1-year calendar to view its full schedule.
+                Select any highlighted date on the calendar to view its full schedule.
               </p>
             </div>
           ) : (
@@ -640,11 +920,16 @@ export default function EventCalendar({
               {selectedDayEvents.map((ev, idx) => {
                 const timeText = formatTimeRange(ev);
                 const isMine = role === "organizer" && isOwnedEvent(ev);
+                const conflictMatches = conflictsByEventId.get(String(ev.id)) || [];
 
                 return (
                   <div
                     key={`${ev.id}-${selectedDate}-${idx}`}
-                    className="p-4 rounded-xl border border-gray-200 bg-gray-50/70 hover:bg-white hover:border-blue-300 transition-all space-y-2"
+                    className={`p-4 rounded-xl border transition-all space-y-2 ${
+                      conflictMatches.length > 0
+                        ? "border-amber-300 bg-amber-50/40 hover:bg-white"
+                        : "border-gray-200 bg-gray-50/70 hover:bg-white hover:border-blue-300"
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -661,6 +946,11 @@ export default function EventCalendar({
                         {isMine && organizerScope === "all" && (
                           <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold">
                             Your Event
+                          </span>
+                        )}
+                        {conflictMatches.length > 0 && (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black">
+                            Duplicate / Venue Conflict
                           </span>
                         )}
                       </div>

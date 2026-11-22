@@ -11,10 +11,88 @@ import { FilePicker } from "@/components/ui/Attachments";
 import { uploadAttachments, validateFiles } from "@/lib/eventHelpers";
 import TimePicker from "@/components/ui/TimePicker";
 
+const PROPOSAL_SERIAL_STORAGE_KEY = "daet_proposal_serials_v1";
+
+const norm = (s) => (typeof s === "string" || typeof s === "number" ? String(s).trim().toLowerCase() : "");
+
+const toDateKey = (raw) => {
+  if (!raw || typeof raw === "function" || typeof raw === "object") return "";
+  const match = String(raw).trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : "";
+};
+
+const datesOverlap = (startA, endA, startB, endB) => {
+  if (!startA || !startB) return false;
+  const effectiveEndA = endA && endA >= startA ? endA : startA;
+  const effectiveEndB = endB && endB >= startB ? endB : startB;
+  return startA <= effectiveEndB && startB <= effectiveEndA;
+};
+
+const formatDisplayDate = (v) => {
+  if (!v) return "TBA";
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T00:00:00`) : new Date(v);
+  return isNaN(d.getTime())
+    ? v
+    : d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+};
+
+const generateProposalSerial = (eventDateStr) => {
+  const yearMatch = String(eventDateStr || "").match(/^(\d{4})/);
+  const year = yearMatch ? yearMatch[1] : String(new Date().getFullYear());
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `DAET-PROP-${year}-${rand}`;
+};
+
+const findDuplicateProposals = ({ eventName, venue, eventDate, eventEndDate }, existingEvents) => {
+  if (!Array.isArray(existingEvents) || existingEvents.length === 0) return [];
+  const targetName = norm(eventName);
+  const targetVenue = norm(venue);
+  const targetStart = toDateKey(eventDate);
+  const targetEnd = toDateKey(eventEndDate) || targetStart;
+
+  if (!targetName && !(targetStart && targetVenue)) return [];
+
+  const matches = [];
+  existingEvents.forEach((ev) => {
+    const status = norm(ev.status);
+    if (status === "rejected" || status === "cancelled") return;
+
+    const otherName = norm(ev.event_name);
+    const otherVenue = norm(ev.venue);
+    const otherStart = toDateKey(ev.event_date || ev.date);
+    const otherEnd = toDateKey(ev.end_date || ev.event_end_date) || otherStart;
+
+    const sameName = Boolean(targetName && otherName && targetName === otherName);
+    const overlappingDate = datesOverlap(targetStart, targetEnd, otherStart, otherEnd);
+    const sameVenue = Boolean(
+      targetVenue &&
+        otherVenue &&
+        targetVenue === otherVenue &&
+        targetVenue !== "to be announced" &&
+        targetVenue !== "tba"
+    );
+
+    if (sameName || (overlappingDate && sameVenue)) {
+      const reasons = [];
+      if (sameName) reasons.push("Matching event title");
+      if (overlappingDate && sameVenue) reasons.push("Same venue and overlapping date");
+      matches.push({
+        ...ev,
+        matchReasons: reasons,
+      });
+    }
+  });
+
+  return matches;
+};
+
 export default function SubmitProposalPage() {
   const router = useRouter();
-  const { notify, feedbackUI } = useFeedback();
+  const { notify, confirm: askConfirm, feedbackUI } = useFeedback();
   const [submitted, setSubmitted] = useState(false);
+  const [submittedSerial, setSubmittedSerial] = useState("");
+  const [submittedEventName, setSubmittedEventName] = useState("");
+  const [submittedRegType, setSubmittedRegType] = useState("single");
   const [eventName, setEventName] = useState("");
   const [organizerName, setOrganizerName] = useState("");
   const [venue, setVenue] = useState("");
@@ -23,11 +101,10 @@ export default function SubmitProposalPage() {
   const [eventTime, setEventTime] = useState("");
   const [eventEndTime, setEventEndTime] = useState("");
   const [description, setDescription] = useState("");
-  
+
   const [imageFiles, setImageFiles] = useState([]);
   const [proposalFiles, setProposalFiles] = useState([]);
   const [maxSlots, setMaxSlots] = useState("");
-  // "single" = individual registration, "group" = teams register together, "interested" = publication only
   const [registrationType, setRegistrationType] = useState("single");
   const [teamSize, setTeamSize] = useState("");
 
@@ -39,10 +116,20 @@ export default function SubmitProposalPage() {
 
   const [sessionUser, setSessionUser] = useState(null);
   const [orgProfile, setOrgProfile] = useState(null);
+  const [existingEvents, setExistingEvents] = useState([]);
 
   useEffect(() => {
-    const loadOrganizer = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    const loadInitialData = async () => {
+      const [{ data: { session } }, { data: programsData }] = await Promise.all([
+        supabase.auth.getSession(),
+        supabase
+          .from("tourism_programs")
+          .select("id, event_name, organizer_name, venue, event_date, end_date, date, event_time, event_end_time, status")
+          .order("created_at", { ascending: false }),
+      ]);
+
+      setExistingEvents(programsData || []);
+
       if (!session?.user) return;
       setSessionUser(session.user);
 
@@ -57,17 +144,27 @@ export default function SubmitProposalPage() {
         setOrganizerName((prev) => prev || profile.organization || profile.organizer_full_name || profile.full_name || "");
       }
     };
-    loadOrganizer();
+    loadInitialData();
   }, []);
 
   const isOrganizer = orgProfile?.role === "organizer";
 
-  // Previews for all selected banner files to render a complete gallery grid.
+  const duplicateWarnings = useMemo(
+    () =>
+      findDuplicateProposals(
+        { eventName, venue, eventDate, eventEndDate },
+        existingEvents
+      ),
+    [eventName, venue, eventDate, eventEndDate, existingEvents]
+  );
+
   const bannerPreviews = useMemo(() => {
-    return imageFiles.map((item) => {
-      const file = item instanceof File ? item : item?.file instanceof File ? item.file : null;
-      return file ? URL.createObjectURL(file) : null;
-    }).filter(Boolean);
+    return imageFiles
+      .map((item) => {
+        const file = item instanceof File ? item : item?.file instanceof File ? item.file : null;
+        return file ? URL.createObjectURL(file) : null;
+      })
+      .filter(Boolean);
   }, [imageFiles]);
 
   useEffect(() => {
@@ -107,6 +204,22 @@ export default function SubmitProposalPage() {
       if (!onlineDetails.trim()) return notify("Please add the online payment details (for example your GCash number or bank account).");
     }
 
+    if (duplicateWarnings.length > 0) {
+      const summary = duplicateWarnings
+        .slice(0, 2)
+        .map((m) => `"${m.event_name}" (${formatDisplayDate(m.event_date || m.date)} at ${m.venue || "TBA"})`)
+        .join(", ");
+      const proceed = await askConfirm({
+        title: "Similar or overlapping event detected",
+        message: `This proposal matches ${duplicateWarnings.length} existing schedule ${
+          duplicateWarnings.length === 1 ? "entry" : "entries"
+        }: ${summary}. Do you still want to submit this proposal?`,
+        confirmLabel: "Yes, submit anyway",
+        cancelLabel: "Review details",
+      });
+      if (!proceed) return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -121,6 +234,8 @@ export default function SubmitProposalPage() {
         uploadedProposalUrls = await uploadAttachments(proposalFiles, `organizer-proposals/${Date.now()}`);
       }
 
+      const generatedSerial = generateProposalSerial(eventDate);
+
       const basePayload = {
         event_name: eventName.trim(),
         organizer_name: organizerName.trim(),
@@ -131,7 +246,7 @@ export default function SubmitProposalPage() {
         description: description.trim() || "Entry submitted via CONNECT-Daet Proposal Portal",
         event_time: eventTime,
         event_end_time: eventEndTime || null,
-        image_url: uploadedImageUrls, // Storing full array of uploaded image links
+        image_url: uploadedImageUrls,
         organizer_proposal_files: uploadedProposalUrls,
         registration_type: registrationType,
         team_size: registrationType === "group" ? parseInt(teamSize, 10) : null,
@@ -143,20 +258,55 @@ export default function SubmitProposalPage() {
         online_payment_details: paidEvent ? onlineDetails.trim() : null,
       };
 
-      let { error: insertError } = await supabase
-        .from("tourism_programs")
-        .insert([isOrganizer && sessionUser ? { ...basePayload, organizer_id: sessionUser.id } : basePayload]);
+      const fullPayload = {
+        ...basePayload,
+        serial_id: generatedSerial,
+        ...(isOrganizer && sessionUser ? { organizer_id: sessionUser.id } : {}),
+      };
 
-      if (insertError && isOrganizer && /organizer_id/i.test(insertError.message || "")) {
-        ({ error: insertError } = await supabase.from("tourism_programs").insert([basePayload]));
+      let { data: insertedRows, error: insertError } = await supabase
+        .from("tourism_programs")
+        .insert([fullPayload])
+        .select();
+
+      if (insertError && /(organizer_id|serial_id)/i.test(insertError.message || "")) {
+        const msg = insertError.message || "";
+        const fallbackPayload = { ...basePayload };
+        if (isOrganizer && sessionUser && !/organizer_id/i.test(msg)) {
+          fallbackPayload.organizer_id = sessionUser.id;
+        }
+        if (!/serial_id/i.test(msg)) {
+          fallbackPayload.serial_id = generatedSerial;
+        }
+        ({ data: insertedRows, error: insertError } = await supabase
+          .from("tourism_programs")
+          .insert([fallbackPayload])
+          .select());
       }
 
       if (insertError) throw insertError;
+
+      const createdRecord = Array.isArray(insertedRows) && insertedRows[0] ? insertedRows[0] : basePayload;
+      const finalSerial = createdRecord.serial_id || generatedSerial;
+
+      try {
+        const rawStore = window.localStorage.getItem(PROPOSAL_SERIAL_STORAGE_KEY);
+        const parsedStore = rawStore ? JSON.parse(rawStore) : {};
+        if (createdRecord.id != null) {
+          parsedStore[String(createdRecord.id)] = finalSerial;
+          window.localStorage.setItem(PROPOSAL_SERIAL_STORAGE_KEY, JSON.stringify(parsedStore));
+        }
+      } catch (e) {}
 
       if (isOrganizer) {
         router.push("/organizer/dashboard");
         return;
       }
+
+      setExistingEvents((prev) => [createdRecord, ...prev]);
+      setSubmittedSerial(finalSerial);
+      setSubmittedEventName(basePayload.event_name);
+      setSubmittedRegType(registrationType);
       setSubmitted(true);
 
       setEventName("");
@@ -204,12 +354,33 @@ export default function SubmitProposalPage() {
       </div>
 
       {submitted && (
-        <div className="bg-white rounded-2xl p-10 border border-gray-200 shadow-sm text-center space-y-4">
+        <div className="bg-white rounded-2xl p-10 border border-gray-200 shadow-sm text-center space-y-5">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-blue-100 text-blue-900 flex items-center justify-center text-2xl font-black">✓</div>
-          <h2 className="text-xl font-black text-blue-900">Proposal received</h2>
+          <div className="space-y-1">
+            <h2 className="text-xl font-black text-blue-900">Proposal received</h2>
+            {submittedEventName && (
+              <p className="text-xs font-bold text-slate-700 uppercase tracking-wide">{submittedEventName}</p>
+            )}
+          </div>
+
+          {submittedSerial && (
+            <div className="max-w-md mx-auto bg-blue-950 text-white rounded-2xl p-4 space-y-1 shadow-sm">
+              <span className="block text-[10px] font-bold uppercase tracking-widest text-blue-200">
+                Proposal Reference Serial ID
+              </span>
+              <span className="block font-mono text-lg font-black tracking-wider">{submittedSerial}</span>
+              <span className="block text-[11px] text-blue-100 font-medium">
+                Save this Serial ID for Municipal Tourism Office tracking and verification.
+              </span>
+            </div>
+          )}
+
           <p className="text-sm text-gray-600 max-w-md mx-auto">
             It will appear on the public schedule with its photo once the Municipal Tourism Office verifies it.
+            {submittedRegType !== "interested" &&
+              " Confirmed participants will automatically receive unique DAET attendee Serial IDs for venue check-in."}
           </p>
+
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <button
               onClick={() => setSubmitted(false)}
@@ -255,8 +426,7 @@ export default function SubmitProposalPage() {
                 hint="PNG, JPG, or WEBP - multiple files allowed"
                 multiple={true}
               />
-              
-              {/* Multi-Image Preview Grid */}
+
               {bannerPreviews.length > 0 && (
                 <div className="space-y-2 pt-2">
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -364,6 +534,48 @@ export default function SubmitProposalPage() {
               The day the event concludes. If left blank, it defaults to a single-day event ending on the Proposed Date.
             </p>
 
+            {duplicateWarnings.length > 0 && (
+              <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-900">
+                    Duplicate / Overlapping Event Warning ({duplicateWarnings.length})
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-200/80 text-amber-950 text-[10px] font-bold uppercase">
+                    Check Before Submitting
+                  </span>
+                </div>
+                <p className="text-xs text-amber-950 font-medium">
+                  An existing event in the system shares the same title or overlaps on the same date and venue:
+                </p>
+                <div className="space-y-2">
+                  {duplicateWarnings.slice(0, 3).map((match) => (
+                    <div
+                      key={match.id || `${match.event_name}-${match.event_date}`}
+                      className="bg-white/90 border border-amber-200 rounded-xl p-3 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                    >
+                      <div className="space-y-0.5">
+                        <p className="font-black text-slate-900">{match.event_name}</p>
+                        <p className="text-[11px] text-gray-600 font-medium">
+                          {formatDisplayDate(match.event_date || match.date)}
+                          {(match.end_date || match.event_end_date) &&
+                          (match.end_date || match.event_end_date) !== (match.event_date || match.date)
+                            ? ` – ${formatDisplayDate(match.end_date || match.event_end_date)}`
+                            : ""}{" "}
+                          • {match.venue || "TBA"} • By {match.organizer_name || "Organizer"}
+                        </p>
+                        <p className="text-[10px] font-bold text-amber-800 uppercase">
+                          {match.matchReasons.join(" • ")}
+                        </p>
+                      </div>
+                      <span className="self-start sm:self-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-[10px] font-black uppercase">
+                        {match.status || "Scheduled"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <TimePicker label="Start Time" required value={eventTime} onChange={setEventTime} />
 
@@ -409,6 +621,24 @@ export default function SubmitProposalPage() {
                 </p>
               )}
 
+              {registrationType !== "interested" && (
+                <div className="bg-white border border-blue-100 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-900 block">
+                      Automatic Attendee Serial ID Issuance Enabled
+                    </span>
+                    <p className="text-[11px] text-gray-600 font-medium">
+                      {registrationType === "group"
+                        ? "Each confirmed team receives an official Serial ID with numbered sub-serials (-1, -2, ...) per team member for venue check-in."
+                        : "Each confirmed tourist receives a unique Serial ID for attendance check-in and organizer verification."}
+                    </p>
+                  </div>
+                  <span className="self-start sm:self-center px-2.5 py-1 rounded-lg bg-blue-950 text-white font-mono text-[10px] font-bold whitespace-nowrap">
+                    {registrationType === "group" ? "DAET-EV-000001-1" : "DAET-EV-000001"}
+                  </span>
+                </div>
+              )}
+
               {registrationType === "group" && (
                 <div className="space-y-4">
                   <p className="text-[11px] text-blue-900 bg-blue-50 border border-blue-100 rounded-xl p-3 font-medium">
@@ -452,85 +682,88 @@ export default function SubmitProposalPage() {
             </div>
 
             {registrationType !== "interested" && (
-            <div className="space-y-4 rounded-2xl border border-gray-200 bg-gray-50/50 p-5">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                  {registrationType === "group" ? "Payment Option (per team)" : "Participation Fee"}
-                </label>
-                <div className="inline-flex gap-1 bg-gray-100 p-1 rounded-xl">
-                  {[
-                    { value: false, label: "Free event" },
-                    { value: true, label: "Paid event" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.label}
-                      type="button"
-                      onClick={() => setIsPaid(opt.value)}
-                      aria-pressed={isPaid === opt.value}
-                      className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${
-                        isPaid === opt.value ? "bg-blue-900 text-white shadow-sm" : "text-gray-600 hover:bg-white"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+              <div className="space-y-4 rounded-2xl border border-gray-200 bg-gray-50/50 p-5">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                    {registrationType === "group" ? "Payment Option (per team)" : "Participation Fee"}
+                  </label>
+                  <div className="inline-flex gap-1 bg-gray-100 p-1 rounded-xl">
+                    {[
+                      { value: false, label: "Free event" },
+                      { value: true, label: "Paid event" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => setIsPaid(opt.value)}
+                        aria-pressed={isPaid === opt.value}
+                        className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${
+                          isPaid === opt.value ? "bg-blue-900 text-white shadow-sm" : "text-gray-600 hover:bg-white"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {!isPaid && (
+                    <p className="text-[11px] text-gray-400 font-medium mt-2">
+                      {registrationType === "group"
+                        ? "Teams are registered immediately and added to your team list."
+                        : "Tourists are registered immediately and added to your attendee list."}{" "}
+                      You cannot change this after you submit.
+                    </p>
+                  )}
                 </div>
-                {!isPaid && (
-                  <p className="text-[11px] text-gray-400 font-medium mt-2">
-                    {registrationType === "group" ? "Teams are registered immediately and added to your team list." : "Tourists are registered immediately and added to your attendee list."} You cannot change this after you submit.
-                  </p>
+
+                {isPaid && (
+                  <div className="space-y-4">
+                    <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-xl p-3 font-medium">
+                      Tourists will stay on your pending list until you confirm their payment. Only then are they added to the official attendee list. Payment settings cannot be changed after you submit the proposal.
+                    </p>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                        {registrationType === "group" ? "Registration Fee per Team (PHP) *" : "Registration Fee per Participant (PHP) *"}
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="0.01"
+                        placeholder="e.g. 250"
+                        value={feeAmount}
+                        onChange={(e) => setFeeAmount(e.target.value)}
+                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                        Cash Payment: where should tourists pay? *
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder="e.g. Daet Cultural Committee office, 2nd floor Municipal Hall, Mon-Fri 8AM-5PM. Ask for Ms. Reyes."
+                        value={cashDetails}
+                        onChange={(e) => setCashDetails(e.target.value)}
+                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                        Online Payment: how should tourists pay? *
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder="e.g. GCash 0917 123 4567 (Juan Dela Cruz). Send the exact amount and enter the reference number in the form."
+                        value={onlineDetails}
+                        onChange={(e) => setOnlineDetails(e.target.value)}
+                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+                      />
+                    </div>
+                  </div>
                 )}
               </div>
-
-              {isPaid && (
-                <div className="space-y-4">
-                  <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-xl p-3 font-medium">
-                    Tourists will stay on your pending list until you confirm their payment. Only then are they added to the official attendee list. Payment settings cannot be changed after you submit the proposal.
-                  </p>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                      {registrationType === "group" ? "Registration Fee per Team (PHP) *" : "Registration Fee per Participant (PHP) *"}
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      step="0.01"
-                      placeholder="e.g. 250"
-                      value={feeAmount}
-                      onChange={(e) => setFeeAmount(e.target.value)}
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                      Cash Payment: where should tourists pay? *
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder="e.g. Daet Cultural Committee office, 2nd floor Municipal Hall, Mon-Fri 8AM-5PM. Ask for Ms. Reyes."
-                      value={cashDetails}
-                      onChange={(e) => setCashDetails(e.target.value)}
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                      Online Payment: how should tourists pay? *
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder="e.g. GCash 0917 123 4567 (Juan Dela Cruz). Send the exact amount and enter the reference number in the form."
-                      value={onlineDetails}
-                      onChange={(e) => setOnlineDetails(e.target.value)}
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
             )}
 
             <div className="pt-2">

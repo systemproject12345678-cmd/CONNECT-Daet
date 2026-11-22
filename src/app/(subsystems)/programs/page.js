@@ -20,13 +20,50 @@ import {
   msUntilStart,
   DAY_MS,
   regTypeOf,
+  teamMembersOf,
 } from "@/lib/eventSchedule";
 
 const DEFAULT_EVENT_IMAGE =
   "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80";
 
 const PUBLIC_STATUSES = ["approved", "upcoming", "ongoing", "completed", "cancellation requested", "rescheduled"];
-const norm = (s) => (s || "").trim().toLowerCase();
+const norm = (s) => (typeof s === "string" || typeof s === "number" ? String(s).trim().toLowerCase() : "");
+
+const resolveRegistrationSerial = (r) => {
+  if (!r) return "";
+  if (r.serial_id) return String(r.serial_id).trim().toUpperCase();
+  if (r.ticket_serial) return String(r.ticket_serial).trim().toUpperCase();
+  if (r.serial_number) return String(r.serial_number).trim().toUpperCase();
+  if (norm(r.registration_status) === "confirmed" && r.id != null) {
+    const evPart = String(r.event_id || "0").replace(/[^a-zA-Z0-9]/g, "").slice(0, 4).toUpperCase() || "EV";
+    const idPart = String(r.id).replace(/[^a-zA-Z0-9]/g, "").slice(-6).toUpperCase().padStart(6, "0");
+    return `DAET-${evPart}-${idPart}`;
+  }
+  return "";
+};
+
+const resolveAttendanceState = (r) => {
+  if (!r) return "unmarked";
+  const raw = norm(r.attendance_status);
+  if (
+    raw === "confirmed" ||
+    raw === "present" ||
+    r.attendance_confirmed === true ||
+    r.organizer_confirmed_attendance === true
+  ) {
+    return "confirmed";
+  }
+  if (
+    raw === "marked" ||
+    raw === "checked_in" ||
+    raw === "pending_confirmation" ||
+    r.tourist_checked_in === true ||
+    Boolean(r.checked_in_at)
+  ) {
+    return "marked";
+  }
+  return "unmarked";
+};
 
 const getPhase = (status) => {
   const s = norm(status);
@@ -47,7 +84,6 @@ const formatLongDate = (v) => {
   return d ? d.toLocaleDateString(undefined, { weekday: "short", month: "long", day: "numeric", year: "numeric" }) : "Date to be announced";
 };
 
-// Helper for rendering date range cleanly on program cards and details
 const formatEventDateRange = (startDateStr, endDateStr) => {
   const startFormatted = formatLongDate(startDateStr);
   if (!endDateStr || endDateStr === startDateStr) {
@@ -74,12 +110,12 @@ export default function ProgramsPage() {
   const [rawEvents, setEvents] = useState([]);
   const now = useNow(30000);
   const events = useMemo(() => rawEvents.map((e) => withLiveStatus(e, now)), [rawEvents, now]);
-  
+
   const [registrations, setRegistrations] = useState([]);
   const [interestedEvents, setInterestedEvents] = useState([]);
   const [fetchingEvents, setFetchingEvents] = useState(true);
   const [activeFilter, setActiveFilter] = useState("All");
-  const [scheduleView, setScheduleView] = useState("list"); // "list" | "calendar"
+  const [scheduleView, setScheduleView] = useState("list");
   const [search, setSearch] = useState("");
 
   const [viewingDetailsEvent, setViewingDetailsEvent] = useState(null);
@@ -90,6 +126,13 @@ export default function ProgramsPage() {
 
   const [myRegisteredIds, setMyRegisteredIds] = useState([]);
   const [myRegStatus, setMyRegStatus] = useState({});
+  const [myRegistrationsByEventId, setMyRegistrationsByEventId] = useState({});
+
+  const [issuedPassInfo, setIssuedPassInfo] = useState(null);
+  const [verifyModalOpen, setVerifyModalOpen] = useState(false);
+  const [verifyQuery, setVerifyQuery] = useState("");
+  const [verifyingSerial, setVerifyingSerial] = useState(false);
+  const [verifyResult, setVerifyResult] = useState(null);
 
   const [payForm, setPayForm] = useState({ method: "cash", reference: "" });
   const [proofFile, setProofFile] = useState([]);
@@ -152,21 +195,25 @@ export default function ProgramsPage() {
     if (!user?.id) {
       setMyRegisteredIds([]);
       setMyRegStatus({});
+      setMyRegistrationsByEventId({});
       setInterestedEvents([]);
       return;
     }
 
     supabase
       .from("event_registrations")
-      .select("event_id, registration_status")
+      .select("*")
       .eq("user_id", user.id)
       .then(({ data }) => {
         setMyRegisteredIds((data || []).map((r) => String(r.event_id)));
         const map = {};
+        const regMap = {};
         (data || []).forEach((r) => {
           map[String(r.event_id)] = r.registration_status || "Confirmed";
+          regMap[String(r.event_id)] = r;
         });
         setMyRegStatus(map);
+        setMyRegistrationsByEventId(regMap);
       });
 
     const loadInterestedEvents = async () => {
@@ -230,7 +277,7 @@ export default function ProgramsPage() {
     try {
       const [evRes, regRes] = await Promise.all([
         supabase.from("tourism_programs").select("*").order("created_at", { ascending: false }),
-        supabase.from("event_registrations").select("event_id, registration_status")
+        supabase.from("event_registrations").select("*"),
       ]);
 
       if (evRes.error) throw evRes.error;
@@ -263,6 +310,141 @@ export default function ProgramsPage() {
 
   const getConfirmedCount = (eventId) => {
     return registrations.filter((r) => String(r.event_id) === String(eventId) && (r.registration_status === "Confirmed" || r.registration_status === "Pending")).length;
+  };
+
+  const copyText = async (text, label = "Serial ID") => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      notify(`${label} copied to clipboard: ${text}`);
+    } catch {
+      notify(`${label}: ${text}`, "info");
+    }
+  };
+
+  const openVerifyWithSerial = (serial = "") => {
+    setVerifyQuery(serial);
+    setVerifyResult(null);
+    setVerifyModalOpen(true);
+    if (serial) {
+      runSerialVerification(serial);
+    }
+  };
+
+  const runSerialVerification = async (rawCode) => {
+    const code = String(rawCode ?? verifyQuery).trim().toUpperCase();
+    if (!code) {
+      notify("Please enter a Serial ID (e.g. DAET-12-000045) to verify.");
+      return;
+    }
+
+    setVerifyingSerial(true);
+    setVerifyResult(null);
+
+    try {
+      const eventMatch = events.find(
+        (ev) => ev.serial_id && String(ev.serial_id).trim().toUpperCase() === code
+      );
+      if (eventMatch) {
+        setVerifyResult({
+          status: "verified_event",
+          serial: code,
+          event: eventMatch,
+        });
+        return;
+      }
+
+      const poolMap = new Map();
+      [...registrations, ...Object.values(myRegistrationsByEventId)].forEach((r) => {
+        if (r && r.id != null) poolMap.set(String(r.id), r);
+      });
+
+      const subMatch = code.match(/^(DAET-[A-Z0-9]+-[A-Z0-9]+)-(\d+)$/);
+      const baseCode = subMatch ? subMatch[1] : code;
+      const memberSlot = subMatch ? parseInt(subMatch[2], 10) : null;
+
+      let matchedReg = null;
+      for (const r of poolMap.values()) {
+        const regSerial = resolveRegistrationSerial(r);
+        if (regSerial && (regSerial === code || regSerial === baseCode)) {
+          matchedReg = r;
+          break;
+        }
+      }
+
+      if (!matchedReg) {
+        const idTokenMatch = baseCode.match(/^DAET-[A-Z0-9]+-0*([A-Z0-9]+)$/);
+        const rawIdCandidate = idTokenMatch ? idTokenMatch[1] : "";
+        if (rawIdCandidate) {
+          const { data: directRows } = await supabase
+            .from("event_registrations")
+            .select("*")
+            .eq("id", /^\d+$/.test(rawIdCandidate) ? Number(rawIdCandidate) : rawIdCandidate)
+            .limit(1);
+
+          if (directRows && directRows[0]) {
+            const candidate = directRows[0];
+            const computed = resolveRegistrationSerial(candidate);
+            if (!computed || computed === baseCode || computed === code) {
+              matchedReg = candidate;
+            }
+          }
+        }
+      }
+
+      if (!matchedReg) {
+        setVerifyResult({
+          status: "not_found",
+          serial: code,
+        });
+        return;
+      }
+
+      let matchedEvent = events.find((ev) => String(ev.id) === String(matchedReg.event_id)) || null;
+      if (!matchedEvent && matchedReg.event_id != null) {
+        const { data: evRow } = await supabase
+          .from("tourism_programs")
+          .select("*")
+          .eq("id", matchedReg.event_id)
+          .single();
+        if (evRow) matchedEvent = withLiveStatus(evRow, now);
+      }
+
+      const members = teamMembersOf(matchedReg);
+      let memberEntry = null;
+      if (memberSlot && members.length > 0) {
+        memberEntry = members[memberSlot - 1] || null;
+        if (!memberEntry) {
+          setVerifyResult({
+            status: "not_found",
+            serial: code,
+          });
+          return;
+        }
+      }
+
+      const regStatusNorm = norm(matchedReg.registration_status) || "confirmed";
+      setVerifyResult({
+        status:
+          regStatusNorm === "confirmed"
+            ? "verified"
+            : regStatusNorm === "pending"
+            ? "pending"
+            : "rejected",
+        serial: code,
+        baseSerial: resolveRegistrationSerial(matchedReg) || baseCode,
+        memberSlot,
+        memberEntry,
+        registration: matchedReg,
+        event: matchedEvent,
+        attendance: resolveAttendanceState(matchedReg),
+      });
+    } catch (err) {
+      console.error("Serial verification error:", err);
+      notify("Unable to complete Serial ID verification right now.");
+    } finally {
+      setVerifyingSerial(false);
+    }
   };
 
   const toggleInterest = async (e, eventId) => {
@@ -322,7 +504,7 @@ export default function ProgramsPage() {
           ? "Your registration is pending until the organizer confirms your payment. You can follow it in your Tourist Portal."
           : st === "rejected"
           ? "Your registration was rejected. Open your Tourist Portal to resubmit it."
-          : "You are already registered for this event. You can review it in your Tourist Portal.",
+          : "You are already registered for this event. You can review your Serial ID in your Tourist Portal.",
         "info"
       );
     } else {
@@ -478,37 +660,52 @@ export default function ProgramsPage() {
         proofUrl = uploaded.url;
       }
 
-      const { error } = await supabase.from("event_registrations").insert([
-        {
-          event_id: participatingEvent.id,
-          user_id: user.id,
-          first_name: regForm.firstName.trim(),
-          last_name: regForm.lastName.trim(),
-          gender: regForm.gender,
-          age: parseInt(regForm.age, 10),
-          civil_status: regForm.civilStatus,
-          home_address: regForm.homeAddress.trim(),
-          phone_number: regForm.phoneNumber.trim(),
-          email: regForm.email.trim(),
-          registration_status: paid ? "Pending" : "Confirmed",
-          payment_method: paid ? method : null,
-          payment_reference: paid && method === "Online" ? payForm.reference.trim() || null : null,
-          payment_proof_url: proofUrl,
-          amount_due: paid ? participatingEvent.fee_amount : null,
-          ...teamPayload,
-        },
-      ]);
+      const insertRow = {
+        event_id: participatingEvent.id,
+        user_id: user.id,
+        first_name: regForm.firstName.trim(),
+        last_name: regForm.lastName.trim(),
+        gender: regForm.gender,
+        age: parseInt(regForm.age, 10),
+        civil_status: regForm.civilStatus,
+        home_address: regForm.homeAddress.trim(),
+        phone_number: regForm.phoneNumber.trim(),
+        email: regForm.email.trim(),
+        registration_status: paid ? "Pending" : "Confirmed",
+        payment_method: paid ? method : null,
+        payment_reference: paid && method === "Online" ? payForm.reference.trim() || null : null,
+        payment_proof_url: proofUrl,
+        amount_due: paid ? participatingEvent.fee_amount : null,
+        ...teamPayload,
+      };
+
+      const { data: insertedRows, error } = await supabase
+        .from("event_registrations")
+        .insert([insertRow])
+        .select();
 
       if (error) throw error;
 
-      setMyRegisteredIds((prev) => [...new Set([...prev, String(participatingEvent.id)])]);
-      setMyRegStatus((prev) => ({ ...prev, [String(participatingEvent.id)]: paid ? "Pending" : "Confirmed" }));
+      const createdReg = Array.isArray(insertedRows) && insertedRows[0] ? insertedRows[0] : insertRow;
+      const targetEvent = participatingEvent;
+      const generatedSerial = !paid ? resolveRegistrationSerial(createdReg) : "";
+
+      setMyRegisteredIds((prev) => [...new Set([...prev, String(targetEvent.id)])]);
+      setMyRegStatus((prev) => ({ ...prev, [String(targetEvent.id)]: paid ? "Pending" : "Confirmed" }));
+      setMyRegistrationsByEventId((prev) => ({ ...prev, [String(targetEvent.id)]: createdReg }));
       setParticipatingEvent(null);
+
       if (paid) {
         notify(
-          "Registration submitted. It stays pending until the organizer confirms your payment - you will see the result in your Tourist Portal.",
+          "Registration submitted. It stays pending until the organizer confirms your payment - you will see your Serial ID in your Tourist Portal once approved.",
           "info"
         );
+      } else if (generatedSerial) {
+        setIssuedPassInfo({
+          serial: generatedSerial,
+          event: targetEvent,
+          registration: createdReg,
+        });
       } else {
         notify("Registration successful!");
       }
@@ -571,10 +768,10 @@ export default function ProgramsPage() {
 
   const getImages = (ev) => {
     if (Array.isArray(ev?.image_url) && ev.image_url.length > 0) {
-      return ev.image_url.map(u => getImageList(u)[0]).filter(Boolean);
+      return ev.image_url.map((u) => getImageList(u)[0]).filter(Boolean);
     }
     if (Array.isArray(ev?.image_urls) && ev.image_urls.length > 0) {
-      return ev.image_urls.map(u => getImageList(u)[0]).filter(Boolean);
+      return ev.image_urls.map((u) => getImageList(u)[0]).filter(Boolean);
     }
     const parsed = getImageList(ev?.image_url || ev?.image_urls);
     if (parsed.length > 0) return parsed;
@@ -590,6 +787,14 @@ export default function ProgramsPage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => openVerifyWithSerial("")}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all"
+          >
+            Verify Serial ID
+          </button>
+
           {user ? (
             <>
               {isAdmin ? (
@@ -686,10 +891,10 @@ export default function ProgramsPage() {
           <div className="lg:col-span-2 p-6 md:p-8 lg:pl-0 flex items-center">
             {featuredEvent ? (
               <div className="w-full bg-white rounded-2xl overflow-hidden shadow-xl text-gray-900">
-                <ImageCarousel 
-                  images={getImages(featuredEvent)} 
-                  onPreview={setViewerSrc} 
-                  className="aspect-[16/9] w-full" 
+                <ImageCarousel
+                  images={getImages(featuredEvent)}
+                  onPreview={setViewerSrc}
+                  className="aspect-[16/9] w-full"
                 />
                 <div className="p-5 space-y-2">
                   <span className={`inline-block px-2.5 py-0.5 text-[10px] font-black rounded-full ${phaseBadge[getPhase(featuredEvent.status)]}`}>
@@ -830,6 +1035,8 @@ export default function ProgramsPage() {
               const isInterestOnly = regType === "interested";
               const isGroup = regType === "group";
               const isFreeWithoutLimit = isInterestOnly || (!item.is_paid && max === null && !isGroup);
+              const myReg = myRegistrationsByEventId[String(item.id)];
+              const mySerial = myReg ? resolveRegistrationSerial(myReg) : "";
 
               return (
                 <article
@@ -838,10 +1045,10 @@ export default function ProgramsPage() {
                   className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer flex flex-col"
                 >
                   <div className="relative aspect-[16/9] w-full bg-blue-900 overflow-hidden group">
-                    <ImageCarousel 
-                      images={imgs} 
-                      onPreview={setViewerSrc} 
-                      className="absolute inset-0 w-full h-full" 
+                    <ImageCarousel
+                      images={imgs}
+                      onPreview={setViewerSrc}
+                      className="absolute inset-0 w-full h-full"
                     />
 
                     {date && (
@@ -856,15 +1063,15 @@ export default function ProgramsPage() {
                     </span>
 
                     {!isInterestOnly && (
-                    <button
-                      onClick={(e) => toggleInterest(e, item.id)}
-                      className={`absolute bottom-3 left-3 px-3 py-1 rounded-full text-xs font-bold shadow-lg transition-all z-20 ${
-                        isInterested ? "bg-red-500 text-white" : "bg-white/90 text-gray-700 hover:bg-white"
-                      }`}
-                      title="Mark as Interested (receive 1-day reminder)"
-                    >
-                      {isInterested ? "★ Interested" : "☆ Interested"}
-                    </button>
+                      <button
+                        onClick={(e) => toggleInterest(e, item.id)}
+                        className={`absolute bottom-3 left-3 px-3 py-1 rounded-full text-xs font-bold shadow-lg transition-all z-20 ${
+                          isInterested ? "bg-red-500 text-white" : "bg-white/90 text-gray-700 hover:bg-white"
+                        }`}
+                        title="Mark as Interested (receive 1-day reminder)"
+                      >
+                        {isInterested ? "★ Interested" : "☆ Interested"}
+                      </button>
                     )}
                   </div>
 
@@ -873,6 +1080,21 @@ export default function ProgramsPage() {
                     <p className="text-gray-500 text-xs leading-relaxed line-clamp-2">
                       {item.description || "No description provided."}
                     </p>
+
+                    {mySerial && (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openVerifyWithSerial(mySerial);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-950 hover:bg-blue-900 text-white font-mono text-[10px] font-bold transition-all"
+                        >
+                          <span>Serial ID: {mySerial}</span>
+                        </button>
+                      </div>
+                    )}
 
                     {isInterestOnly && (
                       <div className="flex flex-wrap gap-1.5 pt-1">
@@ -921,31 +1143,31 @@ export default function ProgramsPage() {
                         {phase === "Completed" ? "Event ended" : isInterested ? "★ Interested" : "☆ Interested"}
                       </button>
                     ) : (
-                    <button
-                      onClick={(e) => handleParticipateClick(e, item)}
-                      disabled={phase === "Completed" || myRegisteredIds.includes(String(item.id)) || isFull}
-                      className={`flex-1 py-2.5 disabled:cursor-not-allowed rounded-xl font-bold text-xs transition-all shadow-sm ${
-                        regInfo(item.id)
-                          ? regInfo(item.id).cls
+                      <button
+                        onClick={(e) => handleParticipateClick(e, item)}
+                        disabled={phase === "Completed" || myRegisteredIds.includes(String(item.id)) || isFull}
+                        className={`flex-1 py-2.5 disabled:cursor-not-allowed rounded-xl font-bold text-xs transition-all shadow-sm ${
+                          regInfo(item.id)
+                            ? regInfo(item.id).cls
+                            : isFull
+                            ? "bg-gray-200 text-gray-500"
+                            : "bg-blue-900 hover:bg-blue-800 disabled:bg-gray-200 disabled:text-gray-500 text-white"
+                        }`}
+                      >
+                        {regInfo(item.id)
+                          ? regInfo(item.id).label
                           : isFull
-                          ? "bg-gray-200 text-gray-500"
-                          : "bg-blue-900 hover:bg-blue-800 disabled:bg-gray-200 disabled:text-gray-500 text-white"
-                      }`}
-                    >
-                      {regInfo(item.id)
-                        ? regInfo(item.id).label
-                        : isFull
-                        ? "Quota Full"
-                        : phase === "Completed"
-                        ? "Event ended"
-                        : isGroup
-                        ? item.is_paid
-                          ? `Register a team - ${peso(item.fee_amount)}`
-                          : "Register a team"
-                        : item.is_paid
-                        ? `Join - ${peso(item.fee_amount)}`
-                        : "Join this event"}
-                    </button>
+                          ? "Quota Full"
+                          : phase === "Completed"
+                          ? "Event ended"
+                          : isGroup
+                          ? item.is_paid
+                            ? `Register a team - ${peso(item.fee_amount)}`
+                            : "Register a team"
+                          : item.is_paid
+                          ? `Join - ${peso(item.fee_amount)}`
+                          : "Join this event"}
+                      </button>
                     )}
                     <button
                       onClick={(e) => {
@@ -965,114 +1187,173 @@ export default function ProgramsPage() {
         )}
       </section>
 
-      {viewingDetailsEvent && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-          onClick={() => setViewingDetailsEvent(null)}
-        >
+      {viewingDetailsEvent && (() => {
+        const matchedMyReg = myRegistrationsByEventId[String(viewingDetailsEvent.id)];
+        const matchedMySerial = matchedMyReg ? resolveRegistrationSerial(matchedMyReg) : "";
+        const matchedMembers = matchedMyReg ? teamMembersOf(matchedMyReg) : [];
+        const matchedStatus = matchedMyReg ? norm(matchedMyReg.registration_status) || "confirmed" : "";
+
+        return (
           <div
-            className="bg-white rounded-2xl max-w-xl w-full overflow-hidden shadow-xl max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={() => setViewingDetailsEvent(null)}
           >
-            <div className="relative aspect-[16/9] bg-blue-900">
-              <ImageCarousel 
-                images={getImages(viewingDetailsEvent)} 
-                onPreview={setViewerSrc} 
-                className="absolute inset-0 w-full h-full" 
-              />
-              <button
-                onClick={() => setViewingDetailsEvent(null)}
-                className="absolute top-4 left-4 bg-black/60 hover:bg-black text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-all z-20"
-              >
-                ← Back to schedule
-              </button>
-            </div>
-
-            <div className="p-8 space-y-4">
-              <span className={`inline-block px-3 py-1 text-[10px] font-black rounded-full ${phaseBadge[getPhase(viewingDetailsEvent.status)]}`}>
-                {getPhase(viewingDetailsEvent.status)}
-              </span>
-
-              <h2 className="text-2xl font-black text-gray-900 leading-tight">{viewingDetailsEvent.event_name}</h2>
-
-              <p className="text-sm text-gray-600 leading-relaxed">
-                {viewingDetailsEvent.description || "No full description provided for this municipal activity."}
-              </p>
-
-              <div className="bg-blue-50/60 p-4 rounded-2xl text-xs space-y-2 border border-blue-100 font-medium text-gray-700">
-                <p><strong>Organizer / Host:</strong> {viewingDetailsEvent.organizer_name || "N/A"}</p>
-                <p><strong>Venue:</strong> {viewingDetailsEvent.venue || "N/A"}</p>
-                <p><strong>Date:</strong> {formatEventDateRange(viewingDetailsEvent.event_date || viewingDetailsEvent.date, viewingDetailsEvent.end_date)}</p>
-                {formatTimeRange(viewingDetailsEvent) && <p><strong>Time:</strong> {formatTimeRange(viewingDetailsEvent)}</p>}
-                {regTypeOf(viewingDetailsEvent) === "interested" ? (
-                  <p><strong>Registration:</strong> None needed. Tap Interested to let the organizer know you plan to come.</p>
-                ) : (
-                  <>
-                    {regTypeOf(viewingDetailsEvent) === "group" && (
-                      <p><strong>Registration:</strong> Group - teams of {viewingDetailsEvent.team_size || "?"} members</p>
-                    )}
-                    <p>
-                      <strong>{regTypeOf(viewingDetailsEvent) === "group" ? "Fee per team" : "Participation fee"}:</strong>{" "}
-                      {viewingDetailsEvent.is_paid ? peso(viewingDetailsEvent.fee_amount) : "Free"}
-                    </p>
-                    {viewingDetailsEvent.max_slots && (
-                      <p>
-                        <strong>{regTypeOf(viewingDetailsEvent) === "group" ? "Team spots" : "Attendee Quota Limit"}:</strong>{" "}
-                        {viewingDetailsEvent.max_slots} {regTypeOf(viewingDetailsEvent) === "group" ? "teams" : "slots"}
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                {regTypeOf(viewingDetailsEvent) === "interested" ? (
-                  <button
-                    onClick={(e) => toggleInterest(e, viewingDetailsEvent.id)}
-                    disabled={getPhase(viewingDetailsEvent.status) === "Completed" || interestBusy === String(viewingDetailsEvent.id)}
-                    className={`flex-1 py-3 font-bold rounded-xl text-xs transition-all disabled:cursor-not-allowed ${
-                      getPhase(viewingDetailsEvent.status) === "Completed"
-                        ? "bg-gray-200 text-gray-500"
-                        : interestedEvents.includes(String(viewingDetailsEvent.id))
-                        ? "bg-red-500 hover:bg-red-600 text-white"
-                        : "bg-blue-900 hover:bg-blue-800 text-white"
-                    }`}
-                  >
-                    {getPhase(viewingDetailsEvent.status) === "Completed"
-                      ? "Event ended"
-                      : interestedEvents.includes(String(viewingDetailsEvent.id))
-                      ? "★ Interested"
-                      : "☆ Interested"}
-                  </button>
-                ) : (
-                <button
-                  onClick={(e) => {
-                    const ev = viewingDetailsEvent;
-                    setViewingDetailsEvent(null);
-                    handleParticipateClick(e, ev);
-                  }}
-                  className={`flex-1 py-3 font-bold rounded-xl text-xs transition-all shadow-sm ${
-                    regInfo(viewingDetailsEvent.id) ? regInfo(viewingDetailsEvent.id).cls : "bg-blue-900 text-white hover:bg-blue-800"
-                  }`}
-                >
-                  {regInfo(viewingDetailsEvent.id)
-                    ? regInfo(viewingDetailsEvent.id).label
-                    : regTypeOf(viewingDetailsEvent) === "group"
-                    ? "Register a team"
-                    : "Join this event"}
-                </button>
-                )}
+            <div
+              className="bg-white rounded-2xl max-w-xl w-full overflow-hidden shadow-xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative aspect-[16/9] bg-blue-900">
+                <ImageCarousel
+                  images={getImages(viewingDetailsEvent)}
+                  onPreview={setViewerSrc}
+                  className="absolute inset-0 w-full h-full"
+                />
                 <button
                   onClick={() => setViewingDetailsEvent(null)}
-                  className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-all"
+                  className="absolute top-4 left-4 bg-black/60 hover:bg-black text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-all z-20"
                 >
-                  Close
+                  ← Back to schedule
                 </button>
+              </div>
+
+              <div className="p-8 space-y-4">
+                <span className={`inline-block px-3 py-1 text-[10px] font-black rounded-full ${phaseBadge[getPhase(viewingDetailsEvent.status)]}`}>
+                  {getPhase(viewingDetailsEvent.status)}
+                </span>
+
+                <h2 className="text-2xl font-black text-gray-900 leading-tight">{viewingDetailsEvent.event_name}</h2>
+
+                {matchedMyReg && (
+                  <div className="rounded-2xl border border-blue-200 bg-blue-950 text-white p-4 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <span className="block text-[10px] font-bold uppercase tracking-widest text-blue-200">
+                          {matchedStatus === "confirmed"
+                            ? "Your Official Attendee Serial ID"
+                            : matchedStatus === "pending"
+                            ? "Registration Pending Payment Approval"
+                            : "Registration Status"}
+                        </span>
+                        <span className="font-mono text-lg font-black tracking-wider">
+                          {matchedMySerial || "Issued upon payment confirmation"}
+                        </span>
+                      </div>
+                      {matchedMySerial && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => copyText(matchedMySerial)}
+                            className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold transition-all"
+                          >
+                            Copy ID
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setViewingDetailsEvent(null);
+                              openVerifyWithSerial(matchedMySerial);
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-white text-blue-950 hover:bg-blue-50 text-[11px] font-bold transition-all"
+                          >
+                            Verify
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {matchedMySerial && matchedMembers.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {matchedMembers.map((m, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-0.5 rounded-md bg-white/10 text-[10px] font-mono font-bold text-blue-100"
+                          >
+                            {matchedMySerial}-{idx + 1}: {m.first_name} {m.last_name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  {viewingDetailsEvent.description || "No full description provided for this municipal activity."}
+                </p>
+
+                <div className="bg-blue-50/60 p-4 rounded-2xl text-xs space-y-2 border border-blue-100 font-medium text-gray-700">
+                  <p><strong>Organizer / Host:</strong> {viewingDetailsEvent.organizer_name || "N/A"}</p>
+                  <p><strong>Venue:</strong> {viewingDetailsEvent.venue || "N/A"}</p>
+                  <p><strong>Date:</strong> {formatEventDateRange(viewingDetailsEvent.event_date || viewingDetailsEvent.date, viewingDetailsEvent.end_date)}</p>
+                  {formatTimeRange(viewingDetailsEvent) && <p><strong>Time:</strong> {formatTimeRange(viewingDetailsEvent)}</p>}
+                  {regTypeOf(viewingDetailsEvent) === "interested" ? (
+                    <p><strong>Registration:</strong> None needed. Tap Interested to let the organizer know you plan to come.</p>
+                  ) : (
+                    <>
+                      {regTypeOf(viewingDetailsEvent) === "group" && (
+                        <p><strong>Registration:</strong> Group - teams of {viewingDetailsEvent.team_size || "?"} members</p>
+                      )}
+                      <p>
+                        <strong>{regTypeOf(viewingDetailsEvent) === "group" ? "Fee per team" : "Participation fee"}:</strong>{" "}
+                        {viewingDetailsEvent.is_paid ? peso(viewingDetailsEvent.fee_amount) : "Free"}
+                      </p>
+                      {viewingDetailsEvent.max_slots && (
+                        <p>
+                          <strong>{regTypeOf(viewingDetailsEvent) === "group" ? "Team spots" : "Attendee Quota Limit"}:</strong>{" "}
+                          {viewingDetailsEvent.max_slots} {regTypeOf(viewingDetailsEvent) === "group" ? "teams" : "slots"}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  {regTypeOf(viewingDetailsEvent) === "interested" ? (
+                    <button
+                      onClick={(e) => toggleInterest(e, viewingDetailsEvent.id)}
+                      disabled={getPhase(viewingDetailsEvent.status) === "Completed" || interestBusy === String(viewingDetailsEvent.id)}
+                      className={`flex-1 py-3 font-bold rounded-xl text-xs transition-all disabled:cursor-not-allowed ${
+                        getPhase(viewingDetailsEvent.status) === "Completed"
+                          ? "bg-gray-200 text-gray-500"
+                          : interestedEvents.includes(String(viewingDetailsEvent.id))
+                          ? "bg-red-500 hover:bg-red-600 text-white"
+                          : "bg-blue-900 hover:bg-blue-800 text-white"
+                      }`}
+                    >
+                      {getPhase(viewingDetailsEvent.status) === "Completed"
+                        ? "Event ended"
+                        : interestedEvents.includes(String(viewingDetailsEvent.id))
+                        ? "★ Interested"
+                        : "☆ Interested"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={(e) => {
+                        const ev = viewingDetailsEvent;
+                        setViewingDetailsEvent(null);
+                        handleParticipateClick(e, ev);
+                      }}
+                      className={`flex-1 py-3 font-bold rounded-xl text-xs transition-all shadow-sm ${
+                        regInfo(viewingDetailsEvent.id) ? regInfo(viewingDetailsEvent.id).cls : "bg-blue-900 text-white hover:bg-blue-800"
+                      }`}
+                    >
+                      {regInfo(viewingDetailsEvent.id)
+                        ? regInfo(viewingDetailsEvent.id).label
+                        : regTypeOf(viewingDetailsEvent) === "group"
+                        ? "Register a team"
+                        : "Join this event"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setViewingDetailsEvent(null)}
+                    className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-all"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {participatingEvent && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -1342,7 +1623,7 @@ export default function ProgramsPage() {
                   )}
 
                   <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-xl p-3 font-medium">
-                    Your registration stays <strong>pending</strong> until the organizer confirms your payment. You will be notified in your Tourist Portal once it is approved.
+                    Your registration stays <strong>pending</strong> until the organizer confirms your payment. You will receive your official Serial ID in your Tourist Portal once it is approved.
                   </p>
                 </div>
               )}
@@ -1396,6 +1677,226 @@ export default function ProgramsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {issuedPassInfo && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={() => setIssuedPassInfo(null)}
+        >
+          <div
+            className="bg-white rounded-2xl p-8 max-w-md w-full space-y-5 shadow-2xl text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-2xl font-black">
+              ✓
+            </div>
+            <div className="space-y-1">
+              <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full uppercase tracking-wider">
+                Registration Confirmed
+              </span>
+              <h3 className="text-xl font-black text-slate-900 pt-2">{issuedPassInfo.event?.event_name}</h3>
+            </div>
+
+            <div className="bg-blue-950 text-white rounded-2xl p-4 space-y-1">
+              <span className="block text-[10px] font-bold uppercase tracking-widest text-blue-200">
+                Your Official Attendee Serial ID
+              </span>
+              <span className="block font-mono text-xl font-black tracking-wider">{issuedPassInfo.serial}</span>
+              <span className="block text-[11px] text-blue-100 font-medium">
+                Present this Serial ID at the venue or check in from your Tourist Portal when the event starts.
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => copyText(issuedPassInfo.serial)}
+                className="flex-1 py-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-xs transition-all shadow-sm"
+              >
+                Copy Serial ID
+              </button>
+              <Link href="/tourist/dashboard" className="flex-1">
+                <button
+                  type="button"
+                  className="w-full py-3 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded-xl font-bold text-xs transition-all"
+                >
+                  Open Tourist Portal →
+                </button>
+              </Link>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIssuedPassInfo(null)}
+              className="text-xs text-gray-400 font-bold hover:text-gray-600"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {verifyModalOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={() => setVerifyModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl p-7 max-w-lg w-full space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto text-xs font-semibold"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <span className="text-[10px] font-black text-blue-900 bg-blue-100 px-3 py-1 rounded-full uppercase tracking-wider">
+                  Serial ID Verification
+                </span>
+                <h3 className="text-xl font-black text-slate-900 mt-2">Verify Attendee or Event Serial ID</h3>
+                <p className="text-gray-500 font-medium mt-0.5">
+                  Enter an official <span className="font-mono font-bold text-slate-700">DAET-...</span> Serial ID to verify registration status, attendee details, and attendance check-in.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVerifyModalOpen(false)}
+                className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold"
+              >
+                Close
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                runSerialVerification();
+              }}
+              className="flex flex-col sm:flex-row gap-2"
+            >
+              <input
+                type="text"
+                placeholder="e.g. DAET-12-000045 or DAET-12-000045-1"
+                value={verifyQuery}
+                onChange={(e) => setVerifyQuery(e.target.value)}
+                className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-xl font-mono uppercase focus:outline-none focus:ring-2 focus:ring-blue-900"
+              />
+              <button
+                type="submit"
+                disabled={verifyingSerial}
+                className="px-5 py-3 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
+              >
+                {verifyingSerial ? "Checking..." : "Verify"}
+              </button>
+            </form>
+
+            {verifyResult && (
+              <div className="pt-1">
+                {verifyResult.status === "not_found" && (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 p-4 space-y-1 text-red-900">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-red-700">
+                      Unverified / Not Found
+                    </p>
+                    <p className="font-bold">
+                      No confirmed registration or official event matched <span className="font-mono">{verifyResult.serial}</span>.
+                    </p>
+                    <p className="text-[11px] font-medium text-red-800">
+                      Check that the Serial ID was typed accurately or confirm that payment approval has been completed.
+                    </p>
+                  </div>
+                )}
+
+                {verifyResult.status === "verified_event" && (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 space-y-2 text-emerald-950">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase">
+                        Verified Official Event
+                      </span>
+                      <span className="font-mono text-xs font-black">{verifyResult.serial}</span>
+                    </div>
+                    <p className="text-base font-black text-slate-900">{verifyResult.event.event_name}</p>
+                    <div className="text-[11px] text-gray-700 space-y-0.5 font-medium">
+                      <p><strong>Organizer:</strong> {verifyResult.event.organizer_name || "Municipal Tourism Office"}</p>
+                      <p><strong>Venue:</strong> {verifyResult.event.venue || "TBA"}</p>
+                      <p>
+                        <strong>Schedule:</strong> {formatEventDateRange(verifyResult.event.event_date || verifyResult.event.date, verifyResult.event.end_date)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {(verifyResult.status === "verified" || verifyResult.status === "pending" || verifyResult.status === "rejected") && (
+                  <div
+                    className={`rounded-2xl border p-4 space-y-3 ${
+                      verifyResult.status === "verified"
+                        ? "border-emerald-200 bg-emerald-50/70"
+                        : verifyResult.status === "pending"
+                        ? "border-amber-200 bg-amber-50/70"
+                        : "border-red-200 bg-red-50/70"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
+                          verifyResult.status === "verified"
+                            ? "bg-emerald-600 text-white"
+                            : verifyResult.status === "pending"
+                            ? "bg-amber-500 text-white"
+                            : "bg-red-600 text-white"
+                        }`}
+                      >
+                        {verifyResult.status === "verified"
+                          ? "Verified Official Attendee"
+                          : verifyResult.status === "pending"
+                          ? "Pending Payment Approval"
+                          : "Registration Rejected"}
+                      </span>
+                      <span className="font-mono text-xs font-black text-slate-900">{verifyResult.serial}</span>
+                    </div>
+
+                    <div className="bg-white rounded-xl border border-gray-200 p-3.5 space-y-1.5 text-gray-700">
+                      {verifyResult.memberEntry ? (
+                        <>
+                          <p>
+                            <strong>Team Member #{verifyResult.memberSlot}:</strong>{" "}
+                            {verifyResult.memberEntry.first_name} {verifyResult.memberEntry.last_name}
+                          </p>
+                          <p><strong>Team:</strong> {verifyResult.registration.team_name || "Group Entry"}</p>
+                        </>
+                      ) : (
+                        <>
+                          <p>
+                            <strong>Participant:</strong> {verifyResult.registration.first_name} {verifyResult.registration.last_name}
+                          </p>
+                          {verifyResult.registration.team_name && (
+                            <p>
+                              <strong>Team:</strong> {verifyResult.registration.team_name} ({teamMembersOf(verifyResult.registration).length} members)
+                            </p>
+                          )}
+                        </>
+                      )}
+                      {verifyResult.event && (
+                        <>
+                          <p><strong>Event:</strong> {verifyResult.event.event_name}</p>
+                          <p><strong>Venue:</strong> {verifyResult.event.venue || "TBA"}</p>
+                          <p>
+                            <strong>Date:</strong>{" "}
+                            {formatEventDateRange(verifyResult.event.event_date || verifyResult.event.date, verifyResult.event.end_date)}
+                          </p>
+                        </>
+                      )}
+                      <p>
+                        <strong>Attendance Check-In:</strong>{" "}
+                        {verifyResult.attendance === "confirmed"
+                          ? "Confirmed Present"
+                          : verifyResult.attendance === "marked"
+                          ? "Checked In (Awaiting Organizer Confirmation)"
+                          : "Not Yet Checked In"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

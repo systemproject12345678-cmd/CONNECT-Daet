@@ -17,6 +17,101 @@ import EventCalendar from "@/components/ui/EventCalendar";
 const EVENT_THUMB =
   "relative w-full md:w-56 h-44 md:h-40 flex-shrink-0 self-start rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/80 group";
 
+const REG_OVERRIDE_STORAGE_KEY = "daet_organizer_reg_overrides_v1";
+
+const norm = (v) => (typeof v === "string" || typeof v === "number" ? String(v).trim().toLowerCase() : "");
+
+const toEventDateKey = (raw) => {
+  if (!raw || typeof raw === "function" || typeof raw === "object") return "";
+  const match = String(raw).trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : "";
+};
+
+const findDuplicateEvents = (targetEvent, allEvents) => {
+  if (!targetEvent || !Array.isArray(allEvents)) return [];
+  const targetId = String(targetEvent.id);
+  const targetName = norm(targetEvent.event_name);
+  const targetDate = toEventDateKey(targetEvent.event_date || targetEvent.date);
+  const targetVenue = norm(targetEvent.venue);
+
+  return allEvents.filter((other) => {
+    if (String(other.id) === targetId) return false;
+    const otherStatus = norm(other.status);
+    if (otherStatus === "rejected" || otherStatus === "cancelled") return false;
+
+    const otherName = norm(other.event_name);
+    const otherDate = toEventDateKey(other.event_date || other.date);
+    const otherVenue = norm(other.venue);
+
+    const sameName = Boolean(targetName && otherName && targetName === otherName);
+    const sameDate = Boolean(targetDate && otherDate && targetDate === otherDate);
+    const sameVenue = Boolean(targetVenue && otherVenue && targetVenue === otherVenue);
+
+    return sameName || (sameDate && sameVenue);
+  });
+};
+
+const resolveRegistrationSerial = (r) => {
+  if (!r) return "";
+  if (r.serial_id) return String(r.serial_id);
+  if (r.ticket_serial) return String(r.ticket_serial);
+  if (r.serial_number) return String(r.serial_number);
+  if (regState(r) === "confirmed" && r.id != null) {
+    const evPart = String(r.event_id || "0").replace(/[^a-zA-Z0-9]/g, "").slice(0, 4).toUpperCase() || "EV";
+    const idPart = String(r.id).replace(/[^a-zA-Z0-9]/g, "").slice(-6).toUpperCase().padStart(6, "0");
+    return `DAET-${evPart}-${idPart}`;
+  }
+  return "";
+};
+
+const resolveAttendanceState = (r) => {
+  if (!r) return "unmarked";
+  const raw = norm(r.attendance_status);
+  if (
+    raw === "confirmed" ||
+    raw === "present" ||
+    r.attendance_confirmed === true ||
+    r.organizer_confirmed_attendance === true
+  ) {
+    return "confirmed";
+  }
+  if (
+    raw === "marked" ||
+    raw === "checked_in" ||
+    raw === "pending_confirmation" ||
+    r.tourist_checked_in === true ||
+    Boolean(r.checked_in_at)
+  ) {
+    return "marked";
+  }
+  return "unmarked";
+};
+
+const attendanceBadgeMeta = (attendance) => {
+  if (attendance === "confirmed") {
+    return {
+      label: "Present (Confirmed)",
+      cls: "bg-emerald-50 text-emerald-800 border border-emerald-200/80",
+    };
+  }
+  if (attendance === "marked") {
+    return {
+      label: "Tourist Checked In",
+      cls: "bg-amber-50 text-amber-800 border border-amber-300/80",
+    };
+  }
+  return {
+    label: "Not Checked In",
+    cls: "bg-slate-100 text-slate-600 border border-slate-200/80",
+  };
+};
+
+const isMissingColumnError = (err) => {
+  const msg = norm(err?.message || "");
+  const code = String(err?.code || "");
+  return code === "PGRST204" || msg.includes("column") || msg.includes("schema cache");
+};
+
 const getImageUrl = (urlField) => {
   if (!urlField) return "";
   if (typeof urlField === "string") {
@@ -60,12 +155,10 @@ const statusBadge = (status) => {
   }
 };
 
-/**
-- Clean TeamDetails component embedded directly with No Photo boxes completely removed.
- */
 function TeamDetails({ registration, onPreview }) {
   const members = teamMembersOf(registration);
   const [showMembers, setShowMembers] = useState(true);
+  const serialId = resolveRegistrationSerial(registration);
 
   if (!registration) return null;
 
@@ -73,7 +166,14 @@ function TeamDetails({ registration, onPreview }) {
     <div className="space-y-4 text-xs font-semibold">
       <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h4 className="font-black text-sm text-slate-900">{registration.team_name || "Team Details"}</h4>
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="font-black text-sm text-slate-900">{registration.team_name || "Team Details"}</h4>
+            {serialId && (
+              <span className="px-2.5 py-0.5 rounded-full bg-blue-900 text-white font-mono text-[10px] font-bold">
+                Serial: {serialId}
+              </span>
+            )}
+          </div>
           <p className="text-slate-500 mt-0.5">
             Registered by <strong className="text-slate-700">{registration.first_name} {registration.last_name}</strong> • {members.length} members • {new Date(registration.created_at).toLocaleDateString()}
           </p>
@@ -110,11 +210,16 @@ function TeamDetails({ registration, onPreview }) {
                 <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2 flex flex-col justify-between">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <h5 className="font-black text-slate-900 text-sm flex items-center gap-2">
+                      <h5 className="font-black text-slate-900 text-sm flex flex-wrap items-center gap-2">
                         {m.first_name} {m.last_name}
                         {isLeader && (
                           <span className="px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200/60 rounded-full text-[9px] font-black uppercase">
                             Leader
+                          </span>
+                        )}
+                        {serialId && (
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md font-mono text-[10px] font-bold">
+                            {serialId}-{idx + 1}
                           </span>
                         )}
                       </h5>
@@ -155,7 +260,24 @@ export default function OrganizerDashboardPage() {
   const now = useNow(30000);
   const events = useMemo(() => rawEvents.map((e) => withLiveStatus(e, now)), [rawEvents, now]);
   const allEvents = useMemo(() => rawAllEvents.map((e) => withLiveStatus(e, now)), [rawAllEvents, now]);
-  const [attendees, setAttendees] = useState([]);
+  const [rawAttendees, setAttendees] = useState([]);
+  const [regOverrides, setRegOverrides] = useState(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const saved = window.localStorage.getItem(REG_OVERRIDE_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+  const attendees = useMemo(
+    () =>
+      rawAttendees.map((a) => {
+        const ov = regOverrides[String(a.id)];
+        return ov ? { ...a, ...ov } : a;
+      }),
+    [rawAttendees, regOverrides]
+  );
   const [interestedByEvent, setInterestedByEvent] = useState({});
   const [viewingTeam, setViewingTeam] = useState(null);
   const [calendarSelectedEvent, setCalendarSelectedEvent] = useState(null);
@@ -186,6 +308,17 @@ export default function OrganizerDashboardPage() {
   const [newPassword, setNewPassword] = useState("");
 
   const [dismissedNotifs, setDismissedNotifs] = useState([]);
+
+  const persistRegOverride = (regId, patch) => {
+    setRegOverrides((prev) => {
+      const key = String(regId);
+      const next = { ...prev, [key]: { ...(prev[key] || {}), ...patch } };
+      try {
+        window.localStorage.setItem(REG_OVERRIDE_STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  };
 
   const fetchData = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -290,6 +423,18 @@ export default function OrganizerDashboardPage() {
 
   const handleSaveEventEdit = async (e) => {
     e.preventDefault();
+    const editMatches = findDuplicateEvents(editingEvent, allEvents);
+    if (editMatches.length > 0) {
+      const sample = editMatches[0];
+      const proceed = await askConfirm({
+        title: "Existing matching event warning",
+        message: `An existing event "${sample.event_name}" (${sample.status || "Scheduled"} on ${sample.event_date || "TBA"} at ${sample.venue || "TBA"}) already matches this schedule. Do you still want to save and resubmit?`,
+        confirmLabel: "Save & resubmit anyway",
+        tone: "danger",
+      });
+      if (!proceed) return;
+    }
+
     setEditSaving(true);
     try {
       let finalImageUrl = editingEvent.image_url;
@@ -397,11 +542,26 @@ export default function OrganizerDashboardPage() {
     }
   };
 
-  const updateRegistration = async (reg, patch) => {
+  const updateRegistration = async (reg, patch, corePatch = null) => {
     setBusyRegId(reg.id);
     try {
       const { error } = await supabase.from("event_registrations").update(patch).eq("id", reg.id);
-      if (error) throw error;
+      if (error) {
+        if (isMissingColumnError(error)) {
+          if (corePatch) {
+            const { error: fallbackError } = await supabase
+              .from("event_registrations")
+              .update(corePatch)
+              .eq("id", reg.id);
+            if (fallbackError) throw fallbackError;
+          }
+          persistRegOverride(reg.id, patch);
+          setAttendees((prev) => prev.map((a) => (a.id === reg.id ? { ...a, ...patch } : a)));
+          return true;
+        }
+        throw error;
+      }
+      persistRegOverride(reg.id, patch);
       setAttendees((prev) => prev.map((a) => (a.id === reg.id ? { ...a, ...patch } : a)));
       return true;
     } catch (err) {
@@ -414,17 +574,26 @@ export default function OrganizerDashboardPage() {
   };
 
   const confirmRegistration = async (reg) => {
+    const generatedSerial = resolveRegistrationSerial({ ...reg, registration_status: "Confirmed" });
     const ok = await askConfirm({
       title: "Confirm this payment?",
-      message: `${reg.first_name} ${reg.last_name} will be added to the official attendee list and notified that the registration is successful.`,
+      message: `${reg.first_name} ${reg.last_name} will be added to the official attendee list with Serial ID ${generatedSerial} and notified that the registration is successful.`,
       confirmLabel: "Yes, payment received",
     });
     if (!ok) return;
-    await updateRegistration(reg, {
+    const corePatch = {
       registration_status: "Confirmed",
       confirmed_at: new Date().toISOString(),
       rejection_reason: null,
-    });
+    };
+    await updateRegistration(
+      reg,
+      {
+        ...corePatch,
+        serial_id: generatedSerial,
+      },
+      corePatch
+    );
   };
 
   const moveToPending = async (reg) => {
@@ -435,7 +604,46 @@ export default function OrganizerDashboardPage() {
       tone: "danger",
     });
     if (!ok) return;
-    await updateRegistration(reg, { registration_status: "Pending", confirmed_at: null });
+    const corePatch = { registration_status: "Pending", confirmed_at: null };
+    await updateRegistration(
+      reg,
+      {
+        ...corePatch,
+        serial_id: null,
+        attendance_status: null,
+        attendance_confirmed_at: null,
+      },
+      corePatch
+    );
+  };
+
+  const confirmAttendeePresence = async (reg) => {
+    const serial = resolveRegistrationSerial(reg);
+    const ok = await askConfirm({
+      title: "Confirm attendee presence?",
+      message: `Mark ${reg.first_name} ${reg.last_name}${serial ? ` (${serial})` : ""} as officially present at this event?`,
+      confirmLabel: "Confirm present",
+    });
+    if (!ok) return;
+    await updateRegistration(reg, {
+      attendance_status: "Confirmed",
+      attendance_confirmed_at: new Date().toISOString(),
+    });
+  };
+
+  const revertAttendeePresence = async (reg) => {
+    const ok = await askConfirm({
+      title: "Reset attendance confirmation?",
+      message: `Revert ${reg.first_name} ${reg.last_name}'s confirmed attendance status?`,
+      confirmLabel: "Revert status",
+      tone: "danger",
+    });
+    if (!ok) return;
+    const nextStatus = reg.checked_in_at || reg.tourist_checked_in ? "Marked" : null;
+    await updateRegistration(reg, {
+      attendance_status: nextStatus,
+      attendance_confirmed_at: null,
+    });
   };
 
   const handleRejectRegistration = async (e) => {
@@ -455,6 +663,15 @@ export default function OrganizerDashboardPage() {
   const handleDismissNotification = (eventId) => {
     setDismissedNotifs((prev) => [...prev, eventId]);
   };
+
+  const duplicatesByEventId = useMemo(() => {
+    const map = new Map();
+    events.forEach((ev) => {
+      const matches = findDuplicateEvents(ev, allEvents);
+      if (matches.length > 0) map.set(String(ev.id), matches);
+    });
+    return map;
+  }, [events, allEvents]);
 
   const totalEvents = events.length;
   const activeEventsList = events.filter((e) =>
@@ -477,6 +694,7 @@ export default function OrganizerDashboardPage() {
   const approvedEventIds = approvedEventsList.map((e) => e.id);
   const approvedAttendees = attendees.filter((a) => approvedEventIds.includes(a.event_id) && regState(a) === "confirmed");
   const pendingPaymentCount = attendees.filter((a) => approvedEventIds.includes(a.event_id) && regState(a) === "pending").length;
+  const pendingAttendanceCount = approvedAttendees.filter((a) => resolveAttendanceState(a) === "marked").length;
 
   const visibleNotifications = events.filter((e) => !dismissedNotifs.includes(e.id));
   const activeNotifsCount = visibleNotifications.length;
@@ -502,7 +720,7 @@ export default function OrganizerDashboardPage() {
           { key: "overview", label: "Overview", icon: "home" },
           { key: "my-events", label: "My events", icon: "calendar-check" },
           { key: "calendar", label: "Event calendar", icon: "calendar" },
-          { key: "attendees", label: "Attendees and payments", icon: "users", badge: pendingPaymentCount, tone: "amber" },
+          { key: "attendees", label: "Attendees and payments", icon: "users", badge: pendingPaymentCount + pendingAttendanceCount, tone: "amber" },
           { key: "notifications", label: "Notifications", icon: "bell", badge: activeNotifsCount > 0 ? activeNotifsCount : undefined, tone: "blue" },
           { key: "profile", label: "Organizer profile", icon: "user" },
           { key: "settings", label: "Account settings", icon: "settings" },
@@ -523,6 +741,26 @@ export default function OrganizerDashboardPage() {
                 </button>
               </Link>
             </div>
+
+            {duplicatesByEventId.size > 0 && (
+              <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-950">
+                <div className="space-y-0.5">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                    Duplicate / Same-Schedule Event Warning ({duplicatesByEventId.size})
+                  </p>
+                  <p className="font-semibold">
+                    One or more of your events shares a title or date/venue with an already existing event in the tourism schedule.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("my-events")}
+                  className="px-3.5 py-2 bg-amber-900 hover:bg-amber-800 text-white rounded-xl font-bold text-[11px] uppercase whitespace-nowrap transition-all"
+                >
+                  Inspect Events
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <button
@@ -578,7 +816,7 @@ export default function OrganizerDashboardPage() {
                 onClick={() => setActiveTab("attendees")}
                 className="dash-stat text-left hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group"
               >
-                <span className="dash-stat-label text-blue-900">Registered Attendees</span>
+                <span className="dash-stat-label text-blue-900">Official Attendees</span>
                 <p className="dash-stat-value text-blue-900 mt-1">{approvedAttendees.length}</p>
               </button>
               <button
@@ -635,6 +873,7 @@ export default function OrganizerDashboardPage() {
                   const approvalFiles = Array.isArray(event.approval_files) ? event.approval_files : [];
                   const requirementFiles = Array.isArray(event.requirement_files) ? event.requirement_files : [];
                   const eventImages = getImageList(event.image_url);
+                  const duplicateMatches = duplicatesByEventId.get(String(event.id)) || [];
 
                   return (
                     <div
@@ -673,6 +912,22 @@ export default function OrganizerDashboardPage() {
                             {REG_TYPE_LABEL[regTypeOf(event)]}
                           </span>
                         </div>
+
+                        {duplicateMatches.length > 0 && (
+                          <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-1">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                              Warning: Existing Matching Event Detected ({duplicateMatches.length})
+                            </p>
+                            <p className="font-medium">
+                              Matches{" "}
+                              {duplicateMatches
+                                .slice(0, 2)
+                                .map((m) => `"${m.event_name}" (${m.status || "Scheduled"}, ${m.event_date || "TBA"} at ${m.venue || "TBA"})`)
+                                .join(" and ")}
+                              . Duplicate events are discouraged in the official schedule.
+                            </p>
+                          </div>
+                        )}
 
                         <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">{event.description}</p>
 
@@ -823,10 +1078,10 @@ export default function OrganizerDashboardPage() {
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
                 <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                  Approved Event Attendees
+                  Approved Event Attendees & Attendance
                 </h1>
                 <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                  Open an event to see its official attendees. For paid events, confirm each participant's payment to move them from pending to the official list.
+                  Confirm participant payments to assign official Serial IDs, and monitor or confirm tourist attendance before and during ongoing events.
                 </p>
               </div>
               <button
@@ -853,19 +1108,39 @@ export default function OrganizerDashboardPage() {
                   const pendingOnline = eventRegs.filter((a) => regState(a) === "pending" && isOnline(a));
                   const rejected = eventRegs.filter((a) => regState(a) === "rejected");
                   const pendingTotal = pendingCash.length + pendingOnline.length;
+                  const presentCount = official.filter((a) => resolveAttendanceState(a) === "confirmed").length;
+                  const checkedInAwaitingCount = official.filter((a) => resolveAttendanceState(a) === "marked").length;
                   const showPaymentTabs = !!event.is_paid || pendingTotal + rejected.length > 0;
+                  const isOngoingEvent = (event.status || "").toLowerCase() === "ongoing";
 
                   const isExpanded = expandedEventId === event.id;
-                  const tab = showPaymentTabs ? attendeeTabs[event.id] || "official" : "official";
-                  const lists = { official, "pending-cash": pendingCash, "pending-online": pendingOnline, rejected };
+                  const defaultTab = isOngoingEvent ? "attendance" : "official";
+                  const tab = attendeeTabs[event.id] || defaultTab;
+                  const lists = {
+                    official,
+                    attendance: official,
+                    "pending-cash": pendingCash,
+                    "pending-online": pendingOnline,
+                    rejected,
+                  };
                   const tabs = [
                     ["official", "Official Attendees", official.length],
-                    ["pending-cash", "Pending - Cash", pendingCash.length],
-                    ["pending-online", "Pending - Online", pendingOnline.length],
-                    ["rejected", "Rejected", rejected.length],
+                    ["attendance", "Official Attendance List", `${presentCount}/${official.length}`],
+                    ...(showPaymentTabs
+                      ? [
+                          ["pending-cash", "Pending - Cash", pendingCash.length],
+                          ["pending-online", "Pending - Online", pendingOnline.length],
+                          ["rejected", "Rejected", rejected.length],
+                        ]
+                      : []),
                   ];
 
-                  const currentFilters = eventFilters[event.id] || { gender: "All", ageBracket: "All", search: "" };
+                  const currentFilters = eventFilters[event.id] || {
+                    gender: "All",
+                    ageBracket: "All",
+                    attendance: "All",
+                    search: "",
+                  };
                   const query = (currentFilters.search || "").trim().toLowerCase();
                   const filteredList = (lists[tab] || []).filter((a) => {
                     if (currentFilters.gender !== "All" && a.gender?.toLowerCase() !== currentFilters.gender.toLowerCase()) return false;
@@ -873,8 +1148,12 @@ export default function OrganizerDashboardPage() {
                     if (currentFilters.ageBracket === "Youth (1-17)" && age >= 18) return false;
                     if (currentFilters.ageBracket === "Adult (18-59)" && (age < 18 || age > 59)) return false;
                     if (currentFilters.ageBracket === "Senior (60+)" && age < 60) return false;
+                    if (tab === "attendance" && currentFilters.attendance && currentFilters.attendance !== "All") {
+                      if (resolveAttendanceState(a) !== currentFilters.attendance) return false;
+                    }
                     if (query) {
-                      const full = `${a.first_name || ""} ${a.last_name || ""} ${a.email || ""} ${a.team_name || ""}`.toLowerCase();
+                      const serial = resolveRegistrationSerial(a);
+                      const full = `${a.first_name || ""} ${a.last_name || ""} ${a.email || ""} ${a.team_name || ""} ${serial}`.toLowerCase();
                       if (!full.includes(query)) return false;
                     }
                     return true;
@@ -882,10 +1161,13 @@ export default function OrganizerDashboardPage() {
 
                   const emptyText = {
                     official: "No official attendees match the filter criteria for this event.",
+                    attendance: "No official attendees match the attendance filter for this event.",
                     "pending-cash": "No participants are waiting to pay in cash.",
                     "pending-online": "No participants are waiting for an online payment check.",
                     rejected: "No rejected registrations.",
                   }[tab];
+
+                  const isOfficialOrAttendanceTab = tab === "official" || tab === "attendance";
 
                   return (
                     <div key={event.id} className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-sm space-y-4">
@@ -903,7 +1185,12 @@ export default function OrganizerDashboardPage() {
                             </span>
                             {pendingTotal > 0 && (
                               <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-amber-400 text-slate-950">
-                                {pendingTotal} pending
+                                {pendingTotal} payment pending
+                              </span>
+                            )}
+                            {checkedInAwaitingCount > 0 && (
+                              <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                                {checkedInAwaitingCount} checked in
                               </span>
                             )}
                           </div>
@@ -912,16 +1199,33 @@ export default function OrganizerDashboardPage() {
                             {regType === "interested" ? (
                               <>Interested tourists: <strong className="text-slate-800">{Array.isArray(interestRows) ? interestRows.length : "-"}</strong></>
                             ) : (
-                              <>Official {regType === "group" ? "teams" : "attendees"}: <strong className="text-slate-800">{official.length}</strong></>
+                              <>
+                                Official {regType === "group" ? "teams" : "attendees"}: <strong className="text-slate-800">{official.length}</strong> •{" "}
+                                Confirmed present: <strong className="text-emerald-700">{presentCount} / {official.length}</strong>
+                              </>
                             )}
                           </p>
                         </div>
-                        <button
-                          onClick={() => setExpandedEventId(isExpanded ? null : event.id)}
-                          className="w-full md:w-44 text-center flex-shrink-0 px-4 py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm"
-                        >
-                          {isExpanded ? (regType === "interested" ? "Hide Interested ▲" : "Hide Attendees ▲") : regType === "interested" ? "View Interested ▼" : "Inspect Attendees ▼"}
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                          {regType !== "interested" && isOngoingEvent && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAttendeeTabs({ ...attendeeTabs, [event.id]: "attendance" });
+                                setExpandedEventId(event.id);
+                              }}
+                              className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm"
+                            >
+                              Monitor Attendance
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setExpandedEventId(isExpanded ? null : event.id)}
+                            className="w-full md:w-44 text-center flex-shrink-0 px-4 py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm"
+                          >
+                            {isExpanded ? (regType === "interested" ? "Hide Interested ▲" : "Hide Attendees ▲") : regType === "interested" ? "View Interested ▼" : "Inspect Attendees ▼"}
+                          </button>
+                        </div>
                       </div>
 
                       {isExpanded && regType === "interested" && (
@@ -969,26 +1273,51 @@ export default function OrganizerDashboardPage() {
 
                       {isExpanded && regType !== "interested" && (
                         <div className="pt-4 border-t border-slate-100 space-y-4">
-                          {showPaymentTabs && (
-                            <div className="flex flex-wrap gap-1.5 bg-slate-100 p-1.5 rounded-2xl w-fit max-w-full">
-                              {tabs.map(([key, label, count]) => (
-                                <button
-                                  key={key}
-                                  onClick={() => setAttendeeTabs({ ...attendeeTabs, [event.id]: key })}
-                                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                                    tab === key ? "bg-white text-blue-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                          <div className="flex flex-wrap gap-1.5 bg-slate-100 p-1.5 rounded-2xl w-fit max-w-full">
+                            {tabs.map(([key, label, count]) => (
+                              <button
+                                key={key}
+                                onClick={() => setAttendeeTabs({ ...attendeeTabs, [event.id]: key })}
+                                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                                  tab === key ? "bg-white text-blue-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                                }`}
+                              >
+                                {label}{" "}
+                                <span
+                                  className={`ml-1 ${
+                                    (key.startsWith("pending") && Number(count) > 0) ||
+                                    (key === "attendance" && checkedInAwaitingCount > 0)
+                                      ? "text-amber-600 font-black"
+                                      : "text-slate-400 font-semibold"
                                   }`}
                                 >
-                                  {label}{" "}
-                                  <span
-                                    className={`ml-1 ${
-                                      key.startsWith("pending") && count > 0 ? "text-amber-600 font-black" : "text-slate-400 font-semibold"
-                                    }`}
-                                  >
-                                    {count}
-                                  </span>
-                                </button>
-                              ))}
+                                  {count}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+
+                          {tab === "attendance" && (
+                            <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                              <div className="space-y-0.5">
+                                <p className="font-black text-emerald-950 uppercase text-[10px] tracking-wider">
+                                  Official Event Attendance Monitor
+                                </p>
+                                <p className="text-emerald-900 font-medium">
+                                  Verify Serial IDs and confirm attendance for tourists who marked themselves present on their dashboard.
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap gap-2 text-[11px] font-black">
+                                <span className="px-2.5 py-1 rounded-lg bg-white border border-emerald-200 text-emerald-800">
+                                  Present: {presentCount}
+                                </span>
+                                <span className="px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 text-amber-900">
+                                  Awaiting Confirm: {checkedInAwaitingCount}
+                                </span>
+                                <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700">
+                                  Not Checked In: {Math.max(0, official.length - presentCount - checkedInAwaitingCount)}
+                                </span>
+                              </div>
                             </div>
                           )}
 
@@ -998,7 +1327,7 @@ export default function OrganizerDashboardPage() {
                                 <strong className="text-slate-800">Cash is handed over at:</strong>{" "}
                                 {event.cash_payment_details || "The organizer did not state a cash payment location on the proposal."}
                               </p>
-                              <p className="text-[11px] text-slate-500">Confirm a participant only after you have received their payment.</p>
+                              <p className="text-[11px] text-slate-500">Confirm a participant only after you have received their payment to issue their official Serial ID.</p>
                             </div>
                           )}
                           {tab === "pending-online" && (
@@ -1007,7 +1336,7 @@ export default function OrganizerDashboardPage() {
                                 <strong className="text-slate-800">Online payments go to:</strong>{" "}
                                 {event.online_payment_details || "The organizer did not state online payment details on the proposal."}
                               </p>
-                              <p className="text-[11px] text-slate-500">Check the reference number / receipt against your account, then confirm or reject.</p>
+                              <p className="text-[11px] text-slate-500">Check the reference number / receipt against your account, then confirm to assign their official Serial ID.</p>
                             </div>
                           )}
 
@@ -1018,7 +1347,7 @@ export default function OrganizerDashboardPage() {
                             <div className="flex flex-wrap items-center gap-2">
                               <input
                                 type="text"
-                                placeholder="Search name, email, team..."
+                                placeholder="Search serial ID, name, email, team..."
                                 value={currentFilters.search || ""}
                                 onChange={(e) =>
                                   setEventFilters({
@@ -1026,8 +1355,25 @@ export default function OrganizerDashboardPage() {
                                     [event.id]: { ...currentFilters, search: e.target.value },
                                   })
                                 }
-                                className="px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-900/20 w-full sm:w-52"
+                                className="px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-900/20 w-full sm:w-56"
                               />
+                              {tab === "attendance" && (
+                                <select
+                                  value={currentFilters.attendance || "All"}
+                                  onChange={(e) =>
+                                    setEventFilters({
+                                      ...eventFilters,
+                                      [event.id]: { ...currentFilters, attendance: e.target.value },
+                                    })
+                                  }
+                                  className="px-3 py-2 border border-slate-200 rounded-xl bg-white font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-900/20"
+                                >
+                                  <option value="All">All Attendance</option>
+                                  <option value="marked">Tourist Checked In</option>
+                                  <option value="confirmed">Present (Confirmed)</option>
+                                  <option value="unmarked">Not Checked In</option>
+                                </select>
+                              )}
                               <select
                                 value={currentFilters.gender}
                                 onChange={(e) => setEventFilters({
@@ -1066,6 +1412,7 @@ export default function OrganizerDashboardPage() {
                               <table className="w-full text-left text-xs">
                                 <thead className="bg-slate-50 font-bold uppercase text-[11px] text-slate-500 border-b border-slate-200">
                                   <tr>
+                                    {isOfficialOrAttendanceTab && <th className="p-3.5">Serial ID</th>}
                                     <th className="p-3.5">Participant Name</th>
                                     <th className="p-3.5">Contact Info</th>
                                     <th className="p-3.5">Gender</th>
@@ -1073,86 +1420,132 @@ export default function OrganizerDashboardPage() {
                                     <th className="p-3.5">Home Address</th>
                                     <th className="p-3.5">Registered Date</th>
                                     {showPaymentTabs && <th className="p-3.5">Payment</th>}
+                                    {isOfficialOrAttendanceTab && <th className="p-3.5">Attendance</th>}
                                     {tab === "rejected" && <th className="p-3.5">Reason</th>}
-                                    {showPaymentTabs && tab !== "rejected" && <th className="p-3.5 text-right">Actions</th>}
+                                    {tab !== "rejected" && <th className="p-3.5 text-right">Actions</th>}
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-                                  {filteredList.map((a) => (
-                                    <tr key={a.id} className="hover:bg-slate-50/70 transition-colors">
-                                      <td className="p-3.5 font-bold text-slate-900">
-                                        {a.first_name} {a.last_name}
-                                        {a.team_name && (
-                                          <span className="block text-[10px] font-bold text-indigo-700 mt-0.5">
-                                            Team: {a.team_name} ({teamMembersOf(a).length} members){" "}
-                                            <button type="button" onClick={() => setViewingTeam(a)} className="text-blue-600 hover:underline">
-                                              View team
-                                            </button>
-                                          </span>
+                                  {filteredList.map((a) => {
+                                    const serialId = resolveRegistrationSerial(a);
+                                    const attendance = resolveAttendanceState(a);
+                                    const attMeta = attendanceBadgeMeta(attendance);
+
+                                    return (
+                                      <tr key={a.id} className="hover:bg-slate-50/70 transition-colors">
+                                        {isOfficialOrAttendanceTab && (
+                                          <td className="p-3.5 font-mono text-[11px] font-black text-blue-950 whitespace-nowrap">
+                                            {serialId || "—"}
+                                          </td>
                                         )}
-                                      </td>
-                                      <td className="p-3.5">
-                                        <span>{a.email}</span>
-                                        <span className="block text-[10px] text-slate-400 mt-0.5">{a.phone_number}</span>
-                                      </td>
-                                      <td className="p-3.5 font-bold">{a.gender}</td>
-                                      <td className="p-3.5 font-bold">{a.age} yrs</td>
-                                      <td className="p-3.5 max-w-[200px] truncate" title={a.home_address}>{a.home_address}</td>
-                                      <td className="p-3.5">{new Date(a.created_at).toLocaleDateString()}</td>
-                                      {showPaymentTabs && (
+                                        <td className="p-3.5 font-bold text-slate-900">
+                                          {a.first_name} {a.last_name}
+                                          {a.team_name && (
+                                            <span className="block text-[10px] font-bold text-indigo-700 mt-0.5">
+                                              Team: {a.team_name} ({teamMembersOf(a).length} members){" "}
+                                              <button type="button" onClick={() => setViewingTeam(a)} className="text-blue-600 hover:underline">
+                                                View team
+                                              </button>
+                                            </span>
+                                          )}
+                                        </td>
                                         <td className="p-3.5">
-                                          <span className="font-bold text-slate-800">{a.payment_method || "N/A"}</span>
-                                          {a.amount_due ? <span className="text-slate-500"> {peso(a.amount_due)}</span> : null}
-                                          {a.payment_reference && (
-                                            <span className="block text-[10px] text-slate-500 mt-0.5">Ref: {a.payment_reference}</span>
-                                          )}
-                                          {a.payment_proof_url && (
-                                            <button
-                                              type="button"
-                                              onClick={() => setViewerSrc(a.payment_proof_url)}
-                                              className="block text-[10px] font-bold text-blue-600 hover:underline mt-0.5"
-                                            >
-                                              View receipt
-                                            </button>
-                                          )}
+                                          <span>{a.email}</span>
+                                          <span className="block text-[10px] text-slate-400 mt-0.5">{a.phone_number}</span>
                                         </td>
-                                      )}
-                                      {tab === "rejected" && <td className="p-3.5 text-red-700">{a.rejection_reason || "-"}</td>}
-                                      {showPaymentTabs && tab !== "rejected" && (
-                                        <td className="p-3.5 text-right whitespace-nowrap space-x-2">
-                                          {regState(a) === "pending" ? (
-                                            <>
+                                        <td className="p-3.5 font-bold">{a.gender}</td>
+                                        <td className="p-3.5 font-bold">{a.age} yrs</td>
+                                        <td className="p-3.5 max-w-[200px] truncate" title={a.home_address}>{a.home_address}</td>
+                                        <td className="p-3.5">{new Date(a.created_at).toLocaleDateString()}</td>
+                                        {showPaymentTabs && (
+                                          <td className="p-3.5">
+                                            <span className="font-bold text-slate-800">{a.payment_method || "N/A"}</span>
+                                            {a.amount_due ? <span className="text-slate-500"> {peso(a.amount_due)}</span> : null}
+                                            {a.payment_reference && (
+                                              <span className="block text-[10px] text-slate-500 mt-0.5">Ref: {a.payment_reference}</span>
+                                            )}
+                                            {a.payment_proof_url && (
                                               <button
-                                                onClick={() => confirmRegistration(a)}
-                                                disabled={busyRegId === a.id}
-                                                className="w-[130px] text-center inline-block px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-lg font-bold text-[10px] uppercase shadow-xs transition-all"
+                                                type="button"
+                                                onClick={() => setViewerSrc(a.payment_proof_url)}
+                                                className="block text-[10px] font-bold text-blue-600 hover:underline mt-0.5"
                                               >
-                                                Confirm payment
+                                                View receipt
                                               </button>
-                                              <button
-                                                onClick={() => {
-                                                  setRejectRegReason("");
-                                                  setRejectingReg(a);
-                                                }}
-                                                disabled={busyRegId === a.id}
-                                                className="w-[100px] text-center inline-block px-2.5 py-1.5 bg-white hover:bg-red-50 border border-red-200 text-red-600 rounded-lg font-bold text-[10px] uppercase transition-all"
-                                              >
-                                                Reject
-                                              </button>
-                                            </>
-                                          ) : (
-                                            <button
-                                              onClick={() => moveToPending(a)}
-                                              disabled={busyRegId === a.id}
-                                              className="w-[130px] text-center inline-block px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 rounded-lg font-bold text-[10px] uppercase transition-all"
-                                            >
-                                              Move to pending
-                                            </button>
-                                          )}
-                                        </td>
-                                      )}
-                                    </tr>
-                                  ))}
+                                            )}
+                                          </td>
+                                        )}
+                                        {isOfficialOrAttendanceTab && (
+                                          <td className="p-3.5 whitespace-nowrap">
+                                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${attMeta.cls}`}>
+                                              {attMeta.label}
+                                            </span>
+                                          </td>
+                                        )}
+                                        {tab === "rejected" && <td className="p-3.5 text-red-700">{a.rejection_reason || "-"}</td>}
+                                        {tab !== "rejected" && (
+                                          <td className="p-3.5 text-right whitespace-nowrap">
+                                            <div className="inline-flex flex-wrap justify-end items-center gap-1.5">
+                                              {regState(a) === "pending" ? (
+                                                <>
+                                                  <button
+                                                    onClick={() => confirmRegistration(a)}
+                                                    disabled={busyRegId === a.id}
+                                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-lg font-bold text-[10px] uppercase shadow-xs transition-all"
+                                                  >
+                                                    Confirm payment
+                                                  </button>
+                                                  <button
+                                                    onClick={() => {
+                                                      setRejectRegReason("");
+                                                      setRejectingReg(a);
+                                                    }}
+                                                    disabled={busyRegId === a.id}
+                                                    className="px-2.5 py-1.5 bg-white hover:bg-red-50 border border-red-200 text-red-600 rounded-lg font-bold text-[10px] uppercase transition-all"
+                                                  >
+                                                    Reject
+                                                  </button>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  {attendance !== "confirmed" ? (
+                                                    <button
+                                                      onClick={() => confirmAttendeePresence(a)}
+                                                      disabled={busyRegId === a.id}
+                                                      className={`px-3 py-1.5 disabled:opacity-60 text-white rounded-lg font-bold text-[10px] uppercase shadow-xs transition-all ${
+                                                        attendance === "marked"
+                                                          ? "bg-emerald-600 hover:bg-emerald-700"
+                                                          : "bg-blue-900 hover:bg-blue-800"
+                                                      }`}
+                                                    >
+                                                      {attendance === "marked" ? "Confirm Check-In" : "Mark Present"}
+                                                    </button>
+                                                  ) : (
+                                                    <button
+                                                      onClick={() => revertAttendeePresence(a)}
+                                                      disabled={busyRegId === a.id}
+                                                      className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-60 text-slate-700 rounded-lg font-bold text-[10px] uppercase transition-all"
+                                                    >
+                                                      Undo Present
+                                                    </button>
+                                                  )}
+                                                  {showPaymentTabs && (
+                                                    <button
+                                                      onClick={() => moveToPending(a)}
+                                                      disabled={busyRegId === a.id}
+                                                      className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 rounded-lg font-bold text-[10px] uppercase transition-all"
+                                                    >
+                                                      Move to pending
+                                                    </button>
+                                                  )}
+                                                </>
+                                              )}
+                                            </div>
+                                          </td>
+                                        )}
+                                      </tr>
+                                    );
+                                  })}
                                 </tbody>
                               </table>
                             </div>
@@ -1636,101 +2029,119 @@ export default function OrganizerDashboardPage() {
         </div>
       )}
 
-      {editingEvent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100">
-            <div className="p-8 pb-4 flex-shrink-0">
-              <span className="text-[10px] font-black text-blue-900 bg-blue-100 px-3 py-1 rounded-full uppercase tracking-wider">
-                Event Revision Form
-              </span>
-              <h2 className="text-2xl font-black text-slate-900 mt-2.5">Edit Event Details</h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Updating image, description, or schedule will resubmit your event for review.
-              </p>
-            </div>
+      {editingEvent && (() => {
+        const modalDuplicates = findDuplicateEvents(editingEvent, allEvents);
+        return (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-3xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100">
+              <div className="p-8 pb-4 flex-shrink-0">
+                <span className="text-[10px] font-black text-blue-900 bg-blue-100 px-3 py-1 rounded-full uppercase tracking-wider">
+                  Event Revision Form
+                </span>
+                <h2 className="text-2xl font-black text-slate-900 mt-2.5">Edit Event Details</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Updating image, description, or schedule will resubmit your event for review.
+                </p>
+              </div>
 
-            <form onSubmit={handleSaveEventEdit} className="flex flex-col flex-1 overflow-hidden">
-              <div className="p-8 pt-2 overflow-y-auto space-y-4 text-xs font-semibold flex-1">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Event Photos / Banner</label>
-                  <FilePicker files={editFiles} onChange={setEditFiles} label="Add more photos" hint="Upload event banners or pictures" />
-                  {getImageList(editingEvent.image_url).length > 0 && (
-                    <div className="mt-3">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Current Photos</p>
-                      <ImageCarousel images={getImageList(editingEvent.image_url)} onPreview={setViewerSrc} className="w-full h-32 rounded-xl overflow-hidden bg-slate-100 border border-slate-200" />
+              <form onSubmit={handleSaveEventEdit} className="flex flex-col flex-1 overflow-hidden">
+                <div className="p-8 pt-2 overflow-y-auto space-y-4 text-xs font-semibold flex-1">
+                  {modalDuplicates.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                        Warning: Existing Matching Event Detected ({modalDuplicates.length})
+                      </p>
+                      <p className="font-medium">
+                        Matches{" "}
+                        {modalDuplicates
+                          .map((m) => `"${m.event_name}" (${m.status || "Scheduled"} on ${m.event_date || "TBA"} at ${m.venue || "TBA"})`)
+                          .join("; ")}
+                        .
+                      </p>
                     </div>
                   )}
-                </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Description</label>
-                  <textarea
-                    rows="3"
-                    value={editingEvent.description || ""}
-                    onChange={(e) => setEditingEvent({ ...editingEvent, description: e.target.value })}
-                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Proposed Date *</label>
-                    <input
-                      type="date"
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Event Photos / Banner</label>
+                    <FilePicker files={editFiles} onChange={setEditFiles} label="Add more photos" hint="Upload event banners or pictures" />
+                    {getImageList(editingEvent.image_url).length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Current Photos</p>
+                        <ImageCarousel images={getImageList(editingEvent.image_url)} onPreview={setViewerSrc} className="w-full h-32 rounded-xl overflow-hidden bg-slate-100 border border-slate-200" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Description</label>
+                    <textarea
+                      rows="3"
+                      value={editingEvent.description || ""}
+                      onChange={(e) => setEditingEvent({ ...editingEvent, description: e.target.value })}
+                      className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Proposed Date *</label>
+                      <input
+                        type="date"
+                        required
+                        value={editingEvent.event_date || ""}
+                        onChange={(e) => setEditingEvent({ ...editingEvent, event_date: e.target.value })}
+                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">End Date (optional)</label>
+                      <input
+                        type="date"
+                        value={editingEvent.event_end_date || ""}
+                        onChange={(e) => setEditingEvent({ ...editingEvent, event_end_date: e.target.value })}
+                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <TimePicker
+                      label="Start time"
                       required
-                      value={editingEvent.event_date || ""}
-                      onChange={(e) => setEditingEvent({ ...editingEvent, event_date: e.target.value })}
-                      className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                      value={editingEvent.event_time || ""}
+                      onChange={(v) => setEditingEvent({ ...editingEvent, event_time: v })}
                     />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">End Date (optional)</label>
-                    <input
-                      type="date"
-                      value={editingEvent.event_end_date || ""}
-                      onChange={(e) => setEditingEvent({ ...editingEvent, event_end_date: e.target.value })}
-                      className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                    <TimePicker
+                      label="End time"
+                      optional
+                      value={editingEvent.event_end_time || ""}
+                      onChange={(v) => setEditingEvent({ ...editingEvent, event_end_time: v })}
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <TimePicker
-                    label="Start time"
-                    required
-                    value={editingEvent.event_time || ""}
-                    onChange={(v) => setEditingEvent({ ...editingEvent, event_time: v })}
-                  />
-                  <TimePicker
-                    label="End time"
-                    optional
-                    value={editingEvent.event_end_time || ""}
-                    onChange={(v) => setEditingEvent({ ...editingEvent, event_end_time: v })}
-                  />
+                <div className="p-8 pt-4 bg-white border-t border-slate-100 flex gap-3 flex-shrink-0">
+                  <button
+                    type="submit"
+                    disabled={editSaving}
+                    className="w-full py-3.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
+                  >
+                    {editSaving ? "Saving & Resubmitting..." : "Save & Resubmit"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingEvent(null)}
+                    disabled={editSaving}
+                    className="px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all whitespace-nowrap"
+                  >
+                    ← Back
+                  </button>
                 </div>
-              </div>
-
-              <div className="p-8 pt-4 bg-white border-t border-slate-100 flex gap-3 flex-shrink-0">
-                <button
-                  type="submit"
-                  disabled={editSaving}
-                  className="w-full py-3.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
-                >
-                  {editSaving ? "Saving & Resubmitting..." : "Save & Resubmit"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditingEvent(null)}
-                  disabled={editSaving}
-                  className="px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all whitespace-nowrap"
-                >
-                  ← Back
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {cancelingEvent && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
