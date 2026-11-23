@@ -76,6 +76,38 @@ const findDuplicateEvents = (targetEvent, allEvents) => {
   });
 };
 
+const parseEventActionMeta = (ev) => {
+  if (!ev) return {};
+  const raw = String(ev.rejection_reason || "");
+  const contactMatch = raw.match(/\[CONTACT:\s*([^\]]+)\]/i);
+  const reschedMatch = raw.match(/\[RESCHEDULE:\s*([^\]]+)\]/i);
+  const cleanReason = raw
+    .replace(/\[CONTACT:\s*[^\]]+\]/gi, "")
+    .replace(/\[RESCHEDULE:\s*[^\]]+\]/gi, "")
+    .trim();
+
+  const parsedSchedule = {};
+  if (reschedMatch && reschedMatch[1]) {
+    const parts = reschedMatch[1].split("|").map((p) => p.trim());
+    parts.forEach((part) => {
+      if (part.startsWith("date=")) parsedSchedule.reschedule_date = part.slice(5);
+      if (part.startsWith("end_date=")) parsedSchedule.reschedule_end_date = part.slice(9);
+      if (part.startsWith("time=")) parsedSchedule.reschedule_time = part.slice(5);
+      if (part.startsWith("end_time=")) parsedSchedule.reschedule_end_time = part.slice(9);
+    });
+  }
+
+  return {
+    organizer_contact_info:
+      ev.organizer_contact_info || (contactMatch ? contactMatch[1].trim() : ""),
+    reschedule_date: ev.reschedule_date || parsedSchedule.reschedule_date || "",
+    reschedule_end_date: ev.reschedule_end_date || parsedSchedule.reschedule_end_date || "",
+    reschedule_time: ev.reschedule_time || parsedSchedule.reschedule_time || "",
+    reschedule_end_time: ev.reschedule_end_time || parsedSchedule.reschedule_end_time || "",
+    action_reason: ev.reschedule_reason || cleanReason,
+  };
+};
+
 const resolveRegistrationSerial = (r) => {
   if (!r) return "";
   if (r.serial_id) return String(r.serial_id);
@@ -87,6 +119,19 @@ const resolveRegistrationSerial = (r) => {
     return `DAET-${evPart}-${idPart}`;
   }
   return "";
+};
+
+const resolveRefundState = (r) => {
+  if (!r) return "none";
+  const raw = norm(r.refund_status);
+  const regRaw = norm(r.registration_status);
+  if (raw === "refunded" || regRaw === "refunded" || r.refund_confirmed === true || Boolean(r.refunded_at)) {
+    return "refunded";
+  }
+  if (raw === "requested" || raw === "refund requested" || regRaw === "refund requested") {
+    return "requested";
+  }
+  return "none";
 };
 
 const resolveAttendanceState = (r) => {
@@ -120,6 +165,7 @@ const isMissingColumnError = (err) => {
 
 const getPhase = (status) => {
   const st = norm(status);
+  if (st === "cancelled") return "Cancelled";
   if (st === "ongoing") return "Ongoing";
   if (st === "completed") return "Completed";
   if (st === "rescheduled") return "Rescheduled";
@@ -130,6 +176,7 @@ const phaseBadge = {
   Upcoming: "bg-blue-100 text-blue-900",
   Ongoing: "bg-emerald-100 text-emerald-800",
   Rescheduled: "bg-amber-100 text-amber-800",
+  Cancelled: "bg-red-100 text-red-800",
   Completed: "bg-gray-200 text-gray-700",
 };
 
@@ -175,8 +222,11 @@ export default function TouristDashboardPage() {
   const now = useNow(30000);
 
   const [dismissedNotifs, setDismissedNotifs] = useState(new Set());
+  const [hiddenCancelledIds, setHiddenCancelledIds] = useState(() => new Set());
   const [calendarSelectedEvent, setCalendarSelectedEvent] = useState(null);
   const [busyCheckInId, setBusyCheckInId] = useState(null);
+  const [busyScheduleChoiceId, setBusyScheduleChoiceId] = useState(null);
+  const [copiedSerialId, setCopiedSerialId] = useState("");
 
   const eventsMap = useMemo(() => {
     const live = {};
@@ -218,6 +268,17 @@ export default function TouristDashboardPage() {
       } catch (e) {}
       return next;
     });
+  };
+
+  const handleCopySerial = async (serialText) => {
+    if (!serialText) return;
+    try {
+      await navigator.clipboard.writeText(serialText);
+      setCopiedSerialId(serialText);
+      setTimeout(() => setCopiedSerialId(""), 2000);
+    } catch (e) {
+      notify(`Serial ID: ${serialText}`, "info");
+    }
   };
 
   const fetchData = async (silent = false) => {
@@ -354,6 +415,88 @@ export default function TouristDashboardPage() {
     } catch (err) {
       console.error("Cancel registration error:", err);
       notify("Error cancelling registration: " + err.message);
+    }
+  };
+
+  const handleContinueRescheduledEvent = async (reg) => {
+    const event = eventsMap[reg.event_id] || {};
+    const ok = await askConfirm({
+      title: "Continue with the rescheduled date?",
+      message: `Confirm that you will still attend "${event.event_name || "this event"}" on ${formatDate(event.event_date || event.date)}${formatTimeRange(event) ? ` (${formatTimeRange(event)})` : ""}? Your Serial ID remains active.`,
+      confirmLabel: "Yes, continue attending",
+    });
+    if (!ok) return;
+
+    setBusyScheduleChoiceId(reg.id);
+    const patch = {
+      reschedule_choice: "continued",
+      reschedule_responded_at: new Date().toISOString(),
+    };
+    try {
+      const { error } = await supabase
+        .from("event_registrations")
+        .update(patch)
+        .eq("id", reg.id)
+        .eq("user_id", user.id);
+
+      if (error && !isMissingColumnError(error)) throw error;
+      persistRegOverride(reg.id, patch);
+      setRegistrations((prev) => prev.map((r) => (r.id === reg.id ? { ...r, ...patch } : r)));
+      notify("Confirmed! You remain on the official attendee list for the new schedule.", "info");
+    } catch (err) {
+      console.error("Continue rescheduled event error:", err);
+      notify("Error saving your choice: " + (err.message || "Unknown error"));
+    } finally {
+      setBusyScheduleChoiceId(null);
+    }
+  };
+
+  const handleRequestRefund = async (reg) => {
+    const event = eventsMap[reg.event_id] || {};
+    const actionMeta = parseEventActionMeta(event);
+    const serialId = resolveRegistrationSerial(reg);
+    const contactText = actionMeta.organizer_contact_info || event.organizer_name || "the event organizer";
+
+    const ok = await askConfirm({
+      title: "Request a refund for this event?",
+      message: `Your refund request will be flagged for "${event.event_name || "this event"}". Please contact ${contactText} and provide your Serial ID${serialId ? ` (${serialId})` : ""} so the organizer can verify and process your refund.`,
+      confirmLabel: "Submit refund request",
+      tone: "danger",
+    });
+    if (!ok) return;
+
+    setBusyScheduleChoiceId(reg.id);
+    const nowIso = new Date().toISOString();
+    const patch = {
+      refund_status: "Requested",
+      refund_requested_at: nowIso,
+      reschedule_choice: "refund_requested",
+    };
+
+    try {
+      const { error } = await supabase
+        .from("event_registrations")
+        .update({
+          refund_status: "Requested",
+          refund_requested_at: nowIso,
+          reschedule_choice: "refund_requested",
+        })
+        .eq("id", reg.id)
+        .eq("user_id", user.id);
+
+      if (error && !isMissingColumnError(error)) throw error;
+
+      persistRegOverride(reg.id, patch);
+      setRegistrations((prev) => prev.map((r) => (r.id === reg.id ? { ...r, ...patch } : r)));
+      notify(
+        `Refund request recorded. Contact ${contactText} with Serial ID ${serialId || "on your ticket"} to complete your refund.`,
+        "info"
+      );
+    } catch (err) {
+      console.error("Request refund error:", err);
+      notify("Error requesting refund: " + (err.message || "Unknown error"));
+    } finally {
+      setBusyScheduleChoiceId(null);
     }
   };
 
@@ -516,7 +659,8 @@ export default function TouristDashboardPage() {
   const visibleRegistrations = registrations.filter((reg) => {
     const ev = eventsMap[reg.event_id];
     if (!ev) return !eventsFetchOk;
-    return norm(ev.status) !== "cancelled";
+    if (norm(ev.status) === "cancelled" && hiddenCancelledIds.has(String(reg.id))) return false;
+    return true;
   });
 
   const duplicatesByEventId = useMemo(() => {
@@ -620,7 +764,7 @@ export default function TouristDashboardPage() {
               <div>
                 <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">My Registered Events</h1>
                 <p className="text-xs text-gray-500 font-semibold mt-0.5">
-                  View your official Serial IDs, check in when events are happening now, and manage your registrations.
+                  View your official Serial IDs, respond to schedule changes, check in when events are happening now, and manage your registrations.
                 </p>
               </div>
               <Link href="/programs">
@@ -644,18 +788,33 @@ export default function TouristDashboardPage() {
                 {visibleRegistrations.map((reg) => {
                   const event = eventsMap[reg.event_id] || {};
                   const st = regState(reg);
+                  const evStatusNorm = norm(event.status);
+                  const isCancelled = evStatusNorm === "cancelled";
+                  const isRescheduled = evStatusNorm === "rescheduled";
                   const phase = getPhase(event.status);
                   const isOngoing = phase === "Ongoing";
                   const serialId = resolveRegistrationSerial(reg);
+                  const refundState = resolveRefundState(reg);
                   const attendance = resolveAttendanceState(reg);
+                  const actionMeta = parseEventActionMeta(event);
                   const duplicateMatches = duplicatesByEventId.get(String(reg.event_id)) || [];
                   const resolvedImg = getImageUrl(event.image_url);
                   const startDateVal = event.event_date || event.date;
                   const endDateVal = event.event_end_date || event.end_date;
                   const members = teamMembersOf(reg);
+                  const isChoiceBusy = busyScheduleChoiceId === reg.id;
 
                   return (
-                    <div key={reg.id} className="bg-white p-5 rounded-2xl border border-gray-200 flex flex-col md:flex-row gap-5 shadow-sm">
+                    <div
+                      key={reg.id}
+                      className={`bg-white p-5 rounded-2xl border flex flex-col md:flex-row gap-5 shadow-sm ${
+                        isCancelled
+                          ? "border-red-300"
+                          : isRescheduled
+                          ? "border-amber-300"
+                          : "border-gray-200"
+                      }`}
+                    >
                       {resolvedImg ? (
                         <button
                           type="button"
@@ -686,18 +845,35 @@ export default function TouristDashboardPage() {
                           <h3 className="font-black text-base text-slate-900">{event.event_name || "Municipal Event"}</h3>
                           <span
                             className={`px-2.5 py-1 text-[10px] font-black rounded-full uppercase ${
-                              st === "pending"
+                              refundState === "refunded"
+                                ? "bg-slate-200 text-slate-800"
+                                : refundState === "requested"
+                                ? "bg-amber-100 text-amber-900"
+                                : st === "pending"
                                 ? "bg-amber-100 text-amber-800"
                                 : st === "rejected"
                                 ? "bg-red-100 text-red-700"
                                 : "bg-emerald-100 text-emerald-800"
                             }`}
                           >
-                            {st === "pending" ? "Pending approval" : st === "rejected" ? "Rejected" : "Registered"}
+                            {refundState === "refunded"
+                              ? "Refunded"
+                              : refundState === "requested"
+                              ? "Refund Requested"
+                              : st === "pending"
+                              ? "Pending approval"
+                              : st === "rejected"
+                              ? "Rejected"
+                              : "Registered"}
                           </span>
                           <span className={`px-2.5 py-1 text-[10px] font-black rounded-full uppercase ${phaseBadge[phase]}`}>
                             {isOngoing ? "Happening now" : phase}
                           </span>
+                          {isRescheduled && reg.reschedule_choice === "continued" && refundState === "none" && (
+                            <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-blue-100 text-blue-900">
+                              Continuing with New Schedule
+                            </span>
+                          )}
                           {st === "confirmed" && attendance === "confirmed" && (
                             <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-emerald-600 text-white">
                               Attendance Confirmed
@@ -710,21 +886,131 @@ export default function TouristDashboardPage() {
                           )}
                         </div>
 
-                        {st === "confirmed" && serialId && (
-                          <div className="bg-blue-950 text-white rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        {serialId && (st === "confirmed" || isCancelled || isRescheduled || refundState !== "none") && (
+                          <div className="bg-blue-950 text-white rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                             <div>
                               <span className="text-[10px] font-bold uppercase tracking-wider text-blue-200 block">
                                 Official Attendee Serial ID
                               </span>
                               <span className="font-mono text-base font-black tracking-wider">{serialId}</span>
                             </div>
-                            <span className="text-[11px] text-blue-100 font-medium">
-                              Present this Serial ID at the venue for attendance verification.
-                            </span>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[11px] text-blue-100 font-medium">
+                                {isCancelled || refundState !== "none"
+                                  ? "Present this Serial ID to the organizer for refund verification."
+                                  : "Present this Serial ID at the venue for attendance verification."}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopySerial(serialId)}
+                                className="px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+                              >
+                                {copiedSerialId === serialId ? "Copied ✓" : "Copy ID"}
+                              </button>
+                            </div>
                           </div>
                         )}
 
-                        {duplicateMatches.length > 0 && (
+                        {isCancelled && (
+                          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-xs text-red-950 space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-[11px] font-black uppercase tracking-wider text-red-800">
+                                Event Cancelled Notice
+                              </p>
+                              {refundState === "refunded" ? (
+                                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                                  Refund Completed
+                                </span>
+                              ) : refundState === "requested" ? (
+                                <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black uppercase">
+                                  Refund Requested — Contact Organizer
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="font-medium leading-relaxed">
+                              This event has been cancelled by the organizer and approved by the Municipal Tourism Office.
+                              {actionMeta.action_reason ? (
+                                <>
+                                  {" "}
+                                  <strong>Reason:</strong> {actionMeta.action_reason}
+                                </>
+                              ) : null}
+                            </p>
+                            <div className="bg-white/90 border border-red-200 rounded-lg p-3 space-y-1">
+                              <p className="text-[10px] font-black uppercase tracking-wider text-slate-600">
+                                Organizer Contact Details for Refunds & Inquiries
+                              </p>
+                              <p className="font-bold text-slate-900">
+                                {actionMeta.organizer_contact_info || event.organizer_name || "Contact the Municipal Tourism Office"}
+                              </p>
+                              {serialId && (
+                                <p className="text-[11px] text-slate-600">
+                                  Reference your Serial ID <strong className="font-mono text-blue-950">{serialId}</strong> when reaching out to claim your refund.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {isRescheduled && (
+                          <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-xs text-amber-950 space-y-2.5">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-[11px] font-black uppercase tracking-wider text-amber-900">
+                                Event Rescheduled — Action Required
+                              </p>
+                              {reg.reschedule_choice === "continued" && refundState === "none" && (
+                                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                                  You Confirmed Attendance
+                                </span>
+                              )}
+                            </div>
+                            <p className="font-medium leading-relaxed">
+                              This event has been moved to{" "}
+                              <strong>
+                                {formatDate(startDateVal)}
+                                {endDateVal && endDateVal !== startDateVal ? ` – ${formatDate(endDateVal)}` : ""}
+                                {formatTimeRange(event) ? ` (${formatTimeRange(event)})` : ""}
+                              </strong>
+                              .
+                              {actionMeta.action_reason ? (
+                                <>
+                                  {" "}
+                                  <strong>Reason:</strong> {actionMeta.action_reason}
+                                </>
+                              ) : null}
+                            </p>
+                            {actionMeta.organizer_contact_info && (
+                              <div className="bg-white/90 border border-amber-200 rounded-lg p-3 space-y-0.5">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-slate-600">
+                                  Organizer Contact Details (Refunds & Questions)
+                                </p>
+                                <p className="font-bold text-slate-900">{actionMeta.organizer_contact_info}</p>
+                              </div>
+                            )}
+                            {refundState === "none" && reg.reschedule_choice !== "continued" && (
+                              <div className="flex flex-wrap items-center gap-2 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleContinueRescheduledEvent(reg)}
+                                  disabled={isChoiceBusy}
+                                  className="px-4 py-2 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold text-[11px] uppercase shadow-sm transition-all"
+                                >
+                                  {isChoiceBusy ? "Saving..." : "Continue with New Schedule"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRequestRefund(reg)}
+                                  disabled={isChoiceBusy}
+                                  className="px-4 py-2 bg-white hover:bg-red-50 disabled:opacity-60 text-red-700 border border-red-300 rounded-xl font-bold text-[11px] uppercase transition-all"
+                                >
+                                  Request Refund
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {!isCancelled && duplicateMatches.length > 0 && (
                           <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-0.5">
                             <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
                               Duplicate / Overlapping Event Notice
@@ -746,13 +1032,13 @@ export default function TouristDashboardPage() {
                           <p><strong>Organizer:</strong> {event.organizer_name || "Municipal Tourism Office"}</p>
                           <p><strong>Venue:</strong> {event.venue || "TBA"}</p>
                           <p>
-                            <strong>Date & Time:</strong> {formatDate(startDateVal)}
+                            <strong>{isRescheduled ? "Updated Date & Time:" : "Date & Time:"}</strong> {formatDate(startDateVal)}
                             {endDateVal && endDateVal !== startDateVal ? ` – ${formatDate(endDateVal)}` : ""} | {formatTimeRange(event) || "TBA"}
                           </p>
                           {reg.team_name && (
                             <div className="pt-1 space-y-1">
                               <p><strong>Team:</strong> {reg.team_name} ({members.length} members)</p>
-                              {st === "confirmed" && serialId && members.length > 0 && (
+                              {serialId && members.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5 pt-0.5">
                                   {members.map((m, idx) => (
                                     <span
@@ -769,7 +1055,7 @@ export default function TouristDashboardPage() {
                           {event.is_paid && <p><strong>Fee:</strong> {peso(event.fee_amount)}{regTypeOf(event) === "group" ? " per team" : ""}</p>}
                         </div>
 
-                        {st === "confirmed" && isOngoing && (
+                        {!isCancelled && st === "confirmed" && isOngoing && (
                           <div
                             className={`rounded-xl border p-3 text-xs space-y-1 ${
                               attendance === "confirmed"
@@ -799,7 +1085,11 @@ export default function TouristDashboardPage() {
                         {event.is_paid && (
                           <div
                             className={`rounded-xl border p-3 text-xs space-y-1.5 ${
-                              st === "pending"
+                              refundState === "refunded"
+                                ? "bg-slate-100 border-slate-300 text-slate-800"
+                                : refundState === "requested"
+                                ? "bg-amber-50 border-amber-200 text-amber-900"
+                                : st === "pending"
                                 ? "bg-amber-50 border-amber-200 text-amber-900"
                                 : st === "rejected"
                                 ? "bg-red-50 border-red-200 text-red-800"
@@ -807,7 +1097,11 @@ export default function TouristDashboardPage() {
                             }`}
                           >
                             <p className="text-[10px] font-black uppercase tracking-wider">
-                              {st === "pending"
+                              {refundState === "refunded"
+                                ? "Refund confirmed by the organizer"
+                                : refundState === "requested"
+                                ? "Refund requested — awaiting organizer confirmation"
+                                : st === "pending"
                                 ? "Waiting for the organizer to confirm your payment"
                                 : st === "rejected"
                                 ? "Your registration was rejected"
@@ -818,14 +1112,14 @@ export default function TouristDashboardPage() {
                               {reg.payment_reference ? ` | Ref: ${reg.payment_reference}` : ""}
                             </p>
 
-                            {st === "pending" && (
+                            {!isCancelled && st === "pending" && (
                               <p className="font-medium whitespace-pre-line">
                                 {(reg.payment_method || "").toLowerCase() === "online"
                                   ? `Send your payment to: ${event.online_payment_details || "ask the organizer for payment details."}`
                                   : `Pay your cash at: ${event.cash_payment_details || "ask the organizer where to pay."}`}
                               </p>
                             )}
-                            {st === "pending" && (
+                            {!isCancelled && st === "pending" && (
                               <p className="font-medium">
                                 You will receive your official Serial ID once the organizer approves your payment. Until then you are not on the official attendee list.
                               </p>
@@ -839,13 +1133,79 @@ export default function TouristDashboardPage() {
                         )}
                       </div>
 
-                      <div className="flex flex-col justify-center items-stretch gap-2.5 min-w-[180px]">
-                        {phase === "Completed" ? (
+                      <div className="flex flex-col justify-center items-stretch gap-2.5 min-w-[185px]">
+                        {isCancelled ? (
+                          <>
+                            {refundState === "none" && st === "confirmed" && (
+                              <button
+                                type="button"
+                                onClick={() => handleRequestRefund(reg)}
+                                disabled={isChoiceBusy}
+                                className="w-full py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
+                              >
+                                {isChoiceBusy ? "Submitting..." : "Request Refund"}
+                              </button>
+                            )}
+                            {refundState === "requested" && (
+                              <span className="w-full py-2.5 px-3 bg-amber-100 text-amber-900 text-[11px] font-black rounded-xl uppercase text-center">
+                                Refund Requested
+                              </span>
+                            )}
+                            {refundState === "refunded" && (
+                              <span className="w-full py-2.5 px-3 bg-emerald-100 text-emerald-800 text-[11px] font-black rounded-xl uppercase text-center">
+                                Refund Confirmed
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setHiddenCancelledIds((prev) => {
+                                  const next = new Set(prev);
+                                  next.add(String(reg.id));
+                                  return next;
+                                })
+                              }
+                              className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold rounded-xl uppercase transition-all text-center"
+                            >
+                              Hide Notice
+                            </button>
+                          </>
+                        ) : phase === "Completed" ? (
                           <span className="w-full py-2.5 bg-gray-100 text-gray-500 text-xs font-bold rounded-xl uppercase text-center shadow-sm">
                             Event completed
                           </span>
                         ) : (
                           <>
+                            {isRescheduled && refundState === "none" && reg.reschedule_choice !== "continued" && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleContinueRescheduledEvent(reg)}
+                                  disabled={isChoiceBusy}
+                                  className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
+                                >
+                                  {isChoiceBusy ? "Saving..." : "Continue Schedule"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRequestRefund(reg)}
+                                  disabled={isChoiceBusy}
+                                  className="w-full py-2.5 bg-amber-100 hover:bg-amber-200 disabled:opacity-60 text-amber-900 text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
+                                >
+                                  Request Refund
+                                </button>
+                              </>
+                            )}
+                            {isRescheduled && refundState === "none" && reg.reschedule_choice === "continued" && (
+                              <button
+                                type="button"
+                                onClick={() => handleRequestRefund(reg)}
+                                disabled={isChoiceBusy}
+                                className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 disabled:opacity-60 text-amber-900 border border-amber-200 text-xs font-bold rounded-xl uppercase transition-all text-center"
+                              >
+                                Request Refund Instead
+                              </button>
+                            )}
                             {st === "confirmed" && isOngoing && attendance === "unmarked" && (
                               <button
                                 type="button"
@@ -874,12 +1234,14 @@ export default function TouristDashboardPage() {
                                 Resubmit Registration
                               </button>
                             )}
-                            <button
-                              onClick={() => handleCancelRegistration(reg.id)}
-                              className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
-                            >
-                              Cancel Registration
-                            </button>
+                            {refundState === "none" && (
+                              <button
+                                onClick={() => handleCancelRegistration(reg.id)}
+                                className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
+                              >
+                                Cancel Registration
+                              </button>
+                            )}
                           </>
                         )}
                       </div>
@@ -1020,7 +1382,7 @@ export default function TouristDashboardPage() {
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
                 <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Notifications & Event Alerts</h1>
-                <p className="text-xs text-gray-500 font-semibold mt-0.5">Real-time status updates for your registered municipal activities.</p>
+                <p className="text-xs text-gray-500 font-semibold mt-0.5">Real-time schedule updates, cancellation notices, and status alerts for your municipal activities.</p>
               </div>
               <BackButton />
             </div>
@@ -1067,22 +1429,64 @@ export default function TouristDashboardPage() {
                   .filter((reg) => !dismissedNotifs.has(`reg-notif-${reg.id}`))
                   .map((reg) => {
                     const event = eventsMap[reg.event_id] || {};
+                    const evStatusNorm = norm(event.status);
+                    const isCancelled = evStatusNorm === "cancelled";
+                    const isRescheduled = evStatusNorm === "rescheduled";
                     const phase = getPhase(event.status);
                     const st = regState(reg);
                     const serialId = resolveRegistrationSerial(reg);
+                    const refundState = resolveRefundState(reg);
                     const attendance = resolveAttendanceState(reg);
+                    const actionMeta = parseEventActionMeta(event);
 
                     return (
-                      <div key={reg.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm relative flex gap-3 items-start">
-                        <div className="flex-1 min-w-0 space-y-1">
+                      <div
+                        key={reg.id}
+                        className={`bg-white p-5 rounded-2xl border shadow-sm relative flex gap-3 items-start ${
+                          isCancelled
+                            ? "border-red-300 bg-red-50/30"
+                            : isRescheduled
+                            ? "border-amber-300 bg-amber-50/30"
+                            : "border-gray-200"
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0 space-y-1.5">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-[10px] font-black text-blue-900 uppercase tracking-wider">
-                                {st === "pending" ? "Awaiting Approval" : st === "rejected" ? "Registration Rejected" : phase === "Upcoming" ? "Registration Notice" : "Event Update"}
+                              <span
+                                className={`text-[10px] font-black uppercase tracking-wider ${
+                                  isCancelled
+                                    ? "text-red-700"
+                                    : isRescheduled
+                                    ? "text-amber-800"
+                                    : "text-blue-900"
+                                }`}
+                              >
+                                {isCancelled
+                                  ? "Event Cancelled"
+                                  : isRescheduled
+                                  ? "Event Rescheduled"
+                                  : st === "pending"
+                                  ? "Awaiting Approval"
+                                  : st === "rejected"
+                                  ? "Registration Rejected"
+                                  : phase === "Upcoming"
+                                  ? "Registration Notice"
+                                  : "Event Update"}
                               </span>
-                              {st === "confirmed" && serialId && (
+                              {serialId && (st === "confirmed" || isCancelled || isRescheduled) && (
                                 <span className="px-2 py-0.5 rounded-md bg-blue-950 text-white font-mono text-[10px] font-bold">
                                   Serial: {serialId}
+                                </span>
+                              )}
+                              {refundState === "requested" && (
+                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[9px] font-black uppercase">
+                                  Refund Requested
+                                </span>
+                              )}
+                              {refundState === "refunded" && (
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase">
+                                  Refunded
                                 </span>
                               )}
                             </div>
@@ -1090,7 +1494,11 @@ export default function TouristDashboardPage() {
                           </div>
                           <p className="text-xs font-bold text-slate-900">
                             <span className="text-blue-900">{event.event_name || "Municipal Program"}</span>{" "}
-                            {st === "pending"
+                            {isCancelled
+                              ? "has been cancelled. Use your Serial ID and the organizer contact details below to claim a refund."
+                              : isRescheduled
+                              ? `has been rescheduled to ${formatDate(event.event_date || event.date)}${formatTimeRange(event) ? ` (${formatTimeRange(event)})` : ""}. Open My Events to continue attending or request a refund.`
+                              : st === "pending"
                               ? "registration is pending. The organizer is checking your payment."
                               : st === "rejected"
                               ? "registration was rejected. Please resubmit it from My Events."
@@ -1102,14 +1510,35 @@ export default function TouristDashboardPage() {
                               ? "has been completed. Thank you for taking part."
                               : "registration is confirmed. You are on the official attendee list."}
                           </p>
+                          {(isCancelled || isRescheduled) && actionMeta.action_reason && (
+                            <p className="text-xs text-slate-700 bg-white border border-gray-200 rounded-xl p-3">
+                              <strong>Reason:</strong> {actionMeta.action_reason}
+                            </p>
+                          )}
+                          {(isCancelled || isRescheduled) && actionMeta.organizer_contact_info && (
+                            <p className="text-xs text-blue-950 bg-blue-50 border border-blue-200 rounded-xl p-3">
+                              <strong>Organizer Refund & Inquiry Contact:</strong> {actionMeta.organizer_contact_info}
+                            </p>
+                          )}
                           {st === "rejected" && reg.rejection_reason && (
                             <p className="text-xs text-red-700 bg-red-50 border border-red-100 rounded-xl p-3 mt-1">
                               <strong>Organizer note:</strong> {reg.rejection_reason}
                             </p>
                           )}
-                          <p className="text-[11px] text-gray-500">
-                            Location: {event.venue || "TBA"} | Scheduled Date: {formatDate(event.event_date || event.date)}
-                          </p>
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                            <p className="text-[11px] text-gray-500">
+                              Location: {event.venue || "TBA"} | {isRescheduled ? "New Date:" : "Scheduled Date:"} {formatDate(event.event_date || event.date)}
+                            </p>
+                            {(isCancelled || isRescheduled) && (
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab("my-events")}
+                                className="px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white rounded-lg text-[10px] font-bold uppercase transition-all"
+                              >
+                                Manage in My Events →
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <button
                           onClick={() => dismissNotification(`reg-notif-${reg.id}`)}

@@ -23,6 +23,7 @@ const EVENT_FILTERS = [
   "Pending",
   "Upcoming",
   "Ongoing",
+  "Rescheduled",
   "Completed",
   "Requires Changes",
   "Requirements Needed",
@@ -75,6 +76,59 @@ const norm = (v) => (typeof v === "string" || typeof v === "number" ? String(v).
 
 const isImageSrc = (v) => typeof v === "string" && (v.startsWith("data:image") || v.startsWith("http"));
 
+const isMissingColumnError = (err) => {
+  const msg = norm(err?.message || "");
+  const code = String(err?.code || "");
+  return code === "PGRST204" || msg.includes("column") || msg.includes("schema cache");
+};
+
+const parseEventActionMeta = (ev) => {
+  if (!ev) return {};
+  const raw = String(ev.rejection_reason || "");
+  const contactMatch = raw.match(/\[CONTACT:\s*([^\]]+)\]/i);
+  const reschedMatch = raw.match(/\[RESCHEDULE:\s*([^\]]+)\]/i);
+  const cleanReason = raw
+    .replace(/\[CONTACT:\s*[^\]]+\]/gi, "")
+    .replace(/\[RESCHEDULE:\s*[^\]]+\]/gi, "")
+    .trim();
+
+  const parsedSchedule = {};
+  if (reschedMatch && reschedMatch[1]) {
+    const parts = reschedMatch[1].split("|").map((p) => p.trim());
+    parts.forEach((part) => {
+      if (part.startsWith("date=")) parsedSchedule.reschedule_date = part.slice(5);
+      if (part.startsWith("end_date=")) parsedSchedule.reschedule_end_date = part.slice(9);
+      if (part.startsWith("time=")) parsedSchedule.reschedule_time = part.slice(5);
+      if (part.startsWith("end_time=")) parsedSchedule.reschedule_end_time = part.slice(9);
+    });
+  }
+
+  return {
+    organizer_contact_info:
+      ev.organizer_contact_info || (contactMatch ? contactMatch[1].trim() : ""),
+    reschedule_date: ev.reschedule_date || parsedSchedule.reschedule_date || "",
+    reschedule_end_date: ev.reschedule_end_date || parsedSchedule.reschedule_end_date || "",
+    reschedule_time: ev.reschedule_time || parsedSchedule.reschedule_time || "",
+    reschedule_end_time: ev.reschedule_end_time || parsedSchedule.reschedule_end_time || "",
+    action_reason: ev.reschedule_reason || cleanReason,
+  };
+};
+
+const buildFallbackReasonText = ({ reason, contactInfo, reschedule }) => {
+  const segments = [String(reason || "").trim()];
+  if (reschedule && reschedule.date) {
+    const rParts = [`date=${reschedule.date}`];
+    if (reschedule.endDate) rParts.push(`end_date=${reschedule.endDate}`);
+    if (reschedule.time) rParts.push(`time=${reschedule.time}`);
+    if (reschedule.endTime) rParts.push(`end_time=${reschedule.endTime}`);
+    segments.push(`[RESCHEDULE: ${rParts.join(" | ")}]`);
+  }
+  if (contactInfo && contactInfo.trim()) {
+    segments.push(`[CONTACT: ${contactInfo.trim()}]`);
+  }
+  return segments.filter(Boolean).join(" ");
+};
+
 const toEventDateKey = (raw) => {
   if (!raw || typeof raw === "function" || typeof raw === "object") return "";
   const match = String(raw).trim().match(/^(\d{4}-\d{2}-\d{2})/);
@@ -125,6 +179,19 @@ const resolveRegistrationSerial = (r) => {
   return "";
 };
 
+const resolveRefundState = (r) => {
+  if (!r) return "none";
+  const raw = norm(r.refund_status);
+  const regRaw = norm(r.registration_status);
+  if (raw === "refunded" || regRaw === "refunded" || r.refund_confirmed === true || Boolean(r.refunded_at)) {
+    return "refunded";
+  }
+  if (raw === "requested" || raw === "refund requested" || regRaw === "refund requested") {
+    return "requested";
+  }
+  return "none";
+};
+
 const resolveAttendanceState = (r) => {
   const raw = norm(r.attendance_status);
   if (
@@ -151,6 +218,7 @@ const expandRegistration = (r) => {
   const members = teamMembersOf(r);
   const serialId = resolveRegistrationSerial(r);
   const attendance = resolveAttendanceState(r);
+  const refundState = resolveRefundState(r);
 
   if (members.length > 0) {
     return members.map((m, i) => ({
@@ -166,6 +234,7 @@ const expandRegistration = (r) => {
       team_name: r.team_name || "Unnamed team",
       isLeader: i === 0,
       status: regState(r),
+      refundState,
       serial_id: serialId ? `${serialId}-${i + 1}` : "",
       attendance,
     }));
@@ -184,6 +253,7 @@ const expandRegistration = (r) => {
       team_name: r.team_name || null,
       isLeader: false,
       status: regState(r),
+      refundState,
       serial_id: serialId,
       attendance,
     },
@@ -226,7 +296,7 @@ const matchesEventFilter = (event, filter) => {
     case "Pending":
       return st === "pending" || st === "under review" || st === "";
     case "Upcoming":
-      return st === "approved" || st === "upcoming";
+      return st === "approved" || st === "upcoming" || st === "rescheduled";
     default:
       return st === norm(filter);
   }
@@ -238,6 +308,10 @@ const statusBadgeClass = (status) => {
     case "upcoming":
     case "ongoing":
       return "bg-blue-100 text-blue-900";
+    case "rescheduled":
+      return "bg-indigo-100 text-indigo-900";
+    case "reschedule requested":
+      return "bg-amber-100 text-amber-900";
     case "completed":
       return "bg-gray-200 text-gray-700";
     case "rejected":
@@ -476,6 +550,56 @@ export default function UnifiedAdminDashboard() {
     };
   }, [reviewingEventId]);
 
+  const notifyJoinedTourists = async (event, { type, title, message, contactInfo, reason }) => {
+    try {
+      const eventRegs = registrations.filter(
+        (r) => String(r.event_id) === String(event.id) && regState(r) !== "rejected"
+      );
+      const userIdSet = new Set(eventRegs.map((r) => r.user_id).filter(Boolean));
+
+      try {
+        const { data: interestedData } = await supabase.rpc("event_interested_list", {
+          p_event_id: String(event.id),
+        });
+        if (Array.isArray(interestedData)) {
+          interestedData.forEach((row) => {
+            if (row?.user_id) userIdSet.add(row.user_id);
+          });
+        }
+      } catch (e) {}
+
+      const recipientIds = [...userIdSet];
+      if (recipientIds.length === 0) return 0;
+
+      const nowIso = new Date().toISOString();
+      const rows = recipientIds.map((uid) => ({
+        user_id: uid,
+        event_id: event.id,
+        type,
+        title,
+        message,
+        reason: reason || null,
+        organizer_contact_info: contactInfo || null,
+        is_read: false,
+        created_at: nowIso,
+      }));
+
+      await supabase.from("notifications").insert(rows);
+
+      await supabase
+        .from("event_registrations")
+        .update({
+          event_notice_status: type,
+          event_notice_at: nowIso,
+        })
+        .eq("event_id", event.id);
+
+      return recipientIds.length;
+    } catch (e) {
+      return 0;
+    }
+  };
+
   const openOrganizerDeepDive = (org) => {
     setAdminSelectedEvent("All");
     setAdminGenderFilter("All");
@@ -674,6 +798,8 @@ export default function UnifiedAdminDashboard() {
       payload = { status: "Requires Changes", revision_notes: feedbackModal.reason.trim() };
     } else if (feedbackModal.type === "reject-cancellation") {
       payload = { status: "Approved", rejection_reason: `Cancellation Denied by Admin: ${feedbackModal.reason.trim()}` };
+    } else if (feedbackModal.type === "reject-reschedule") {
+      payload = { status: "Approved", rejection_reason: `Rescheduling Denied by Admin: ${feedbackModal.reason.trim()}` };
     }
 
     setSubmittingFeedback(true);
@@ -686,6 +812,7 @@ export default function UnifiedAdminDashboard() {
       if (error) throw error;
       setFeedbackModal({ isOpen: false, type: "", targetId: null, reason: "" });
       await fetchData(true);
+      notify("Feedback submitted to organizer.", "info");
     } catch (err) {
       console.error("Event feedback error:", err);
       notify("Error updating event proposal: " + err.message);
@@ -769,13 +896,159 @@ export default function UnifiedAdminDashboard() {
   };
 
   const handleApproveCancellation = async (event) => {
+    const meta = parseEventActionMeta(event);
+    const joinedCount = registrations.filter(
+      (r) => String(r.event_id) === String(event.id) && regState(r) !== "rejected"
+    ).length;
+
     const ok = await askConfirm({
       title: "Approve this cancellation?",
-      message: `"${event.event_name}" will be cancelled and removed from the public schedule and from tourists' dashboards.`,
-      confirmLabel: "Approve cancellation",
+      message: `"${event.event_name}" will be marked as Cancelled and removed from public registration. ${joinedCount} registered tourist${joinedCount === 1 ? "" : "s"} will be notified with the cancellation reason and the organizer's refund contact details.`,
+      confirmLabel: "Approve cancellation & notify tourists",
       tone: "danger",
     });
-    if (ok) await updateEventStatus(event.id, "Cancelled");
+    if (!ok) return;
+
+    setBusyActionId(event.id);
+    try {
+      const encodedReason = buildFallbackReasonText({
+        reason: meta.action_reason || "Event cancelled by organizer.",
+        contactInfo: meta.organizer_contact_info,
+      });
+
+      const corePatch = {
+        status: "Cancelled",
+        rejection_reason: encodedReason,
+      };
+
+      const fullPatch = { ...corePatch };
+      if (Object.prototype.hasOwnProperty.call(event, "organizer_contact_info")) {
+        fullPatch.organizer_contact_info = meta.organizer_contact_info || null;
+      }
+
+      let { error } = await supabase
+        .from("tourism_programs")
+        .update(fullPatch)
+        .eq("id", event.id);
+
+      if (error && isMissingColumnError(error)) {
+        ({ error } = await supabase
+          .from("tourism_programs")
+          .update(corePatch)
+          .eq("id", event.id));
+      }
+
+      if (error) throw error;
+
+      await notifyJoinedTourists(event, {
+        type: "event_cancelled",
+        title: `Event Cancelled: ${event.event_name}`,
+        message: `The event "${event.event_name}" has been cancelled. Reason: ${meta.action_reason || "Unforeseen circumstances"}. Contact the organizer using your Serial ID to request a refund.`,
+        reason: meta.action_reason,
+        contactInfo: meta.organizer_contact_info,
+      });
+
+      setEvents((prev) => prev.map((e) => (e.id === event.id ? { ...e, ...fullPatch } : e)));
+      await fetchData(true);
+      notify(`Cancellation approved. ${joinedCount} registered tourist${joinedCount === 1 ? "" : "s"} notified.`, "info");
+    } catch (err) {
+      const errMsg = err?.message || err?.details || err?.hint || "Database update failed";
+      console.warn("Approve cancellation failed:", errMsg, err?.code || "");
+      notify("Error approving cancellation: " + errMsg);
+    } finally {
+      setBusyActionId(null);
+    }
+  };
+
+  const handleApproveReschedule = async (event) => {
+    const meta = parseEventActionMeta(event);
+    const nextDate = meta.reschedule_date || event.event_date;
+    const nextEndDate = meta.reschedule_end_date || nextDate || null;
+    const nextTime = meta.reschedule_time || event.event_time || null;
+    const nextEndTime = meta.reschedule_end_time || event.event_end_time || null;
+    const joinedCount = registrations.filter(
+      (r) => String(r.event_id) === String(event.id) && regState(r) !== "rejected"
+    ).length;
+
+    const ok = await askConfirm({
+      title: "Approve this rescheduling request?",
+      message: `"${event.event_name}" will be rescheduled to ${formatDate(nextDate)}${nextTime ? ` (${formatTime(nextTime)}${nextEndTime ? ` – ${formatTime(nextEndTime)}` : ""})` : ""}. All ${joinedCount} joined tourist${joinedCount === 1 ? "" : "s"} will be notified and prompted to either continue with the new schedule or request a refund.`,
+      confirmLabel: "Approve reschedule & notify tourists",
+    });
+    if (!ok) return;
+
+    setBusyActionId(event.id);
+    try {
+      const encodedReason = buildFallbackReasonText({
+        reason: meta.action_reason || "Schedule updated by organizer.",
+        contactInfo: meta.organizer_contact_info,
+        reschedule: nextDate
+          ? {
+              date: nextDate,
+              endDate: nextEndDate,
+              time: nextTime,
+              endTime: nextEndTime,
+            }
+          : null,
+      });
+
+      const minimalPatch = {
+        status: "Rescheduled",
+        event_date: nextDate,
+        rejection_reason: encodedReason,
+      };
+
+      const corePatch = { ...minimalPatch };
+      if (Object.prototype.hasOwnProperty.call(event, "event_time")) {
+        corePatch.event_time = nextTime;
+      }
+      if (Object.prototype.hasOwnProperty.call(event, "event_end_date")) {
+        corePatch.event_end_date = nextEndDate;
+      }
+      if (Object.prototype.hasOwnProperty.call(event, "event_end_time")) {
+        corePatch.event_end_time = nextEndTime;
+      }
+
+      const fullPatch = { ...corePatch };
+      if (Object.prototype.hasOwnProperty.call(event, "reschedule_reason")) {
+        fullPatch.reschedule_reason = meta.action_reason || null;
+      }
+      if (Object.prototype.hasOwnProperty.call(event, "organizer_contact_info")) {
+        fullPatch.organizer_contact_info = meta.organizer_contact_info || null;
+      }
+
+      let { error } = await supabase
+        .from("tourism_programs")
+        .update(fullPatch)
+        .eq("id", event.id);
+
+      if (error && isMissingColumnError(error)) {
+        ({ error } = await supabase
+          .from("tourism_programs")
+          .update(minimalPatch)
+          .eq("id", event.id));
+      }
+
+      if (error) throw error;
+
+      await notifyJoinedTourists(event, {
+        type: "event_rescheduled",
+        title: `Event Rescheduled: ${event.event_name}`,
+        message: `"${event.event_name}" has been rescheduled to ${formatDate(nextDate)}${nextTime ? ` at ${formatTime(nextTime)}` : ""}. Reason: ${meta.action_reason || "Schedule adjustment"}. Open your dashboard to continue attending or request a refund.`,
+        reason: meta.action_reason,
+        contactInfo: meta.organizer_contact_info,
+      });
+
+      setEvents((prev) => prev.map((e) => (e.id === event.id ? { ...e, ...fullPatch } : e)));
+      await fetchData(true);
+      notify(`Rescheduling approved. ${joinedCount} joined tourist${joinedCount === 1 ? "" : "s"} notified.`, "info");
+    } catch (err) {
+      const errMsg = err?.message || err?.details || err?.hint || "Database update failed";
+      console.warn("Approve reschedule failed:", errMsg, err?.code || "");
+      notify("Error approving rescheduling: " + errMsg);
+    } finally {
+      setBusyActionId(null);
+    }
   };
 
   const dismissNotification = (id) => {
@@ -817,6 +1090,9 @@ export default function UnifiedAdminDashboard() {
       if ((st === "pending" || st === "under review" || st === "requirements submitted") && !dismissedNotifs.has(`ev-${e.id}`)) {
         notifs.push({ id: `ev-${e.id}`, title: "Event Proposal Update", message: `${e.event_name} requires your review.` });
       }
+      if (st === "reschedule requested" && !dismissedNotifs.has(`resched-${e.id}`)) {
+        notifs.push({ id: `resched-${e.id}`, title: "Reschedule Request", message: `${e.event_name} requested a new schedule.` });
+      }
       if (st === "cancellation requested" && !dismissedNotifs.has(`cancel-${e.id}`)) {
         notifs.push({ id: `cancel-${e.id}`, title: "Cancellation Request", message: `${e.event_name} wants to cancel.` });
       }
@@ -838,9 +1114,19 @@ export default function UnifiedAdminDashboard() {
     [events, dismissedNotifs]
   );
 
+  const rescheduleRequestsList = useMemo(
+    () => events.filter((e) => norm(e.status) === "reschedule requested"),
+    [events]
+  );
+
   const cancellationRequestsList = useMemo(
     () => events.filter((e) => norm(e.status) === "cancellation requested"),
     [events]
+  );
+
+  const activeRescheduleRequests = useMemo(
+    () => rescheduleRequestsList.filter((e) => !dismissedNotifs.has(`resched-${e.id}`)).length,
+    [rescheduleRequestsList, dismissedNotifs]
   );
 
   const activeCancellationRequests = useMemo(
@@ -848,13 +1134,19 @@ export default function UnifiedAdminDashboard() {
     [cancellationRequestsList, dismissedNotifs]
   );
 
+  const totalScheduleRequestsCount = rescheduleRequestsList.length + cancellationRequestsList.length;
+  const activeScheduleRequestsBadge = activeRescheduleRequests + activeCancellationRequests;
+
   const verifiedOrganizersCount = useMemo(
     () => organizers.filter((o) => o.status === "Approved").length,
     [organizers]
   );
 
   const activeEventsCount = useMemo(
-    () => events.filter((e) => e.status === "Approved" || e.status === "Upcoming" || e.status === "Ongoing").length,
+    () =>
+      events.filter((e) =>
+        ["approved", "upcoming", "ongoing", "rescheduled"].includes(norm(e.status))
+      ).length,
     [events]
   );
 
@@ -867,7 +1159,7 @@ export default function UnifiedAdminDashboard() {
   const activePendingOrganizersCount = pendingOrganizersList.length;
   const totalEventsCount = events.length;
   const activePendingEventsCount = pendingEventsList.length;
-  const totalPendingApprovals = activePendingOrganizersCount + activePendingEventsCount;
+  const totalPendingApprovals = activePendingOrganizersCount + activePendingEventsCount + activeScheduleRequestsBadge;
   const totalTouristsCount = tourists.length;
 
   const liveOrganizer = viewingProfileOrganizer
@@ -959,7 +1251,7 @@ export default function UnifiedAdminDashboard() {
           { key: "organizer-approvals", label: "Organizer verifications", icon: "shield", badge: activePendingOrganizersCount, tone: "amber" },
           { key: "event-approvals", label: "Event proposals", icon: "calendar-check", badge: activePendingEventsCount, tone: "amber" },
           { key: "calendar", label: "Event calendar", icon: "calendar" },
-          { key: "cancellation-requests", label: "Cancellation requests", icon: "x-circle", badge: activeCancellationRequests, tone: "red" },
+          { key: "cancellation-requests", label: "Schedule & cancel requests", icon: "x-circle", badge: activeScheduleRequestsBadge, tone: "red" },
           { key: "user-management", label: "Users", icon: "users" },
           { key: "admin-settings", label: "Profile and settings", icon: "settings" },
         ]}
@@ -977,18 +1269,23 @@ export default function UnifiedAdminDashboard() {
 
         {!loading && activeTab === "overview" && (
           <div className="space-y-8">
-            <div className="flex justify-between items-center dash-pagehead">
+            <div className="flex flex-wrap justify-between items-center gap-3 dash-pagehead">
               <div>
                 <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">System Overview Dashboard</h1>
                 <p className="text-xs text-gray-500 font-semibold mt-0.5">Real-time portal metrics across Daet Municipal Tourism Operations</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button onClick={() => setActiveTab("organizer-approvals")} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all">
                   Review Organizers ({activePendingOrganizersCount})
                 </button>
                 <button onClick={() => setActiveTab("event-approvals")} className="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-xl transition-all shadow-sm">
                   Review Events ({activePendingEventsCount})
                 </button>
+                {totalScheduleRequestsCount > 0 && (
+                  <button onClick={() => setActiveTab("cancellation-requests")} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm">
+                    Schedule & Cancel Requests ({totalScheduleRequestsCount})
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1007,7 +1304,7 @@ export default function UnifiedAdminDashboard() {
                 <p className="dash-stat-value text-amber-700">{totalPendingApprovals}</p>
                 <div className="text-[11px] font-semibold text-gray-500 flex justify-between pt-2 border-t border-amber-100">
                   <span>Accounts: <strong className="text-amber-800">{activePendingOrganizersCount}</strong></span>
-                  <span>Events: <strong className="text-amber-800">{activePendingEventsCount}</strong></span>
+                  <span>Events/Req: <strong className="text-amber-800">{activePendingEventsCount + activeScheduleRequestsBadge}</strong></span>
                 </div>
               </div>
 
@@ -1242,7 +1539,9 @@ export default function UnifiedAdminDashboard() {
               {filteredEvents.map((event) => {
                 const st = norm(event.status);
                 const isCancelled = st === "cancelled";
-                const isApproved = st === "approved" || st === "upcoming" || st === "ongoing" || st === "completed";
+                const isRescheduleReq = st === "reschedule requested";
+                const isCancellationReq = st === "cancellation requested";
+                const isApproved = st === "approved" || st === "upcoming" || st === "ongoing" || st === "completed" || st === "rescheduled";
                 const eventRegs = registrationsByEvent.get(String(event.id)) || [];
                 const eventRegCount = eventRegs.filter((r) => regState(r) === "confirmed").length;
                 const eventPendingRegCount = eventRegs.filter((r) => regState(r) === "pending").length;
@@ -1252,6 +1551,7 @@ export default function UnifiedAdminDashboard() {
                 const showSubmissionPanel = requirementFiles.length > 0 || !!event.requirement_note;
                 const eventImages = getImageList(event.image_url);
                 const duplicateMatches = duplicatesByEventId.get(String(event.id)) || [];
+                const actionMeta = parseEventActionMeta(event);
                 const isBusy = busyActionId === event.id;
 
                 return (
@@ -1301,7 +1601,23 @@ export default function UnifiedAdminDashboard() {
                           <strong>Registered participants:</strong> {eventRegCount}
                           {eventPendingRegCount > 0 && <span className="text-amber-700"> ({eventPendingRegCount} awaiting payment confirmation)</span>}
                         </p>
-                        {event.rejection_reason && <p className="text-red-600"><strong>Rejection Reason:</strong> {event.rejection_reason}</p>}
+                        {isRescheduleReq && actionMeta.reschedule_date && (
+                          <p className="text-amber-800">
+                            <strong>Requested New Schedule:</strong> {formatDate(actionMeta.reschedule_date)}
+                            {actionMeta.reschedule_time ? ` (${formatTime(actionMeta.reschedule_time)}${actionMeta.reschedule_end_time ? ` – ${formatTime(actionMeta.reschedule_end_time)}` : ""})` : ""}
+                          </p>
+                        )}
+                        {actionMeta.action_reason && !isApproved && (
+                          <p className="text-red-600">
+                            <strong>{isRescheduleReq ? "Reschedule Reason:" : isCancellationReq ? "Cancellation Reason:" : "Note / Reason:"}</strong>{" "}
+                            {actionMeta.action_reason}
+                          </p>
+                        )}
+                        {actionMeta.organizer_contact_info && (
+                          <p className="text-blue-900">
+                            <strong>Organizer Support / Refund Contact:</strong> {actionMeta.organizer_contact_info}
+                          </p>
+                        )}
                         {event.revision_notes && <p className="text-indigo-700"><strong>Requires Changes Notes:</strong> {event.revision_notes}</p>}
                       </div>
 
@@ -1352,7 +1668,15 @@ export default function UnifiedAdminDashboard() {
                       >
                         Review full details
                       </button>
-                      {!isCancelled && (
+                      {(isRescheduleReq || isCancellationReq) && (
+                        <button
+                          onClick={() => setActiveTab("cancellation-requests")}
+                          className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-sm transition-all"
+                        >
+                          {isRescheduleReq ? "Review Reschedule" : "Review Cancellation"}
+                        </button>
+                      )}
+                      {!isCancelled && !isRescheduleReq && !isCancellationReq && (
                         <>
                           <button
                             onClick={() => updateEventStatus(event.id, "Approved")}
@@ -1447,67 +1771,172 @@ export default function UnifiedAdminDashboard() {
         )}
 
         {!loading && activeTab === "cancellation-requests" && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div className="flex justify-between items-center dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Event Cancellation Requests Queue</h1>
-                <p className="text-xs text-gray-500 font-semibold mt-0.5">Review reasons submitted by organizers and approve or reject event cancellations.</p>
+                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Schedule Change & Cancellation Requests</h1>
+                <p className="text-xs text-gray-500 font-semibold mt-0.5">
+                  Approve or reject organizer rescheduling and cancellation requests. Approving immediately notifies all joined tourists with the reason and organizer refund contact details.
+                </p>
               </div>
               <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all">
                 ← Back to Overview
               </button>
             </div>
 
-            {cancellationRequestsList.length === 0 ? (
-              <div className="bg-white p-12 rounded-2xl border border-dashed border-gray-200 text-center text-gray-400 text-xs font-bold uppercase">
-                No active event cancellation requests pending review.
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">
+                  Event Rescheduling Requests ({rescheduleRequestsList.length})
+                </h2>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {cancellationRequestsList.map((event) => {
-                  const cancelImages = getImageList(event.image_url);
-                  const isBusy = busyActionId === event.id;
-                  return (
-                    <div key={event.id} className="bg-white rounded-2xl border border-red-200 p-5 flex flex-col md:flex-row justify-between gap-5 shadow-sm">
-                      <EventMedia images={cancelImages} onPreview={setViewerSrc} />
-                      <div className="space-y-3 flex-1 min-w-0">
-                        <div className="flex items-center gap-3">
-                          <h3 className="font-black text-slate-900 text-base">{event.event_name}</h3>
-                          <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-red-100 text-red-800">
-                            Cancellation Requested
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-600">{event.description}</p>
-                        <div className="text-xs text-gray-700 font-semibold space-y-1 bg-red-50 p-4 rounded-xl border border-red-100">
-                          <p><strong>Organizer Host:</strong> {event.organizer_name || "N/A"}</p>
-                          <p><strong>Event Date:</strong> {event.event_date || "TBA"}{formatTimeRange(event) ? ` | ${formatTimeRange(event)}` : ""} | Venue: {event.venue || "TBA"}</p>
-                          <p className="text-red-700 pt-1 border-t border-red-200">
-                            <strong>Cancellation Reason Provided:</strong> {event.rejection_reason || "No reason stated."}
-                          </p>
-                        </div>
-                      </div>
 
-                      <div className="flex flex-col justify-center gap-2.5 min-w-[200px]">
-                        <button
-                          onClick={() => handleApproveCancellation(event)}
-                          disabled={isBusy}
-                          className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold text-xs shadow-sm transition-all"
-                        >
-                          {isBusy ? "Processing..." : "Approve Cancellation"}
-                        </button>
-                        <button
-                          onClick={() => setFeedbackModal({ isOpen: true, type: "reject-cancellation", targetId: event.id, reason: "" })}
-                          disabled={isBusy}
-                          className="w-full py-2.5 bg-white hover:bg-red-50 disabled:opacity-60 text-red-600 border border-red-200 rounded-xl font-bold text-xs transition-all"
-                        >
-                          Reject Cancellation
-                        </button>
+              {rescheduleRequestsList.length === 0 ? (
+                <div className="bg-white p-10 rounded-2xl border border-dashed border-gray-200 text-center text-gray-400 text-xs font-bold uppercase">
+                  No active event rescheduling requests pending review.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {rescheduleRequestsList.map((event) => {
+                    const reschedImages = getImageList(event.image_url);
+                    const meta = parseEventActionMeta(event);
+                    const isBusy = busyActionId === event.id;
+                    const joinedCount = (registrationsByEvent.get(String(event.id)) || []).filter(
+                      (r) => regState(r) !== "rejected"
+                    ).length;
+
+                    return (
+                      <div key={event.id} className="bg-white rounded-2xl border border-amber-300 p-5 flex flex-col md:flex-row justify-between gap-5 shadow-sm">
+                        <EventMedia images={reschedImages} onPreview={setViewerSrc} />
+                        <div className="space-y-3 flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <h3 className="font-black text-slate-900 text-base">{event.event_name}</h3>
+                            <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-amber-100 text-amber-900">
+                              Reschedule Requested
+                            </span>
+                            <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-blue-50 text-blue-900">
+                              {joinedCount} Joined Tourist{joinedCount === 1 ? "" : "s"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600">{event.description}</p>
+                          <div className="text-xs text-gray-700 font-semibold space-y-1.5 bg-amber-50/70 p-4 rounded-xl border border-amber-200/80">
+                            <p><strong>Organizer Host:</strong> {event.organizer_name || "N/A"} • Venue: {event.venue || "TBA"}</p>
+                            <p>
+                              <strong>Current Schedule:</strong> {formatDate(event.event_date)}
+                              {event.event_end_date && event.event_end_date !== event.event_date ? ` to ${formatDate(event.event_end_date)}` : ""}
+                              {formatTimeRange(event) ? ` | ${formatTimeRange(event)}` : ""}
+                            </p>
+                            <p className="text-blue-950">
+                              <strong>Proposed New Schedule:</strong>{" "}
+                              {meta.reschedule_date ? formatDate(meta.reschedule_date) : "TBA"}
+                              {meta.reschedule_end_date && meta.reschedule_end_date !== meta.reschedule_date
+                                ? ` to ${formatDate(meta.reschedule_end_date)}`
+                                : ""}
+                              {meta.reschedule_time
+                                ? ` | ${formatTime(meta.reschedule_time)}${meta.reschedule_end_time ? ` – ${formatTime(meta.reschedule_end_time)}` : ""}`
+                                : ""}
+                            </p>
+                            <p className="text-amber-950 pt-1 border-t border-amber-200/80">
+                              <strong>Reason for Rescheduling:</strong> {meta.action_reason || "No reason stated."}
+                            </p>
+                            <p className="text-blue-900">
+                              <strong>Organizer Refund & Inquiry Contact:</strong> {meta.organizer_contact_info || "Not provided"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col justify-center gap-2.5 min-w-[210px]">
+                          <button
+                            onClick={() => handleApproveReschedule(event)}
+                            disabled={isBusy}
+                            className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold text-xs shadow-sm transition-all"
+                          >
+                            {isBusy ? "Processing..." : "Approve Reschedule"}
+                          </button>
+                          <button
+                            onClick={() => setFeedbackModal({ isOpen: true, type: "reject-reschedule", targetId: event.id, reason: "" })}
+                            disabled={isBusy}
+                            className="w-full py-2.5 bg-white hover:bg-red-50 disabled:opacity-60 text-red-600 border border-red-200 rounded-xl font-bold text-xs transition-all"
+                          >
+                            Reject Reschedule
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">
+                  Event Cancellation Requests ({cancellationRequestsList.length})
+                </h2>
               </div>
-            )}
+
+              {cancellationRequestsList.length === 0 ? (
+                <div className="bg-white p-10 rounded-2xl border border-dashed border-gray-200 text-center text-gray-400 text-xs font-bold uppercase">
+                  No active event cancellation requests pending review.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {cancellationRequestsList.map((event) => {
+                    const cancelImages = getImageList(event.image_url);
+                    const meta = parseEventActionMeta(event);
+                    const isBusy = busyActionId === event.id;
+                    const joinedCount = (registrationsByEvent.get(String(event.id)) || []).filter(
+                      (r) => regState(r) !== "rejected"
+                    ).length;
+
+                    return (
+                      <div key={event.id} className="bg-white rounded-2xl border border-red-200 p-5 flex flex-col md:flex-row justify-between gap-5 shadow-sm">
+                        <EventMedia images={cancelImages} onPreview={setViewerSrc} />
+                        <div className="space-y-3 flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <h3 className="font-black text-slate-900 text-base">{event.event_name}</h3>
+                            <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-red-100 text-red-800">
+                              Cancellation Requested
+                            </span>
+                            <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-blue-50 text-blue-900">
+                              {joinedCount} Registered Tourist{joinedCount === 1 ? "" : "s"}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600">{event.description}</p>
+                          <div className="text-xs text-gray-700 font-semibold space-y-1.5 bg-red-50 p-4 rounded-xl border border-red-100">
+                            <p><strong>Organizer Host:</strong> {event.organizer_name || "N/A"}</p>
+                            <p><strong>Event Date:</strong> {event.event_date || "TBA"}{formatTimeRange(event) ? ` | ${formatTimeRange(event)}` : ""} | Venue: {event.venue || "TBA"}</p>
+                            <p className="text-red-700 pt-1 border-t border-red-200">
+                              <strong>Cancellation Reason Provided:</strong> {meta.action_reason || "No reason stated."}
+                            </p>
+                            <p className="text-blue-900">
+                              <strong>Organizer Refund & Inquiry Contact:</strong> {meta.organizer_contact_info || "Not provided"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col justify-center gap-2.5 min-w-[210px]">
+                          <button
+                            onClick={() => handleApproveCancellation(event)}
+                            disabled={isBusy}
+                            className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold text-xs shadow-sm transition-all"
+                          >
+                            {isBusy ? "Processing..." : "Approve Cancellation"}
+                          </button>
+                          <button
+                            onClick={() => setFeedbackModal({ isOpen: true, type: "reject-cancellation", targetId: event.id, reason: "" })}
+                            disabled={isBusy}
+                            className="w-full py-2.5 bg-white hover:bg-red-50 disabled:opacity-60 text-red-600 border border-red-200 rounded-xl font-bold text-xs transition-all"
+                          >
+                            Reject Cancellation
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -1870,6 +2299,7 @@ export default function UnifiedAdminDashboard() {
         const teamRegs = evRegs.filter((r) => r.team_name || teamMembersOf(r).length > 0);
         const attendeeRows = evRegs.flatMap(expandRegistration);
         const duplicateMatches = duplicatesByEventId.get(String(ev.id)) || [];
+        const actionMeta = parseEventActionMeta(ev);
         const img = getImageUrl(ev.image_url);
         const proposalFiles = Array.isArray(ev.organizer_proposal_files) ? ev.organizer_proposal_files : [];
         const tabs = [
@@ -1957,7 +2387,10 @@ export default function UnifiedAdminDashboard() {
                     <p><strong>Interested tourists:</strong> {interestedList.loading ? "..." : interestedList.error ? "unavailable" : interestedList.rows.length}</p>
                     {ev.is_paid && ev.cash_payment_details && <p className="sm:col-span-2"><strong>Cash payment:</strong> {ev.cash_payment_details}</p>}
                     {ev.is_paid && ev.online_payment_details && <p className="sm:col-span-2"><strong>Online payment:</strong> {ev.online_payment_details}</p>}
-                    {ev.rejection_reason && <p className="sm:col-span-2 text-red-600"><strong>Rejection reason:</strong> {ev.rejection_reason}</p>}
+                    {actionMeta.organizer_contact_info && (
+                      <p className="sm:col-span-2 text-blue-900"><strong>Organizer support / refund contact:</strong> {actionMeta.organizer_contact_info}</p>
+                    )}
+                    {actionMeta.action_reason && <p className="sm:col-span-2 text-red-600"><strong>Schedule / status note:</strong> {actionMeta.action_reason}</p>}
                     {ev.revision_notes && <p className="sm:col-span-2 text-indigo-700"><strong>Requires changes notes:</strong> {ev.revision_notes}</p>}
                   </div>
                 </div>
@@ -2002,7 +2435,15 @@ export default function UnifiedAdminDashboard() {
                             <td className="p-3">{a.age} yrs</td>
                             <td className="p-3">{a.address}</td>
                             <td className="p-3">{a.created_at ? new Date(a.created_at).toLocaleDateString() : "N/A"}</td>
-                            <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${regStateBadgeClass(a.status)}`}>{a.status}</span></td>
+                            <td className="p-3">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                                a.refundState === "refunded"
+                                  ? "bg-slate-200 text-slate-800"
+                                  : regStateBadgeClass(a.status)
+                              }`}>
+                                {a.refundState === "refunded" ? "refunded" : a.status}
+                              </span>
+                            </td>
                             <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase whitespace-nowrap ${att.cls}`}>{att.label}</span></td>
                           </tr>
                         );
@@ -2471,6 +2912,8 @@ export default function UnifiedAdminDashboard() {
               ? "Reject Event Proposal"
               : feedbackModal.type === "reject-cancellation"
               ? "Deny Cancellation Request"
+              : feedbackModal.type === "reject-reschedule"
+              ? "Deny Rescheduling Request"
               : "Provide Event Revision Feedback"}
           </h3>
           <p className="text-gray-500 text-[11px]">

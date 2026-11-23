@@ -2,33 +2,13 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 
-/**
- * Replaces window.alert / window.confirm across the dashboards.
- *
- *   const { notify, confirm: askConfirm, feedbackUI } = useFeedback();
- *
- *   // Important actions only: resolves true when the user proceeds
- *   const ok = await askConfirm({
- *     title: "Delete this event?",
- *     message: "This cannot be undone.",
- *     confirmLabel: "Delete",
- *     tone: "danger",            // "danger" (red) | "primary" (blue, default)
- *   });
- *
- *   // Non-blocking message for errors / things the user must know (never for plain success)
- *   notify("Could not save changes.");            // type: "error" (default)
- *   notify("Your account is pending.", "info");
- *
- *   // Render once near the end of the page's JSX:
- *   {feedbackUI}
- */
 export function useFeedback() {
   const [toast, setToast] = useState(null);
   const [dialog, setDialog] = useState(null);
   const resolver = useRef(null);
   const timer = useRef(null);
 
-  const notify = useCallback((message, type = "error") => {
+  const notify = useCallback((message, type = "info") => {
     setToast({ message, type, id: Date.now() });
     clearTimeout(timer.current);
     timer.current = setTimeout(() => setToast(null), 5000);
@@ -104,8 +84,10 @@ export function useFeedback() {
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[120] max-w-md w-[calc(100%-2rem)]" role="status" aria-live="polite">
           <div
-            className={`flex items-start gap-3 rounded-2xl px-4 py-3 shadow-2xl text-xs font-semibold text-white ${
-              toast.type === "info" ? "bg-slate-800" : "bg-red-600"
+            className={`flex items-start gap-3 rounded-2xl px-4 py-3 shadow-2xl text-xs font-semibold text-white border ${
+              toast.type === "error"
+                ? "bg-red-700 border-red-800"
+                : "bg-blue-950 border-blue-800"
             }`}
           >
             <p className="flex-1 leading-relaxed">{toast.message}</p>
@@ -115,7 +97,7 @@ export function useFeedback() {
               className="text-white/70 hover:text-white font-bold"
               aria-label="Dismiss message"
             >
-              &times;
+              ×
             </button>
           </div>
         </div>

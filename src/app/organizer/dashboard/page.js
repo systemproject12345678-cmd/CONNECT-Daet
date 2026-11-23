@@ -18,6 +18,7 @@ const EVENT_THUMB =
   "relative w-full md:w-56 h-44 md:h-40 flex-shrink-0 self-start rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/80 group";
 
 const REG_OVERRIDE_STORAGE_KEY = "daet_organizer_reg_overrides_v1";
+const EVENT_OVERRIDE_STORAGE_KEY = "daet_event_action_overrides_v1";
 
 const norm = (v) => (typeof v === "string" || typeof v === "number" ? String(v).trim().toLowerCase() : "");
 
@@ -25,6 +26,53 @@ const toEventDateKey = (raw) => {
   if (!raw || typeof raw === "function" || typeof raw === "object") return "";
   const match = String(raw).trim().match(/^(\d{4}-\d{2}-\d{2})/);
   return match ? match[1] : "";
+};
+
+const parseEventActionMeta = (ev) => {
+  if (!ev) return {};
+  const raw = String(ev.rejection_reason || "");
+  const contactMatch = raw.match(/\[CONTACT:\s*([^\]]+)\]/i);
+  const reschedMatch = raw.match(/\[RESCHEDULE:\s*([^\]]+)\]/i);
+  const cleanReason = raw
+    .replace(/\[CONTACT:\s*[^\]]+\]/gi, "")
+    .replace(/\[RESCHEDULE:\s*[^\]]+\]/gi, "")
+    .trim();
+
+  const parsedSchedule = {};
+  if (reschedMatch && reschedMatch[1]) {
+    const parts = reschedMatch[1].split("|").map((p) => p.trim());
+    parts.forEach((part) => {
+      if (part.startsWith("date=")) parsedSchedule.reschedule_date = part.slice(5);
+      if (part.startsWith("end_date=")) parsedSchedule.reschedule_end_date = part.slice(9);
+      if (part.startsWith("time=")) parsedSchedule.reschedule_time = part.slice(5);
+      if (part.startsWith("end_time=")) parsedSchedule.reschedule_end_time = part.slice(9);
+    });
+  }
+
+  return {
+    organizer_contact_info:
+      ev.organizer_contact_info || (contactMatch ? contactMatch[1].trim() : ""),
+    reschedule_date: ev.reschedule_date || parsedSchedule.reschedule_date || "",
+    reschedule_end_date: ev.reschedule_end_date || parsedSchedule.reschedule_end_date || "",
+    reschedule_time: ev.reschedule_time || parsedSchedule.reschedule_time || "",
+    reschedule_end_time: ev.reschedule_end_time || parsedSchedule.reschedule_end_time || "",
+    action_reason: ev.reschedule_reason || cleanReason,
+  };
+};
+
+const buildFallbackReasonText = ({ reason, contactInfo, reschedule }) => {
+  const segments = [String(reason || "").trim()];
+  if (reschedule && reschedule.date) {
+    const rParts = [`date=${reschedule.date}`];
+    if (reschedule.endDate) rParts.push(`end_date=${reschedule.endDate}`);
+    if (reschedule.time) rParts.push(`time=${reschedule.time}`);
+    if (reschedule.endTime) rParts.push(`end_time=${reschedule.endTime}`);
+    segments.push(`[RESCHEDULE: ${rParts.join(" | ")}]`);
+  }
+  if (contactInfo && contactInfo.trim()) {
+    segments.push(`[CONTACT: ${contactInfo.trim()}]`);
+  }
+  return segments.filter(Boolean).join(" ");
 };
 
 const findDuplicateEvents = (targetEvent, allEvents) => {
@@ -53,15 +101,31 @@ const findDuplicateEvents = (targetEvent, allEvents) => {
 
 const resolveRegistrationSerial = (r) => {
   if (!r) return "";
-  if (r.serial_id) return String(r.serial_id);
-  if (r.ticket_serial) return String(r.ticket_serial);
-  if (r.serial_number) return String(r.serial_number);
-  if (regState(r) === "confirmed" && r.id != null) {
+  if (r.serial_id) return String(r.serial_id).trim().toUpperCase();
+  if (r.ticket_serial) return String(r.ticket_serial).trim().toUpperCase();
+  if (r.serial_number) return String(r.serial_number).trim().toUpperCase();
+  if ((regState(r) === "confirmed" || norm(r.refund_status) === "refunded") && r.id != null) {
     const evPart = String(r.event_id || "0").replace(/[^a-zA-Z0-9]/g, "").slice(0, 4).toUpperCase() || "EV";
     const idPart = String(r.id).replace(/[^a-zA-Z0-9]/g, "").slice(-6).toUpperCase().padStart(6, "0");
     return `DAET-${evPart}-${idPart}`;
   }
   return "";
+};
+
+const resolveRefundState = (r) => {
+  if (!r) return "none";
+  const raw = norm(r.refund_status);
+  const regRaw = norm(r.registration_status);
+  if (raw === "refunded" || regRaw === "refunded" || r.refund_confirmed === true || Boolean(r.refunded_at)) {
+    return "refunded";
+  }
+  if (raw === "requested" || raw === "refund requested" || regRaw === "refund requested") {
+    return "requested";
+  }
+  if (raw === "declined" || raw === "rejected") {
+    return "declined";
+  }
+  return "none";
 };
 
 const resolveAttendanceState = (r) => {
@@ -147,9 +211,13 @@ const statusBadge = (status) => {
     case "requirements submitted":
       return "bg-cyan-50 text-cyan-800 border border-cyan-200/70";
     case "cancelled":
-      return "bg-slate-100 text-slate-600 border border-slate-200";
+      return "bg-slate-200 text-slate-700 border border-slate-300";
     case "cancellation requested":
       return "bg-orange-50 text-orange-800 border border-orange-200/70";
+    case "reschedule requested":
+      return "bg-amber-50 text-amber-800 border border-amber-300/80";
+    case "rescheduled":
+      return "bg-indigo-50 text-indigo-800 border border-indigo-200/80";
     default:
       return "bg-amber-50 text-amber-800 border border-amber-200/70";
   }
@@ -257,9 +325,33 @@ export default function OrganizerDashboardPage() {
 
   const [rawEvents, setEvents] = useState([]);
   const [rawAllEvents, setAllEvents] = useState([]);
+  const [eventOverrides, setEventOverrides] = useState(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const saved = window.localStorage.getItem(EVENT_OVERRIDE_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
   const now = useNow(30000);
-  const events = useMemo(() => rawEvents.map((e) => withLiveStatus(e, now)), [rawEvents, now]);
-  const allEvents = useMemo(() => rawAllEvents.map((e) => withLiveStatus(e, now)), [rawAllEvents, now]);
+  const events = useMemo(
+    () =>
+      rawEvents.map((e) => {
+        const ov = eventOverrides[String(e.id)];
+        return withLiveStatus(ov ? { ...e, ...ov } : e, now);
+      }),
+    [rawEvents, eventOverrides, now]
+  );
+  const allEvents = useMemo(
+    () =>
+      rawAllEvents.map((e) => {
+        const ov = eventOverrides[String(e.id)];
+        return withLiveStatus(ov ? { ...e, ...ov } : e, now);
+      }),
+    [rawAllEvents, eventOverrides, now]
+  );
+
   const [rawAttendees, setAttendees] = useState([]);
   const [regOverrides, setRegOverrides] = useState(() => {
     if (typeof window === "undefined") return {};
@@ -288,6 +380,22 @@ export default function OrganizerDashboardPage() {
 
   const [cancelingEvent, setCancelingEvent] = useState(null);
   const [cancellationReason, setCancellationReason] = useState("");
+  const [cancellationContact, setCancellationContact] = useState("");
+  const [submittingAction, setSubmittingAction] = useState(false);
+
+  const [reschedulingEvent, setReschedulingEvent] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleEndDate, setRescheduleEndDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [rescheduleEndTime, setRescheduleEndTime] = useState("");
+  const [rescheduleReason, setRescheduleReason] = useState("");
+  const [rescheduleContact, setRescheduleContact] = useState("");
+
+  const [editingContactEvent, setEditingContactEvent] = useState(null);
+  const [contactEditValue, setContactEditValue] = useState("");
+
+  const [refundLookupInput, setRefundLookupInput] = useState("");
+  const [refundLookupResult, setRefundLookupResult] = useState(null);
 
   const [expandedEventId, setExpandedEventId] = useState(null);
   const [eventFilters, setEventFilters] = useState({});
@@ -309,12 +417,30 @@ export default function OrganizerDashboardPage() {
 
   const [dismissedNotifs, setDismissedNotifs] = useState([]);
 
+  const defaultContactText = useMemo(() => {
+    const parts = [];
+    if (profile?.contact_number) parts.push(`Phone: ${profile.contact_number}`);
+    if (user?.email) parts.push(`Email: ${user.email}`);
+    return parts.join(" | ");
+  }, [profile?.contact_number, user?.email]);
+
   const persistRegOverride = (regId, patch) => {
     setRegOverrides((prev) => {
       const key = String(regId);
       const next = { ...prev, [key]: { ...(prev[key] || {}), ...patch } };
       try {
         window.localStorage.setItem(REG_OVERRIDE_STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  };
+
+  const persistEventOverride = (eventId, patch) => {
+    setEventOverrides((prev) => {
+      const key = String(eventId);
+      const next = { ...prev, [key]: { ...(prev[key] || {}), ...patch } };
+      try {
+        window.localStorage.setItem(EVENT_OVERRIDE_STORAGE_KEY, JSON.stringify(next));
       } catch (e) {}
       return next;
     });
@@ -468,6 +594,7 @@ export default function OrganizerDashboardPage() {
       if (error) throw error;
       setEditingEvent(null);
       setEditFiles([]);
+      notify("Event proposal updated and resubmitted for review.", "info");
       await fetchData();
     } catch (err) {
       notify("Error updating event: " + err.message);
@@ -476,26 +603,214 @@ export default function OrganizerDashboardPage() {
     }
   };
 
+  const openCancelModal = (event) => {
+    const existingMeta = parseEventActionMeta(event);
+    setCancelingEvent(event);
+    setCancellationReason("");
+    setCancellationContact(existingMeta.organizer_contact_info || defaultContactText);
+  };
+
   const handleRequestCancellation = async (e) => {
     e.preventDefault();
-    if (!cancellationReason.trim()) return notify("Please provide a detailed reason for cancellation.");
+    if (!cancellationReason.trim()) return notify("Please provide a detailed reason for cancellation.", "info");
+    if (!cancellationContact.trim()) {
+      return notify("Please provide contact details where tourists can reach you for refunds or inquiries.", "info");
+    }
 
+    const ok = await askConfirm({
+      title: "Proceed with event cancellation request?",
+      message: `Are you sure you want to proceed with requesting cancellation for "${cancelingEvent.event_name}"? This request must be approved by the Tourism Office admin before taking effect, and your contact information will be provided to registered tourists.`,
+      confirmLabel: "Yes, submit cancellation",
+      tone: "danger",
+    });
+    if (!ok) return;
+
+    setSubmittingAction(true);
     try {
-      const { error } = await supabase
+      const encodedReason = buildFallbackReasonText({
+        reason: cancellationReason.trim(),
+        contactInfo: cancellationContact.trim(),
+      });
+
+      const fullPatch = {
+        status: "Cancellation Requested",
+        rejection_reason: encodedReason,
+        organizer_contact_info: cancellationContact.trim(),
+      };
+
+      const corePatch = {
+        status: "Cancellation Requested",
+        rejection_reason: encodedReason,
+      };
+
+      let { error } = await supabase
         .from("tourism_programs")
-        .update({
-          status: "Cancellation Requested",
-          rejection_reason: cancellationReason.trim(),
-        })
+        .update(fullPatch)
         .eq("id", cancelingEvent.id);
+
+      if (error && isMissingColumnError(error)) {
+        ({ error } = await supabase
+          .from("tourism_programs")
+          .update(corePatch)
+          .eq("id", cancelingEvent.id));
+      }
 
       if (error) throw error;
 
+      persistEventOverride(cancelingEvent.id, fullPatch);
       setCancelingEvent(null);
       setCancellationReason("");
+      setCancellationContact("");
+      notify("Cancellation request submitted and awaiting admin approval.", "info");
       await fetchData();
     } catch (err) {
       notify("Error submitting cancellation request: " + err.message);
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  const openRescheduleModal = (event) => {
+    const existingMeta = parseEventActionMeta(event);
+    setReschedulingEvent(event);
+    setRescheduleDate(event.event_date || event.date || "");
+    setRescheduleEndDate(event.event_end_date || event.end_date || "");
+    setRescheduleTime(event.event_time || "");
+    setRescheduleEndTime(event.event_end_time || "");
+    setRescheduleReason("");
+    setRescheduleContact(existingMeta.organizer_contact_info || defaultContactText);
+  };
+
+  const handleRequestReschedule = async (e) => {
+    e.preventDefault();
+    if (!rescheduleDate) return notify("Please select the proposed new start date.", "info");
+    if (rescheduleEndDate && rescheduleEndDate < rescheduleDate) {
+      return notify("The proposed end date cannot be earlier than the start date.", "info");
+    }
+    if (!rescheduleTime) return notify("Please select the proposed new start time.", "info");
+    if (rescheduleEndTime && rescheduleEndTime <= rescheduleTime) {
+      return notify("The proposed end time must be later than the start time.", "info");
+    }
+    if (!rescheduleReason.trim()) return notify("Please provide the reason for rescheduling this event.", "info");
+    if (!rescheduleContact.trim()) {
+      return notify("Please provide contact information where tourists can reach you if they want to request a refund instead of attending the rescheduled event.", "info");
+    }
+
+    const ok = await askConfirm({
+      title: "Proceed with event rescheduling request?",
+      message: `Are you sure you want to proceed with requesting to reschedule "${reschedulingEvent.event_name}" to ${rescheduleDate}? This request must be approved by the Tourism Office admin before joined tourists are notified.`,
+      confirmLabel: "Yes, submit reschedule request",
+    });
+    if (!ok) return;
+
+    setSubmittingAction(true);
+    try {
+      const encodedReason = buildFallbackReasonText({
+        reason: rescheduleReason.trim(),
+        contactInfo: rescheduleContact.trim(),
+        reschedule: {
+          date: rescheduleDate,
+          endDate: rescheduleEndDate || rescheduleDate,
+          time: rescheduleTime,
+          endTime: rescheduleEndTime || "",
+        },
+      });
+
+      const fullPatch = {
+        status: "Reschedule Requested",
+        rejection_reason: encodedReason,
+        reschedule_reason: rescheduleReason.trim(),
+        reschedule_date: rescheduleDate,
+        reschedule_end_date: rescheduleEndDate || rescheduleDate,
+        reschedule_time: rescheduleTime,
+        reschedule_end_time: rescheduleEndTime || null,
+        organizer_contact_info: rescheduleContact.trim(),
+      };
+
+      const corePatch = {
+        status: "Reschedule Requested",
+        rejection_reason: encodedReason,
+      };
+
+      let { error } = await supabase
+        .from("tourism_programs")
+        .update(fullPatch)
+        .eq("id", reschedulingEvent.id);
+
+      if (error && isMissingColumnError(error)) {
+        ({ error } = await supabase
+          .from("tourism_programs")
+          .update(corePatch)
+          .eq("id", reschedulingEvent.id));
+      }
+
+      if (error) throw error;
+
+      persistEventOverride(reschedulingEvent.id, fullPatch);
+      setReschedulingEvent(null);
+      setRescheduleReason("");
+      setRescheduleContact("");
+      notify("Rescheduling request submitted and awaiting admin approval.", "info");
+      await fetchData();
+    } catch (err) {
+      notify("Error submitting rescheduling request: " + err.message);
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  const openContactEditor = (event) => {
+    const meta = parseEventActionMeta(event);
+    setEditingContactEvent(event);
+    setContactEditValue(meta.organizer_contact_info || defaultContactText);
+  };
+
+  const handleSaveOrganizerContact = async (e) => {
+    e.preventDefault();
+    if (!contactEditValue.trim()) return notify("Please enter your contact details.", "info");
+    setSubmittingAction(true);
+    try {
+      const meta = parseEventActionMeta(editingContactEvent);
+      const updatedReason = buildFallbackReasonText({
+        reason: meta.action_reason || "Organizer refund and support contact details",
+        contactInfo: contactEditValue.trim(),
+        reschedule: meta.reschedule_date
+          ? {
+              date: meta.reschedule_date,
+              endDate: meta.reschedule_end_date,
+              time: meta.reschedule_time,
+              endTime: meta.reschedule_end_time,
+            }
+          : null,
+      });
+
+      const fullPatch = {
+        organizer_contact_info: contactEditValue.trim(),
+        rejection_reason: updatedReason,
+      };
+
+      let { error } = await supabase
+        .from("tourism_programs")
+        .update(fullPatch)
+        .eq("id", editingContactEvent.id);
+
+      if (error && isMissingColumnError(error)) {
+        ({ error } = await supabase
+          .from("tourism_programs")
+          .update({ rejection_reason: updatedReason })
+          .eq("id", editingContactEvent.id));
+      }
+
+      if (error) throw error;
+
+      persistEventOverride(editingContactEvent.id, fullPatch);
+      setEditingContactEvent(null);
+      notify("Organizer refund & support contact details updated.", "info");
+      await fetchData();
+    } catch (err) {
+      notify("Error saving contact details: " + err.message);
+    } finally {
+      setSubmittingAction(false);
     }
   };
 
@@ -508,7 +823,7 @@ export default function OrganizerDashboardPage() {
   const handleSubmitRequirements = async (e) => {
     e.preventDefault();
     if (!reqNote.trim() && reqFiles.length === 0) {
-      return notify("Please write a statement or attach at least one file.");
+      return notify("Please write a statement or attach at least one file.", "info");
     }
     const fileError = validateFiles(reqFiles);
     if (fileError) return notify(fileError);
@@ -533,6 +848,7 @@ export default function OrganizerDashboardPage() {
 
       if (error) throw error;
       setRequirementsEvent(null);
+      notify("Requirements sent to the Tourism Office.", "info");
       await fetchData();
     } catch (err) {
       console.error("Submit requirements error:", err);
@@ -586,7 +902,7 @@ export default function OrganizerDashboardPage() {
       confirmed_at: new Date().toISOString(),
       rejection_reason: null,
     };
-    await updateRegistration(
+    const done = await updateRegistration(
       reg,
       {
         ...corePatch,
@@ -594,6 +910,7 @@ export default function OrganizerDashboardPage() {
       },
       corePatch
     );
+    if (done) notify(`Payment confirmed. Serial ID ${generatedSerial} issued.`, "info");
   };
 
   const moveToPending = async (reg) => {
@@ -605,7 +922,7 @@ export default function OrganizerDashboardPage() {
     });
     if (!ok) return;
     const corePatch = { registration_status: "Pending", confirmed_at: null };
-    await updateRegistration(
+    const done = await updateRegistration(
       reg,
       {
         ...corePatch,
@@ -615,6 +932,7 @@ export default function OrganizerDashboardPage() {
       },
       corePatch
     );
+    if (done) notify("Registration moved back to pending.", "info");
   };
 
   const confirmAttendeePresence = async (reg) => {
@@ -625,10 +943,11 @@ export default function OrganizerDashboardPage() {
       confirmLabel: "Confirm present",
     });
     if (!ok) return;
-    await updateRegistration(reg, {
+    const done = await updateRegistration(reg, {
       attendance_status: "Confirmed",
       attendance_confirmed_at: new Date().toISOString(),
     });
+    if (done) notify("Attendee presence confirmed.", "info");
   };
 
   const revertAttendeePresence = async (reg) => {
@@ -640,15 +959,93 @@ export default function OrganizerDashboardPage() {
     });
     if (!ok) return;
     const nextStatus = reg.checked_in_at || reg.tourist_checked_in ? "Marked" : null;
-    await updateRegistration(reg, {
+    const done = await updateRegistration(reg, {
       attendance_status: nextStatus,
       attendance_confirmed_at: null,
     });
+    if (done) notify("Attendance confirmation reverted.", "info");
+  };
+
+  const confirmRefundForAttendee = async (reg) => {
+    const serial = resolveRegistrationSerial(reg);
+    const ok = await askConfirm({
+      title: "Confirm refund successful?",
+      message: `Confirm that you have verified Serial ID ${serial || "N/A"} and legitimate proof in your conversation with ${reg.first_name} ${reg.last_name}, and that their refund is complete? They will be moved to the Refunded Attendees list.`,
+      confirmLabel: "Yes, confirm refund",
+    });
+    if (!ok) return;
+
+    const nowIso = new Date().toISOString();
+    const fullPatch = {
+      refund_status: "Refunded",
+      refunded_at: nowIso,
+      refund_confirmed: true,
+    };
+    const done = await updateRegistration(reg, fullPatch, null);
+    if (done) {
+      if (refundLookupResult && String(refundLookupResult.reg?.id) === String(reg.id)) {
+        setRefundLookupResult({
+          ...refundLookupResult,
+          reg: { ...reg, ...fullPatch },
+        });
+      }
+      notify(`Refund confirmed for ${reg.first_name} ${reg.last_name} (${serial}). Moved to Refunded Attendees.`, "info");
+    }
+  };
+
+  const revertRefundForAttendee = async (reg) => {
+    const ok = await askConfirm({
+      title: "Revert refund confirmation?",
+      message: `Move ${reg.first_name} ${reg.last_name} back out of the Refunded Attendees list?`,
+      confirmLabel: "Revert refund",
+      tone: "danger",
+    });
+    if (!ok) return;
+
+    const patch = {
+      refund_status: "Requested",
+      refunded_at: null,
+      refund_confirmed: false,
+    };
+    const done = await updateRegistration(reg, patch, null);
+    if (done) notify("Refund status reverted.", "info");
+  };
+
+  const handleRefundSerialLookup = (e) => {
+    e.preventDefault();
+    const raw = refundLookupInput.trim().toUpperCase();
+    if (!raw) {
+      return notify("Please enter the tourist's Serial ID (e.g. DAET-17-99695D) to verify their registration for refund.", "info");
+    }
+
+    const subMatch = raw.match(/^(DAET-[A-Z0-9]+-[A-Z0-9]+)-(\d+)$/);
+    const baseCode = subMatch ? subMatch[1] : raw;
+
+    const myEventIds = new Set(events.map((ev) => String(ev.id)));
+    const matched = attendees.find((a) => {
+      if (!myEventIds.has(String(a.event_id))) return false;
+      const s = resolveRegistrationSerial(a).toUpperCase();
+      return s && (s === raw || s === baseCode);
+    });
+
+    if (!matched) {
+      setRefundLookupResult({ notFound: true, query: raw });
+      return;
+    }
+
+    const matchedEvent = events.find((ev) => String(ev.id) === String(matched.event_id)) || null;
+    setRefundLookupResult({
+      notFound: false,
+      query: raw,
+      reg: matched,
+      event: matchedEvent,
+    });
+    setExpandedEventId(matched.event_id);
   };
 
   const handleRejectRegistration = async (e) => {
     e.preventDefault();
-    if (!rejectRegReason.trim()) return notify("Please tell the participant why the registration was rejected.");
+    if (!rejectRegReason.trim()) return notify("Please tell the participant why the registration was rejected.", "info");
     const done = await updateRegistration(rejectingReg, {
       registration_status: "Rejected",
       rejection_reason: rejectRegReason.trim(),
@@ -657,6 +1054,7 @@ export default function OrganizerDashboardPage() {
     if (done) {
       setRejectingReg(null);
       setRejectRegReason("");
+      notify("Registration rejected.", "info");
     }
   };
 
@@ -675,26 +1073,44 @@ export default function OrganizerDashboardPage() {
 
   const totalEvents = events.length;
   const activeEventsList = events.filter((e) =>
-    ["approved", "upcoming", "ongoing"].includes((e.status || "").toLowerCase())
+    ["approved", "upcoming", "ongoing", "rescheduled"].includes((e.status || "").toLowerCase())
   );
-  const approvedEventsList = events.filter((e) =>
-    ["approved", "upcoming", "ongoing", "completed"].includes((e.status || "").toLowerCase())
+  const managedEventsList = events.filter((e) =>
+    [
+      "approved",
+      "upcoming",
+      "ongoing",
+      "completed",
+      "rescheduled",
+      "reschedule requested",
+      "cancellation requested",
+      "cancelled",
+    ].includes((e.status || "").toLowerCase())
   );
   const approvedEvents = activeEventsList.length;
   const rejectedEvents = events.filter((e) => e.status?.toLowerCase() === "rejected").length;
   const completedEvents = events.filter((e) => e.status?.toLowerCase() === "completed").length;
   const underReviewEvents = events.filter((e) =>
-    ["pending", "under review", "requirements submitted"].includes((e.status || "").toLowerCase())
+    ["pending", "under review", "requirements submitted", "reschedule requested", "cancellation requested"].includes(
+      (e.status || "").toLowerCase()
+    )
   ).length;
   const requiresChangesEvents = events.filter((e) =>
     ["requires changes", "requirements needed"].includes((e.status || "").toLowerCase())
   ).length;
   const pendingForApproval = events.filter((e) => e.status?.toLowerCase() === "pending").length;
 
-  const approvedEventIds = approvedEventsList.map((e) => e.id);
-  const approvedAttendees = attendees.filter((a) => approvedEventIds.includes(a.event_id) && regState(a) === "confirmed");
-  const pendingPaymentCount = attendees.filter((a) => approvedEventIds.includes(a.event_id) && regState(a) === "pending").length;
+  const managedEventIds = managedEventsList.map((e) => String(e.id));
+  const approvedAttendees = attendees.filter(
+    (a) => managedEventIds.includes(String(a.event_id)) && regState(a) === "confirmed" && resolveRefundState(a) !== "refunded"
+  );
+  const pendingPaymentCount = attendees.filter(
+    (a) => managedEventIds.includes(String(a.event_id)) && regState(a) === "pending"
+  ).length;
   const pendingAttendanceCount = approvedAttendees.filter((a) => resolveAttendanceState(a) === "marked").length;
+  const pendingRefundRequestsCount = attendees.filter(
+    (a) => managedEventIds.includes(String(a.event_id)) && resolveRefundState(a) === "requested"
+  ).length;
 
   const visibleNotifications = events.filter((e) => !dismissedNotifs.includes(e.id));
   const activeNotifsCount = visibleNotifications.length;
@@ -720,7 +1136,13 @@ export default function OrganizerDashboardPage() {
           { key: "overview", label: "Overview", icon: "home" },
           { key: "my-events", label: "My events", icon: "calendar-check" },
           { key: "calendar", label: "Event calendar", icon: "calendar" },
-          { key: "attendees", label: "Attendees and payments", icon: "users", badge: pendingPaymentCount + pendingAttendanceCount, tone: "amber" },
+          {
+            key: "attendees",
+            label: "Attendees and payments",
+            icon: "users",
+            badge: pendingPaymentCount + pendingAttendanceCount + pendingRefundRequestsCount,
+            tone: "amber",
+          },
           { key: "notifications", label: "Notifications", icon: "bell", badge: activeNotifsCount > 0 ? activeNotifsCount : undefined, tone: "blue" },
           { key: "profile", label: "Organizer profile", icon: "user" },
           { key: "settings", label: "Account settings", icon: "settings" },
@@ -836,7 +1258,7 @@ export default function OrganizerDashboardPage() {
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 dash-pagehead">
               <div>
                 <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">My Submitted Events</h1>
-                <p className="text-xs text-slate-500 font-semibold mt-0.5">Manage and review your submitted event proposals.</p>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5">Manage and review your submitted event proposals, request rescheduling or cancellation, and provide support contact details.</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -866,14 +1288,21 @@ export default function OrganizerDashboardPage() {
               <div className="grid grid-cols-1 gap-4">
                 {events.map((event) => {
                   const status = (event.status || "").toLowerCase();
-                  const isApproved = status === "approved" || status === "upcoming" || status === "ongoing";
+                  const isApproved =
+                    status === "approved" || status === "upcoming" || status === "ongoing" || status === "rescheduled";
                   const isRejectedOrRevision = status === "rejected" || status === "requires changes";
                   const needsRequirements = status === "requirements needed";
                   const requirementsSent = status === "requirements submitted";
+                  const isRescheduleOrCancelFlow =
+                    status === "cancellation requested" ||
+                    status === "cancelled" ||
+                    status === "reschedule requested" ||
+                    status === "rescheduled";
                   const approvalFiles = Array.isArray(event.approval_files) ? event.approval_files : [];
                   const requirementFiles = Array.isArray(event.requirement_files) ? event.requirement_files : [];
                   const eventImages = getImageList(event.image_url);
                   const duplicateMatches = duplicatesByEventId.get(String(event.id)) || [];
+                  const actionMeta = parseEventActionMeta(event);
 
                   return (
                     <div
@@ -946,6 +1375,48 @@ export default function OrganizerDashboardPage() {
                           </span>
                         </div>
 
+                        {isRescheduleOrCancelFlow && (
+                          <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-3.5 text-xs space-y-1.5">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-blue-900">
+                                {status === "reschedule requested"
+                                  ? "Rescheduling Request — Awaiting Admin Approval"
+                                  : status === "rescheduled"
+                                  ? "Event Rescheduled — Tourist Support & Refund Contact"
+                                  : status === "cancellation requested"
+                                  ? "Cancellation Request — Awaiting Admin Approval"
+                                  : "Event Cancelled — Tourist Support & Refund Contact"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => openContactEditor(event)}
+                                className="text-[11px] font-bold text-blue-900 hover:underline"
+                              >
+                                Update Contact Info
+                              </button>
+                            </div>
+                            {actionMeta.reschedule_date && (
+                              <p className="text-slate-700 font-medium">
+                                <strong>Proposed / New Schedule:</strong> {actionMeta.reschedule_date}
+                                {actionMeta.reschedule_end_date && actionMeta.reschedule_end_date !== actionMeta.reschedule_date
+                                  ? ` to ${actionMeta.reschedule_end_date}`
+                                  : ""}
+                                {actionMeta.reschedule_time ? ` • ${actionMeta.reschedule_time}` : ""}
+                                {actionMeta.reschedule_end_time ? ` - ${actionMeta.reschedule_end_time}` : ""}
+                              </p>
+                            )}
+                            {actionMeta.action_reason && (
+                              <p className="text-slate-700 font-medium">
+                                <strong>Reason:</strong> {actionMeta.action_reason}
+                              </p>
+                            )}
+                            <p className="text-slate-800 font-semibold">
+                              <strong>Tourist Refund / Inquiry Contact:</strong>{" "}
+                              {actionMeta.organizer_contact_info || "Not yet provided — click Update Contact Info"}
+                            </p>
+                          </div>
+                        )}
+
                         {(needsRequirements || requirementsSent) && (
                           <div className="bg-teal-50/80 border border-teal-200/80 rounded-xl p-4 space-y-3">
                             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -995,12 +1466,12 @@ export default function OrganizerDashboardPage() {
                         {isRejectedOrRevision && (event.revision_notes || event.rejection_reason) && (
                           <div className="text-xs text-purple-800 bg-purple-50/90 border border-purple-200/70 rounded-xl p-3.5">
                             <strong className="uppercase text-[10px] tracking-wider block text-purple-900 mb-0.5">Admin note</strong>
-                            {event.revision_notes || event.rejection_reason}
+                            {actionMeta.action_reason || event.revision_notes || event.rejection_reason}
                           </div>
                         )}
                       </div>
 
-                      <div className="flex flex-wrap md:flex-col md:items-stretch justify-end md:justify-start items-center gap-2 min-w-[160px] pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                      <div className="flex flex-wrap md:flex-col md:items-stretch justify-end md:justify-start items-center gap-2 min-w-[180px] pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
                         {(needsRequirements || requirementsSent) && (
                           <button
                             onClick={() => openRequirements(event)}
@@ -1023,11 +1494,34 @@ export default function OrganizerDashboardPage() {
                         )}
 
                         {isApproved && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => openRescheduleModal(event)}
+                              className="w-full text-center px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-900 text-xs font-bold rounded-xl uppercase transition-all"
+                            >
+                              Request Event Rescheduling
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openCancelModal(event)}
+                              className="w-full text-center px-3.5 py-2.5 bg-red-50 hover:bg-red-100 border border-red-200/60 text-red-600 text-xs font-bold rounded-xl uppercase transition-all"
+                            >
+                              Cancel Event
+                            </button>
+                          </>
+                        )}
+
+                        {(status === "cancelled" || status === "rescheduled") && (
                           <button
-                            onClick={() => setCancelingEvent(event)}
-                            className="w-full text-center px-3.5 py-2.5 bg-red-50 hover:bg-red-100 border border-red-200/60 text-red-600 text-xs font-bold rounded-xl uppercase transition-all"
+                            type="button"
+                            onClick={() => {
+                              setExpandedEventId(event.id);
+                              setActiveTab("attendees");
+                            }}
+                            className="w-full text-center px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl uppercase transition-all"
                           >
-                            Request Cancel
+                            Attendees & Refunds
                           </button>
                         )}
                       </div>
@@ -1078,10 +1572,10 @@ export default function OrganizerDashboardPage() {
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
                 <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                  Approved Event Attendees & Attendance
+                  Event Attendees, Attendance & Refunds
                 </h1>
                 <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                  Confirm participant payments to assign official Serial IDs, and monitor or confirm tourist attendance before and during ongoing events.
+                  Confirm participant payments to assign official Serial IDs, monitor attendance, and verify Serial IDs to process refunds for rescheduled or cancelled events.
                 </p>
               </div>
               <button
@@ -1092,26 +1586,160 @@ export default function OrganizerDashboardPage() {
               </button>
             </div>
 
-            {approvedEventsList.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm space-y-4">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-blue-900 bg-blue-50 px-2.5 py-1 rounded-full">
+                  Serial ID Refund Verification
+                </span>
+                <h2 className="text-sm font-black text-slate-900 mt-1.5">
+                  Verify Tourist Serial ID & Confirm Refund
+                </h2>
+                <p className="text-xs text-slate-500 font-medium">
+                  Search a tourist's Serial ID from your conversation outside the system to verify their registration and confirm their refund.
+                </p>
+              </div>
+
+              <form onSubmit={handleRefundSerialLookup} className="flex flex-col sm:flex-row gap-2.5 text-xs">
+                <input
+                  type="text"
+                  placeholder="Enter Serial ID (e.g. DAET-17-99695D)"
+                  value={refundLookupInput}
+                  onChange={(e) => setRefundLookupInput(e.target.value)}
+                  className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase focus:outline-none focus:ring-2 focus:ring-blue-900"
+                />
+                <button
+                  type="submit"
+                  className="px-5 py-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
+                >
+                  Verify Serial ID
+                </button>
+                {refundLookupResult && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRefundLookupResult(null);
+                      setRefundLookupInput("");
+                    }}
+                    className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all"
+                  >
+                    Clear
+                  </button>
+                )}
+              </form>
+
+              {refundLookupResult && (
+                <div>
+                  {refundLookupResult.notFound ? (
+                    <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-900 space-y-1">
+                      <p className="font-black uppercase text-[10px] tracking-wider text-red-700">Serial ID Not Found</p>
+                      <p className="font-semibold">
+                        No attendee registration across your events matched <span className="font-mono">{refundLookupResult.query}</span>.
+                      </p>
+                    </div>
+                  ) : (
+                    (() => {
+                      const matchedReg = refundLookupResult.reg;
+                      const matchedEv = refundLookupResult.event;
+                      const matchedSerial = resolveRegistrationSerial(matchedReg);
+                      const refundSt = resolveRefundState(matchedReg);
+                      return (
+                        <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 text-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="px-2.5 py-0.5 rounded-lg bg-blue-950 text-white font-mono font-bold text-[11px]">
+                                {matchedSerial}
+                              </span>
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                                  refundSt === "refunded"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : refundSt === "requested"
+                                    ? "bg-amber-100 text-amber-900"
+                                    : "bg-blue-100 text-blue-900"
+                                }`}
+                              >
+                                {refundSt === "refunded"
+                                  ? "Refund Confirmed"
+                                  : refundSt === "requested"
+                                  ? "Refund Requested by Tourist"
+                                  : `Status: ${matchedReg.registration_status || "Confirmed"}`}
+                              </span>
+                            </div>
+                            <p className="font-black text-slate-900 text-sm">
+                              {matchedReg.first_name} {matchedReg.last_name}
+                              {matchedReg.team_name ? ` (Team: ${matchedReg.team_name})` : ""}
+                            </p>
+                            <p className="text-slate-600 font-medium">
+                              Event: <strong className="text-slate-800">{matchedEv?.event_name || "Event"}</strong> • Contact: {matchedReg.phone_number} • {matchedReg.email}
+                            </p>
+                            <p className="text-slate-600 font-medium">
+                              Payment: <strong className="text-slate-800">{matchedReg.payment_method || "Free"}</strong>
+                              {matchedReg.amount_due ? ` (${peso(matchedReg.amount_due)})` : ""}
+                              {matchedReg.payment_reference ? ` • Ref: ${matchedReg.payment_reference}` : ""}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            {refundSt !== "refunded" ? (
+                              <button
+                                type="button"
+                                disabled={busyRegId === matchedReg.id}
+                                onClick={() => confirmRefundForAttendee(matchedReg)}
+                                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-bold uppercase text-[11px] transition-all shadow-sm"
+                              >
+                                Confirm Refund Successful
+                              </button>
+                            ) : (
+                              <span className="px-3.5 py-2 rounded-xl bg-emerald-100 text-emerald-900 font-black uppercase text-[11px]">
+                                Moved to Refunded Attendees
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()
+                  )}
+                </div>
+              )}
+            </div>
+
+            {managedEventsList.length === 0 ? (
               <div className="bg-white p-14 rounded-2xl border border-dashed border-slate-200 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">
                 No approved events available to display attendees.
               </div>
             ) : (
               <div className="space-y-4">
-                {approvedEventsList.map((event) => {
+                {managedEventsList.map((event) => {
                   const eventRegs = attendees.filter((a) => String(a.event_id) === String(event.id));
                   const regType = regTypeOf(event);
                   const interestRows = interestedByEvent[String(event.id)];
                   const isOnline = (a) => (a.payment_method || "").toLowerCase() === "online";
-                  const official = eventRegs.filter((a) => regState(a) === "confirmed");
-                  const pendingCash = eventRegs.filter((a) => regState(a) === "pending" && !isOnline(a));
-                  const pendingOnline = eventRegs.filter((a) => regState(a) === "pending" && isOnline(a));
-                  const rejected = eventRegs.filter((a) => regState(a) === "rejected");
+                  const refunded = eventRegs.filter((a) => resolveRefundState(a) === "refunded");
+                  const official = eventRegs.filter(
+                    (a) => regState(a) === "confirmed" && resolveRefundState(a) !== "refunded"
+                  );
+                  const pendingCash = eventRegs.filter(
+                    (a) => regState(a) === "pending" && !isOnline(a) && resolveRefundState(a) !== "refunded"
+                  );
+                  const pendingOnline = eventRegs.filter(
+                    (a) => regState(a) === "pending" && isOnline(a) && resolveRefundState(a) !== "refunded"
+                  );
+                  const rejected = eventRegs.filter(
+                    (a) => regState(a) === "rejected" && resolveRefundState(a) !== "refunded"
+                  );
                   const pendingTotal = pendingCash.length + pendingOnline.length;
+                  const refundReqCount = official.filter((a) => resolveRefundState(a) === "requested").length;
                   const presentCount = official.filter((a) => resolveAttendanceState(a) === "confirmed").length;
                   const checkedInAwaitingCount = official.filter((a) => resolveAttendanceState(a) === "marked").length;
                   const showPaymentTabs = !!event.is_paid || pendingTotal + rejected.length > 0;
-                  const isOngoingEvent = (event.status || "").toLowerCase() === "ongoing";
+                  const statusLower = (event.status || "").toLowerCase();
+                  const isOngoingEvent = statusLower === "ongoing";
+                  const isCancelledOrRescheduled =
+                    statusLower === "cancelled" ||
+                    statusLower === "cancellation requested" ||
+                    statusLower === "rescheduled" ||
+                    statusLower === "reschedule requested";
+                  const actionMeta = parseEventActionMeta(event);
 
                   const isExpanded = expandedEventId === event.id;
                   const defaultTab = isOngoingEvent ? "attendance" : "official";
@@ -1122,6 +1750,7 @@ export default function OrganizerDashboardPage() {
                     "pending-cash": pendingCash,
                     "pending-online": pendingOnline,
                     rejected,
+                    refunded,
                   };
                   const tabs = [
                     ["official", "Official Attendees", official.length],
@@ -1132,6 +1761,9 @@ export default function OrganizerDashboardPage() {
                           ["pending-online", "Pending - Online", pendingOnline.length],
                           ["rejected", "Rejected", rejected.length],
                         ]
+                      : []),
+                    ...(event.is_paid || refunded.length > 0 || refundReqCount > 0 || isCancelledOrRescheduled
+                      ? [["refunded", "Refunded Attendees", refunded.length]]
                       : []),
                   ];
 
@@ -1165,9 +1797,10 @@ export default function OrganizerDashboardPage() {
                     "pending-cash": "No participants are waiting to pay in cash.",
                     "pending-online": "No participants are waiting for an online payment check.",
                     rejected: "No rejected registrations.",
+                    refunded: "No attendees have been marked as refunded for this event yet.",
                   }[tab];
 
-                  const isOfficialOrAttendanceTab = tab === "official" || tab === "attendance";
+                  const isOfficialOrAttendanceTab = tab === "official" || tab === "attendance" || tab === "refunded";
 
                   return (
                     <div key={event.id} className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-sm space-y-4">
@@ -1186,6 +1819,16 @@ export default function OrganizerDashboardPage() {
                             {pendingTotal > 0 && (
                               <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-amber-400 text-slate-950">
                                 {pendingTotal} payment pending
+                              </span>
+                            )}
+                            {refundReqCount > 0 && (
+                              <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                                {refundReqCount} refund requested
+                              </span>
+                            )}
+                            {refunded.length > 0 && (
+                              <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-slate-200 text-slate-800">
+                                {refunded.length} refunded
                               </span>
                             )}
                             {checkedInAwaitingCount > 0 && (
@@ -1227,6 +1870,31 @@ export default function OrganizerDashboardPage() {
                           </button>
                         </div>
                       </div>
+
+                      {isExpanded && isCancelledOrRescheduled && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="space-y-0.5">
+                            <p className="font-black text-slate-900 uppercase text-[10px] tracking-wider">
+                              {statusLower === "cancelled"
+                                ? "Cancelled Event — Attendee Records Preserved for Refund Processing"
+                                : "Rescheduled Event — Attendee & Refund Support"}
+                            </p>
+                            <p className="text-slate-600 font-medium">
+                              Tourist Support Contact:{" "}
+                              <strong className="text-slate-900">
+                                {actionMeta.organizer_contact_info || "Not set"}
+                              </strong>
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => openContactEditor(event)}
+                            className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-blue-900 rounded-xl font-bold text-[11px] self-start sm:self-center"
+                          >
+                            Edit Contact Info
+                          </button>
+                        </div>
+                      )}
 
                       {isExpanded && regType === "interested" && (
                         <div className="pt-4 border-t border-slate-100 space-y-4">
@@ -1419,7 +2087,7 @@ export default function OrganizerDashboardPage() {
                                     <th className="p-3.5">Age</th>
                                     <th className="p-3.5">Home Address</th>
                                     <th className="p-3.5">Registered Date</th>
-                                    {showPaymentTabs && <th className="p-3.5">Payment</th>}
+                                    {(showPaymentTabs || tab === "refunded") && <th className="p-3.5">Payment</th>}
                                     {isOfficialOrAttendanceTab && <th className="p-3.5">Attendance</th>}
                                     {tab === "rejected" && <th className="p-3.5">Reason</th>}
                                     {tab !== "rejected" && <th className="p-3.5 text-right">Actions</th>}
@@ -1430,9 +2098,15 @@ export default function OrganizerDashboardPage() {
                                     const serialId = resolveRegistrationSerial(a);
                                     const attendance = resolveAttendanceState(a);
                                     const attMeta = attendanceBadgeMeta(attendance);
+                                    const refundState = resolveRefundState(a);
 
                                     return (
-                                      <tr key={a.id} className="hover:bg-slate-50/70 transition-colors">
+                                      <tr
+                                        key={a.id}
+                                        className={`hover:bg-slate-50/70 transition-colors ${
+                                          refundState === "requested" ? "bg-amber-50/60" : ""
+                                        }`}
+                                      >
                                         {isOfficialOrAttendanceTab && (
                                           <td className="p-3.5 font-mono text-[11px] font-black text-blue-950 whitespace-nowrap">
                                             {serialId || "—"}
@@ -1440,6 +2114,11 @@ export default function OrganizerDashboardPage() {
                                         )}
                                         <td className="p-3.5 font-bold text-slate-900">
                                           {a.first_name} {a.last_name}
+                                          {refundState === "requested" && (
+                                            <span className="block w-fit mt-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-black uppercase">
+                                              Refund Requested
+                                            </span>
+                                          )}
                                           {a.team_name && (
                                             <span className="block text-[10px] font-bold text-indigo-700 mt-0.5">
                                               Team: {a.team_name} ({teamMembersOf(a).length} members){" "}
@@ -1457,7 +2136,7 @@ export default function OrganizerDashboardPage() {
                                         <td className="p-3.5 font-bold">{a.age} yrs</td>
                                         <td className="p-3.5 max-w-[200px] truncate" title={a.home_address}>{a.home_address}</td>
                                         <td className="p-3.5">{new Date(a.created_at).toLocaleDateString()}</td>
-                                        {showPaymentTabs && (
+                                        {(showPaymentTabs || tab === "refunded") && (
                                           <td className="p-3.5">
                                             <span className="font-bold text-slate-800">{a.payment_method || "N/A"}</span>
                                             {a.amount_due ? <span className="text-slate-500"> {peso(a.amount_due)}</span> : null}
@@ -1473,6 +2152,11 @@ export default function OrganizerDashboardPage() {
                                                 View receipt
                                               </button>
                                             )}
+                                            {refundState === "refunded" && (
+                                              <span className="block w-fit mt-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase">
+                                                Refunded {a.refunded_at ? `• ${new Date(a.refunded_at).toLocaleDateString()}` : ""}
+                                              </span>
+                                            )}
                                           </td>
                                         )}
                                         {isOfficialOrAttendanceTab && (
@@ -1486,7 +2170,16 @@ export default function OrganizerDashboardPage() {
                                         {tab !== "rejected" && (
                                           <td className="p-3.5 text-right whitespace-nowrap">
                                             <div className="inline-flex flex-wrap justify-end items-center gap-1.5">
-                                              {regState(a) === "pending" ? (
+                                              {tab === "refunded" ? (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => revertRefundForAttendee(a)}
+                                                  disabled={busyRegId === a.id}
+                                                  className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-60 text-slate-700 rounded-lg font-bold text-[10px] uppercase transition-all"
+                                                >
+                                                  Revert Refund
+                                                </button>
+                                              ) : regState(a) === "pending" ? (
                                                 <>
                                                   <button
                                                     onClick={() => confirmRegistration(a)}
@@ -1508,6 +2201,16 @@ export default function OrganizerDashboardPage() {
                                                 </>
                                               ) : (
                                                 <>
+                                                  {(event.is_paid || refundState === "requested" || isCancelledOrRescheduled) && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => confirmRefundForAttendee(a)}
+                                                      disabled={busyRegId === a.id}
+                                                      className="px-3 py-1.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-lg font-bold text-[10px] uppercase shadow-xs transition-all"
+                                                    >
+                                                      Confirm Refund
+                                                    </button>
+                                                  )}
                                                   {attendance !== "confirmed" ? (
                                                     <button
                                                       onClick={() => confirmAttendeePresence(a)}
@@ -1582,6 +2285,7 @@ export default function OrganizerDashboardPage() {
               )}
               {visibleNotifications.map((event) => {
                 const status = (event.status || "Pending").toLowerCase();
+                const actionMeta = parseEventActionMeta(event);
                 const messages = {
                   pending: "Your proposal is waiting for review by the Tourism Office.",
                   "under review": "Your proposal is being reviewed by the Tourism Office.",
@@ -1594,9 +2298,11 @@ export default function OrganizerDashboardPage() {
                   "requirements needed": "The Tourism Office sent an approval letter. Complete the listed requirements so your event can be published.",
                   "requirements submitted": "Your requirements were sent. Waiting for the Tourism Office to review them.",
                   "cancellation requested": "Your cancellation request is waiting for admin approval.",
-                  cancelled: "This event has been cancelled.",
+                  cancelled: "This event has been cancelled. Registered attendees remain available under Attendees and payments so you can coordinate refunds.",
+                  "reschedule requested": "Your event rescheduling request is waiting for admin approval.",
+                  rescheduled: "Your event rescheduling has been approved. Joined tourists have been notified and may choose to attend or request a refund.",
                 };
-                const note = status === "requirements needed" ? event.approval_instructions : event.revision_notes || event.rejection_reason;
+                const note = status === "requirements needed" ? event.approval_instructions : actionMeta.action_reason || event.revision_notes || event.rejection_reason;
 
                 return (
                   <div
@@ -1615,8 +2321,13 @@ export default function OrganizerDashboardPage() {
                       <p className="text-sm font-black text-slate-900">{event.event_name}</p>
                       <p className="text-xs text-slate-600">{messages[status] || "Status updated by the Tourism Office."}</p>
                       {note && !["approved", "upcoming", "ongoing", "completed"].includes(status) && (
-                        <div className="text-xs text-purple-800 bg-purple-50/90 border border-purple-200/70 rounded-xl p-3 mt-2">
-                          <strong>Admin note:</strong> {note}
+                        <div className="text-xs text-purple-800 bg-purple-50/90 border border-purple-200/70 rounded-xl p-3 mt-2 space-y-1">
+                          <p><strong>Details / Admin note:</strong> {note}</p>
+                          {actionMeta.organizer_contact_info && (
+                            <p className="text-[11px] text-blue-900 font-semibold">
+                              Tourist Support Contact: {actionMeta.organizer_contact_info}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1832,7 +2543,7 @@ export default function OrganizerDashboardPage() {
               </div>
               <button
                 onClick={async () => {
-                  if (!newPassword) return notify("Please enter a new password first.");
+                  if (!newPassword) return notify("Please enter a new password first.", "info");
                   const { error } = await supabase.auth.updateUser({ password: newPassword });
                   if (error) {
                     notify("Error updating password: " + error.message);
@@ -2145,7 +2856,7 @@ export default function OrganizerDashboardPage() {
 
       {cancelingEvent && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6 border border-slate-100">
+          <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6 border border-slate-100 max-h-[90vh] overflow-y-auto">
             <div>
               <span className="text-[10px] font-black text-red-700 bg-red-100 px-3 py-1 rounded-full uppercase tracking-wider">
                 Event Cancellation
@@ -2154,7 +2865,7 @@ export default function OrganizerDashboardPage() {
                 Request Cancellation for "{cancelingEvent.event_name}"
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Please provide a reason to notify the Tourism Office admin.
+                Provide your reason and contact information so registered tourists can reach out to you for refunds or inquiries. This request awaits admin approval.
               </p>
             </div>
 
@@ -2162,7 +2873,7 @@ export default function OrganizerDashboardPage() {
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Cancellation Reason *</label>
                 <textarea
-                  rows="4"
+                  rows="3"
                   required
                   placeholder="State why this approved event must be cancelled..."
                   value={cancellationReason}
@@ -2171,19 +2882,197 @@ export default function OrganizerDashboardPage() {
                 />
               </div>
 
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                  Organizer Contact Information for Refunds & Inquiries *
+                </label>
+                <textarea
+                  rows="3"
+                  required
+                  placeholder="e.g. Mobile: 0917 123 4567 | Email: organizer@email.com | Messenger / Page: @DaetEvents"
+                  value={cancellationContact}
+                  onChange={(e) => setCancellationContact(e.target.value)}
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                />
+                <p className="text-[11px] text-slate-400 font-medium mt-1">
+                  Tourists will see this contact information alongside their Serial ID to request a refund.
+                </p>
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
+                  disabled={submittingAction}
+                  className="w-full py-3.5 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
                 >
-                  Submit Request
+                  {submittingAction ? "Submitting..." : "Submit Request"}
                 </button>
                 <button
                   type="button"
+                  disabled={submittingAction}
                   onClick={() => {
                     setCancelingEvent(null);
                     setCancellationReason("");
+                    setCancellationContact("");
                   }}
+                  className="px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all whitespace-nowrap"
+                >
+                  ← Back
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {reschedulingEvent && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl space-y-5 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div>
+              <span className="text-[10px] font-black text-blue-900 bg-blue-100 px-3 py-1 rounded-full uppercase tracking-wider">
+                Event Rescheduling
+              </span>
+              <h2 className="text-xl font-black text-slate-900 mt-2.5">
+                Request Rescheduling for "{reschedulingEvent.event_name}"
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Submit your proposed new schedule, reason, and contact details for admin approval. Once approved, joined tourists will be notified and can choose to continue or request a refund.
+              </p>
+            </div>
+
+            <form onSubmit={handleRequestReschedule} className="space-y-4 text-xs font-semibold">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Proposed New Start Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={rescheduleDate}
+                    onChange={(e) => setRescheduleDate(e.target.value)}
+                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">New End Date (optional)</label>
+                  <input
+                    type="date"
+                    value={rescheduleEndDate}
+                    onChange={(e) => setRescheduleEndDate(e.target.value)}
+                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <TimePicker
+                  label="New Start Time"
+                  required
+                  value={rescheduleTime}
+                  onChange={setRescheduleTime}
+                />
+                <TimePicker
+                  label="New End Time"
+                  optional
+                  value={rescheduleEndTime}
+                  onChange={setRescheduleEndTime}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Reason for Rescheduling *</label>
+                <textarea
+                  rows="3"
+                  required
+                  placeholder="Explain why the event is being rescheduled (tourists will see this explanation once approved)..."
+                  value={rescheduleReason}
+                  onChange={(e) => setRescheduleReason(e.target.value)}
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                  Organizer Contact Information for Refund Requests *
+                </label>
+                <textarea
+                  rows="3"
+                  required
+                  placeholder="e.g. Mobile: 0917 123 4567 | Email: organizer@email.com | Messenger / Page: @DaetEvents"
+                  value={rescheduleContact}
+                  onChange={(e) => setRescheduleContact(e.target.value)}
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                />
+                <p className="text-[11px] text-slate-400 font-medium mt-1">
+                  Tourists who opt out of the rescheduled date will contact you here with their Serial ID to request a refund.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={submittingAction}
+                  className="w-full py-3.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
+                >
+                  {submittingAction ? "Submitting..." : "Submit Reschedule Request"}
+                </button>
+                <button
+                  type="button"
+                  disabled={submittingAction}
+                  onClick={() => {
+                    setReschedulingEvent(null);
+                    setRescheduleReason("");
+                    setRescheduleContact("");
+                  }}
+                  className="px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all whitespace-nowrap"
+                >
+                  ← Back
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editingContactEvent && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-5 border border-slate-100">
+            <div>
+              <span className="text-[10px] font-black text-blue-900 bg-blue-100 px-3 py-1 rounded-full uppercase tracking-wider">
+                Tourist Refund & Support Contact
+              </span>
+              <h2 className="text-xl font-black text-slate-900 mt-2.5">{editingContactEvent.event_name}</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Provide or update the contact details shown to joined tourists who wish to request a refund or inquire about schedule changes.
+              </p>
+            </div>
+
+            <form onSubmit={handleSaveOrganizerContact} className="space-y-4 text-xs font-semibold">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                  Organizer Contact Details *
+                </label>
+                <textarea
+                  rows="4"
+                  required
+                  placeholder="e.g. Mobile: 0917 123 4567 | Email: organizer@email.com | Messenger / Page: @DaetEvents"
+                  value={contactEditValue}
+                  onChange={(e) => setContactEditValue(e.target.value)}
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={submittingAction}
+                  className="w-full py-3.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
+                >
+                  {submittingAction ? "Saving..." : "Save Contact Info"}
+                </button>
+                <button
+                  type="button"
+                  disabled={submittingAction}
+                  onClick={() => setEditingContactEvent(null)}
                   className="px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all whitespace-nowrap"
                 >
                   ← Back

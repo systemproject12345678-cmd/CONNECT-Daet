@@ -316,7 +316,7 @@ export default function ProgramsPage() {
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
-      notify(`${label} copied to clipboard: ${text}`);
+      notify(`${label} copied to clipboard: ${text}`, "info");
     } catch {
       notify(`${label}: ${text}`, "info");
     }
@@ -334,7 +334,7 @@ export default function ProgramsPage() {
   const runSerialVerification = async (rawCode) => {
     const code = String(rawCode ?? verifyQuery).trim().toUpperCase();
     if (!code) {
-      notify("Please enter a Serial ID (e.g. DAET-12-000045) to verify.");
+      notify("Please enter a Serial ID (e.g. DAET-12-000045) to verify.", "info");
       return;
     }
 
@@ -450,7 +450,7 @@ export default function ProgramsPage() {
   const toggleInterest = async (e, eventId) => {
     e?.stopPropagation?.();
     if (!user) {
-      notify("Please log in to mark events as interested.");
+      notify("Please log in to mark events as interested.", "info");
       return;
     }
     const key = String(eventId);
@@ -471,7 +471,7 @@ export default function ProgramsPage() {
         if (isAdmin || userProfile?.role === "organizer") {
           notify("Saved to your interested list.", "info");
         } else {
-          notify("Marked as interested! You will get a reminder in your Tourist Portal 1 day before the event.");
+          notify("Marked as interested! You will get a reminder in your Tourist Portal 1 day before the event.", "info");
         }
       }
     } catch (err) {
@@ -570,7 +570,7 @@ export default function ProgramsPage() {
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     if (!acceptedTC) {
-      return notify("You must read and agree to the Terms and Conditions before registering.");
+      return notify("You must read and agree to the Terms and Conditions before registering.", "info");
     }
     setSubmittingReg(true);
 
@@ -601,7 +601,7 @@ export default function ProgramsPage() {
       const method = payForm.method === "online" ? "Online" : "Cash";
 
       if (paid && method === "Online" && !payForm.reference.trim() && proofFile.length === 0) {
-        notify("For online payments, please enter your payment reference number or attach a screenshot of your receipt.");
+        notify("For online payments, please enter your payment reference number or attach a screenshot of your receipt.", "info");
         setSubmittingReg(false);
         return;
       }
@@ -616,14 +616,14 @@ export default function ProgramsPage() {
       let teamPayload = {};
       if (isGroup) {
         if (!teamName.trim()) {
-          notify("Please enter your team / group name.");
+          notify("Please enter your team / group name.", "info");
           setSubmittingReg(false);
           return;
         }
         for (let i = 0; i < teamMembers.length; i += 1) {
           const m = teamMembers[i];
           if (!m.firstName.trim() || !m.lastName.trim() || !m.age || !m.homeAddress.trim()) {
-            notify(`Please complete the name, age and address of member ${i + 2}.`);
+            notify(`Please complete the name, age and address of member ${i + 2}.`, "info");
             setSubmittingReg(false);
             return;
           }
@@ -707,7 +707,7 @@ export default function ProgramsPage() {
           registration: createdReg,
         });
       } else {
-        notify("Registration successful!");
+        notify("Registration successful!", "info");
       }
       fetchEvents(true);
     } catch (err) {
@@ -787,14 +787,6 @@ export default function ProgramsPage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={() => openVerifyWithSerial("")}
-            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all"
-          >
-            Verify Serial ID
-          </button>
-
           {user ? (
             <>
               {isAdmin ? (
