@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -8,9 +8,11 @@ import Button from "@/components/ui/Button";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const noticeRef = useRef(null);
 
   const [roleTab, setRoleTab] = useState("tourist");
   const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState(null);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -32,6 +34,18 @@ export default function RegisterPage() {
   const [validIdUrl, setValidIdUrl] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
 
+  const showNotice = (type, message, showLoginLink = false) => {
+    setNotice({ type, message, showLoginLink });
+    requestAnimationFrame(() => {
+      noticeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  };
+
+  const handleTabChange = (nextTab) => {
+    setRoleTab(nextTab);
+    setNotice(null);
+  };
+
   const handleFileUpload = (e, field) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -48,29 +62,36 @@ export default function RegisterPage() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    setNotice(null);
 
     if (!email.trim() || !password) {
-      return alert("Please enter a valid email and password.");
+      return showNotice("error", "Please enter a valid email and password.");
     }
 
     if (roleTab === "tourist") {
       if (!fullName.trim()) {
-        return alert("Please enter your full name.");
+        return showNotice("error", "Please enter your full name.");
       }
       if (!age || isNaN(age) || parseInt(age, 10) <= 0) {
-        return alert("Please enter a valid age.");
+        return showNotice("error", "Please enter a valid age.");
       }
       if (!sex) {
-        return alert("Please select your sex.");
+        return showNotice("error", "Please select your sex.");
       }
     }
 
     if (roleTab === "organizer") {
       if (!organization.trim() || !organizerFullName.trim() || !contactNumber.trim()) {
-        return alert("Organizers must fill in all required organization name, representative full name, and contact number.");
+        return showNotice(
+          "error",
+          "Organizers must fill in all required organization name, representative full name, and contact number."
+        );
       }
       if (!validIdUrl || !logoUrl) {
-        return alert("Organizers must attach both the Representative Valid ID and the Organization Logo.");
+        return showNotice(
+          "error",
+          "Organizers must attach both the Representative Valid ID and the Organization Logo."
+        );
       }
     }
 
@@ -92,9 +113,28 @@ export default function RegisterPage() {
 
       if (authError) {
         if (authError.message.toLowerCase().includes("already registered")) {
-          throw new Error("This email address is already registered. Please sign in instead.");
+          showNotice(
+            "error",
+            `The email "${cleanEmail}" is already registered. Please sign in instead.`,
+            true
+          );
+          return;
         }
-        throw authError;
+        showNotice("error", authError.message || "Unable to complete registration.");
+        return;
+      }
+
+      if (
+        authData?.user &&
+        Array.isArray(authData.user.identities) &&
+        authData.user.identities.length === 0
+      ) {
+        showNotice(
+          "error",
+          `The email "${cleanEmail}" is already registered. Please sign in instead.`,
+          true
+        );
+        return;
       }
 
       const userId = authData.user?.id;
@@ -137,15 +177,32 @@ export default function RegisterPage() {
       }
 
       if (roleTab === "organizer") {
+        showNotice(
+          "success",
+          "Registration successful! Your credentials are now pending review by the Municipal Tourism Office."
+        );
         alert("Registration successful! Your credentials are now pending review by the Municipal Tourism Office.");
         router.push("/pending-approval");
       } else {
+        showNotice(
+          "success",
+          "Tourist account created successfully! You can now log in and participate in municipal events."
+        );
         alert("Tourist account created successfully! You can now log in and participate in municipal events.");
         router.push("/login");
       }
     } catch (error) {
-      console.error("Registration error:", error);
-      alert(error.message || "An error occurred during registration.");
+      const msg = error?.message || "An error occurred during registration.";
+      if (msg.toLowerCase().includes("already registered")) {
+        showNotice(
+          "error",
+          `The email "${cleanEmail}" is already registered. Please sign in instead.`,
+          true
+        );
+      } else {
+        console.warn("Registration warning:", msg);
+        showNotice("error", msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -169,7 +226,7 @@ export default function RegisterPage() {
         <div className="grid grid-cols-2 p-1.5 bg-gray-100 rounded-2xl gap-1">
           <button
             type="button"
-            onClick={() => setRoleTab("tourist")}
+            onClick={() => handleTabChange("tourist")}
             className={`py-3 text-xs font-black rounded-xl uppercase tracking-wider transition-all ${
               roleTab === "tourist"
                 ? "bg-white text-blue-900 shadow-md"
@@ -180,7 +237,7 @@ export default function RegisterPage() {
           </button>
           <button
             type="button"
-            onClick={() => setRoleTab("organizer")}
+            onClick={() => handleTabChange("organizer")}
             className={`py-3 text-xs font-black rounded-xl uppercase tracking-wider transition-all ${
               roleTab === "organizer"
                 ? "bg-white text-blue-900 shadow-md"
@@ -189,6 +246,44 @@ export default function RegisterPage() {
           >
             🏛️ Event Organizer
           </button>
+        </div>
+
+        <div ref={noticeRef}>
+          {notice && (
+            <div
+              role="alert"
+              className={`p-4 rounded-2xl border text-xs flex items-start justify-between gap-3 ${
+                notice.type === "error"
+                  ? "bg-red-50 border-red-200 text-red-800"
+                  : "bg-emerald-50 border-emerald-200 text-emerald-800"
+              }`}
+            >
+              <div className="space-y-1.5">
+                <p className="font-black uppercase tracking-wider text-[10px]">
+                  {notice.type === "error" ? "Registration Notice" : "Success"}
+                </p>
+                <p className="font-semibold leading-relaxed">{notice.message}</p>
+                {notice.showLoginLink && (
+                  <div className="pt-1">
+                    <Link
+                      href="/login"
+                      className="inline-flex items-center px-3.5 py-1.5 bg-red-700 hover:bg-red-800 text-white rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all"
+                    >
+                      Go to Sign In →
+                    </Link>
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setNotice(null)}
+                aria-label="Dismiss notification"
+                className="text-current opacity-60 hover:opacity-100 font-black text-sm px-1"
+              >
+                ✕
+              </button>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleRegister} className="space-y-4 text-xs font-semibold">
