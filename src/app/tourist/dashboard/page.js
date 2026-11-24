@@ -23,7 +23,7 @@ import {
 } from "@/lib/eventSchedule";
 
 const EVENT_THUMB =
-  "relative w-full md:w-56 h-44 md:h-40 flex-shrink-0 self-start rounded-xl overflow-hidden bg-slate-100 group";
+  "relative w-full md:w-56 h-44 md:h-40 flex-shrink-0 self-start rounded-xl overflow-hidden bg-stone-100 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700 group";
 
 const TOURIST_REG_OVERRIDE_KEY = "daet_tourist_reg_overrides_v1";
 
@@ -173,11 +173,11 @@ const getPhase = (status) => {
 };
 
 const phaseBadge = {
-  Upcoming: "bg-blue-100 text-blue-900",
-  Ongoing: "bg-emerald-100 text-emerald-800",
-  Rescheduled: "bg-amber-100 text-amber-800",
-  Cancelled: "bg-red-100 text-red-800",
-  Completed: "bg-gray-200 text-gray-700",
+  Upcoming: "bg-sky-50 text-sky-800 border border-sky-200/70 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800/70",
+  Ongoing: "bg-emerald-50 text-emerald-800 border border-emerald-200/70 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/70",
+  Rescheduled: "bg-amber-50 text-amber-800 border border-amber-200/70 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/70",
+  Cancelled: "bg-rose-50 text-rose-700 border border-rose-200/70 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/70",
+  Completed: "bg-stone-100 text-slate-700 border border-stone-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
 };
 
 const formatDate = (v) => {
@@ -712,7 +712,7 @@ export default function TouristDashboardPage() {
   const BackButton = ({ to = "my-events", label = "Back to My Events" }) => (
     <button
       onClick={() => setActiveTab(to)}
-      className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-xs transition-all whitespace-nowrap shadow-sm text-center"
+      className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-slate-700 border border-stone-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs transition-all whitespace-nowrap shadow-sm text-center"
     >
       ← {label}
     </button>
@@ -733,8 +733,9 @@ export default function TouristDashboardPage() {
 
   if (loading) {
     return (
-      <div className="daet-ui min-h-[60vh] flex items-center justify-center text-sm font-semibold text-gray-400">
-        Loading tourist portal...
+      <div className="daet-ui min-h-[60vh] flex flex-col items-center justify-center gap-3 text-sm font-semibold text-slate-500 dark:text-slate-400">
+        <div className="w-7 h-7 border-2 border-stone-300 border-t-slate-700 dark:border-slate-700 dark:border-t-slate-200 rounded-full animate-spin" />
+        <span>Loading tourist portal...</span>
       </div>
     );
   }
@@ -762,23 +763,23 @@ export default function TouristDashboardPage() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">My Registered Events</h1>
-                <p className="text-xs text-gray-500 font-semibold mt-0.5">
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">My Registered Events</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
                   View your official Serial IDs, respond to schedule changes, check in when events are happening now, and manage your registrations.
                 </p>
               </div>
               <Link href="/programs">
-                <button className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs transition-all shadow-sm">
+                <button className="px-4 py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-xs transition-all shadow-sm">
                   Browse More Events →
                 </button>
               </Link>
             </div>
 
             {visibleRegistrations.length === 0 ? (
-              <div className="bg-white p-12 rounded-2xl border border-dashed border-gray-200 text-center space-y-3 shadow-sm">
-                <p className="text-gray-400 text-xs font-bold uppercase">You haven't registered for any active events yet.</p>
+              <div className="bg-white dark:bg-slate-900 p-12 rounded-2xl border border-dashed border-stone-200 dark:border-slate-800 text-center space-y-3 shadow-sm">
+                <p className="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase">You haven't registered for any active events yet.</p>
                 <Link href="/programs">
-                  <button className="px-4 py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-xs transition-all shadow-sm">
+                  <button className="px-4 py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-xs transition-all shadow-sm">
                     Find an event to join
                   </button>
                 </Link>
@@ -807,12 +808,12 @@ export default function TouristDashboardPage() {
                   return (
                     <div
                       key={reg.id}
-                      className={`bg-white p-5 rounded-2xl border flex flex-col md:flex-row gap-5 shadow-sm ${
+                      className={`bg-white dark:bg-slate-900 p-5 rounded-2xl border flex flex-col md:flex-row gap-5 shadow-sm transition-all ${
                         isCancelled
-                          ? "border-red-300"
+                          ? "border-rose-300 dark:border-rose-800/80"
                           : isRescheduled
-                          ? "border-amber-300"
-                          : "border-gray-200"
+                          ? "border-amber-300 dark:border-amber-800/80"
+                          : "border-stone-200/90 dark:border-slate-800"
                       }`}
                     >
                       {resolvedImg ? (
@@ -835,25 +836,25 @@ export default function TouristDashboardPage() {
                           </span>
                         </button>
                       ) : (
-                        <div className={`${EVENT_THUMB} flex items-center justify-center text-gray-400 text-[10px] font-bold uppercase`}>
+                        <div className={`${EVENT_THUMB} flex items-center justify-center text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase`}>
                           No Photo
                         </div>
                       )}
 
                       <div className="space-y-2.5 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-black text-base text-slate-900">{event.event_name || "Municipal Event"}</h3>
+                          <h3 className="font-black text-base text-slate-900 dark:text-slate-100">{event.event_name || "Municipal Event"}</h3>
                           <span
                             className={`px-2.5 py-1 text-[10px] font-black rounded-full uppercase ${
                               refundState === "refunded"
-                                ? "bg-slate-200 text-slate-800"
+                                ? "bg-stone-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
                                 : refundState === "requested"
-                                ? "bg-amber-100 text-amber-900"
+                                ? "bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300"
                                 : st === "pending"
-                                ? "bg-amber-100 text-amber-800"
+                                ? "bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300"
                                 : st === "rejected"
-                                ? "bg-red-100 text-red-700"
-                                : "bg-emerald-100 text-emerald-800"
+                                ? "bg-rose-100 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300"
+                                : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300"
                             }`}
                           >
                             {refundState === "refunded"
@@ -870,32 +871,32 @@ export default function TouristDashboardPage() {
                             {isOngoing ? "Happening now" : phase}
                           </span>
                           {isRescheduled && reg.reschedule_choice === "continued" && refundState === "none" && (
-                            <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-blue-100 text-blue-900">
+                            <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-sky-100 text-sky-900 dark:bg-sky-950/70 dark:text-sky-300">
                               Continuing with New Schedule
                             </span>
                           )}
                           {st === "confirmed" && attendance === "confirmed" && (
-                            <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-emerald-600 text-white">
+                            <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-emerald-700 text-white dark:bg-emerald-800">
                               Attendance Confirmed
                             </span>
                           )}
                           {st === "confirmed" && attendance === "marked" && (
-                            <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                            <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800">
                               Checked In (Awaiting Confirmation)
                             </span>
                           )}
                         </div>
 
                         {serialId && (st === "confirmed" || isCancelled || isRescheduled || refundState !== "none") && (
-                          <div className="bg-blue-950 text-white rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div className="bg-stone-800 text-stone-50 dark:bg-slate-800 dark:border dark:border-slate-700 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                             <div>
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-200 block">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-stone-300 dark:text-slate-400 block">
                                 Official Attendee Serial ID
                               </span>
                               <span className="font-mono text-base font-black tracking-wider">{serialId}</span>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-[11px] text-blue-100 font-medium">
+                              <span className="text-[11px] text-stone-200 dark:text-slate-300 font-medium">
                                 {isCancelled || refundState !== "none"
                                   ? "Present this Serial ID to the organizer for refund verification."
                                   : "Present this Serial ID at the venue for attendance verification."}
@@ -903,7 +904,7 @@ export default function TouristDashboardPage() {
                               <button
                                 type="button"
                                 onClick={() => handleCopySerial(serialId)}
-                                className="px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+                                className="px-3 py-1.5 bg-white/15 hover:bg-white/25 dark:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
                               >
                                 {copiedSerialId === serialId ? "Copied ✓" : "Copy ID"}
                               </button>
@@ -912,17 +913,17 @@ export default function TouristDashboardPage() {
                         )}
 
                         {isCancelled && (
-                          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-xs text-red-950 space-y-2">
+                          <div className="bg-rose-50/90 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/70 rounded-xl p-4 text-xs text-rose-950 dark:text-rose-200 space-y-2">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                              <p className="text-[11px] font-black uppercase tracking-wider text-red-800">
+                              <p className="text-[11px] font-black uppercase tracking-wider text-rose-800 dark:text-rose-300">
                                 Event Cancelled Notice
                               </p>
                               {refundState === "refunded" ? (
-                                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 text-[10px] font-black uppercase">
                                   Refund Completed
                                 </span>
                               ) : refundState === "requested" ? (
-                                <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black uppercase">
+                                <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300 text-[10px] font-black uppercase">
                                   Refund Requested — Contact Organizer
                                 </span>
                               ) : null}
@@ -936,16 +937,16 @@ export default function TouristDashboardPage() {
                                 </>
                               ) : null}
                             </p>
-                            <div className="bg-white/90 border border-red-200 rounded-lg p-3 space-y-1">
-                              <p className="text-[10px] font-black uppercase tracking-wider text-slate-600">
+                            <div className="bg-white/90 dark:bg-slate-900/90 border border-rose-200 dark:border-rose-900/60 rounded-lg p-3 space-y-1">
+                              <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
                                 Organizer Contact Details for Refunds & Inquiries
                               </p>
-                              <p className="font-bold text-slate-900">
+                              <p className="font-bold text-slate-900 dark:text-slate-100">
                                 {actionMeta.organizer_contact_info || event.organizer_name || "Contact the Municipal Tourism Office"}
                               </p>
                               {serialId && (
-                                <p className="text-[11px] text-slate-600">
-                                  Reference your Serial ID <strong className="font-mono text-blue-950">{serialId}</strong> when reaching out to claim your refund.
+                                <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                                  Reference your Serial ID <strong className="font-mono text-slate-900 dark:text-white">{serialId}</strong> when reaching out to claim your refund.
                                 </p>
                               )}
                             </div>
@@ -953,13 +954,13 @@ export default function TouristDashboardPage() {
                         )}
 
                         {isRescheduled && (
-                          <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-xs text-amber-950 space-y-2.5">
+                          <div className="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/70 rounded-xl p-4 text-xs text-amber-950 dark:text-amber-200 space-y-2.5">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                              <p className="text-[11px] font-black uppercase tracking-wider text-amber-900">
+                              <p className="text-[11px] font-black uppercase tracking-wider text-amber-900 dark:text-amber-300">
                                 Event Rescheduled — Action Required
                               </p>
                               {reg.reschedule_choice === "continued" && refundState === "none" && (
-                                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 text-[10px] font-black uppercase">
                                   You Confirmed Attendance
                                 </span>
                               )}
@@ -980,11 +981,11 @@ export default function TouristDashboardPage() {
                               ) : null}
                             </p>
                             {actionMeta.organizer_contact_info && (
-                              <div className="bg-white/90 border border-amber-200 rounded-lg p-3 space-y-0.5">
-                                <p className="text-[10px] font-black uppercase tracking-wider text-slate-600">
+                              <div className="bg-white/90 dark:bg-slate-900/90 border border-amber-200 dark:border-amber-900/60 rounded-lg p-3 space-y-0.5">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
                                   Organizer Contact Details (Refunds & Questions)
                                 </p>
-                                <p className="font-bold text-slate-900">{actionMeta.organizer_contact_info}</p>
+                                <p className="font-bold text-slate-900 dark:text-slate-100">{actionMeta.organizer_contact_info}</p>
                               </div>
                             )}
                             {refundState === "none" && reg.reschedule_choice !== "continued" && (
@@ -993,7 +994,7 @@ export default function TouristDashboardPage() {
                                   type="button"
                                   onClick={() => handleContinueRescheduledEvent(reg)}
                                   disabled={isChoiceBusy}
-                                  className="px-4 py-2 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold text-[11px] uppercase shadow-sm transition-all"
+                                  className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 disabled:opacity-60 rounded-xl font-bold text-[11px] uppercase shadow-sm transition-all"
                                 >
                                   {isChoiceBusy ? "Saving..." : "Continue with New Schedule"}
                                 </button>
@@ -1001,7 +1002,7 @@ export default function TouristDashboardPage() {
                                   type="button"
                                   onClick={() => handleRequestRefund(reg)}
                                   disabled={isChoiceBusy}
-                                  className="px-4 py-2 bg-white hover:bg-red-50 disabled:opacity-60 text-red-700 border border-red-300 rounded-xl font-bold text-[11px] uppercase transition-all"
+                                  className="px-4 py-2 bg-rose-50/90 hover:bg-rose-100 disabled:opacity-60 text-rose-700 border border-rose-200/80 dark:bg-rose-950/50 dark:hover:bg-rose-950/80 dark:text-rose-300 dark:border-rose-800/70 rounded-xl font-bold text-[11px] uppercase transition-all"
                                 >
                                   Request Refund
                                 </button>
@@ -1011,8 +1012,8 @@ export default function TouristDashboardPage() {
                         )}
 
                         {!isCancelled && duplicateMatches.length > 0 && (
-                          <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-0.5">
-                            <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                          <div className="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300/80 dark:border-amber-800/70 rounded-xl p-3 text-xs text-amber-950 dark:text-amber-200 space-y-0.5">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
                               Duplicate / Overlapping Event Notice
                             </p>
                             <p className="font-medium">
@@ -1026,9 +1027,9 @@ export default function TouristDashboardPage() {
                           </div>
                         )}
 
-                        <p className="text-xs text-gray-600 leading-relaxed">{event.description || "No event description provided."}</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{event.description || "No event description provided."}</p>
 
-                        <div className="text-xs font-semibold text-gray-500 space-y-1 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 space-y-1 bg-stone-50 dark:bg-slate-800 p-3 rounded-xl border border-stone-200/70 dark:border-slate-700 [&_strong]:text-slate-900 dark:[&_strong]:text-white">
                           <p><strong>Organizer:</strong> {event.organizer_name || "Municipal Tourism Office"}</p>
                           <p><strong>Venue:</strong> {event.venue || "TBA"}</p>
                           <p>
@@ -1043,7 +1044,7 @@ export default function TouristDashboardPage() {
                                   {members.map((m, idx) => (
                                     <span
                                       key={idx}
-                                      className="px-2 py-0.5 rounded-md bg-white border border-gray-200 text-[10px] font-mono font-bold text-slate-700"
+                                      className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-700 text-[10px] font-mono font-bold text-slate-700 dark:text-slate-200"
                                     >
                                       {serialId}-{idx + 1}: {m.first_name} {m.last_name}
                                     </span>
@@ -1059,10 +1060,10 @@ export default function TouristDashboardPage() {
                           <div
                             className={`rounded-xl border p-3 text-xs space-y-1 ${
                               attendance === "confirmed"
-                                ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                                ? "bg-emerald-50/80 border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800/70 dark:text-emerald-200"
                                 : attendance === "marked"
-                                ? "bg-amber-50 border-amber-200 text-amber-900"
-                                : "bg-blue-50 border-blue-200 text-blue-950"
+                                ? "bg-amber-50/80 border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-800/70 dark:text-amber-200"
+                                : "bg-stone-100 border-stone-200 text-slate-800 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200"
                             }`}
                           >
                             <p className="text-[10px] font-black uppercase tracking-wider">
@@ -1086,14 +1087,14 @@ export default function TouristDashboardPage() {
                           <div
                             className={`rounded-xl border p-3 text-xs space-y-1.5 ${
                               refundState === "refunded"
-                                ? "bg-slate-100 border-slate-300 text-slate-800"
+                                ? "bg-stone-100 border-stone-300 text-slate-800 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200"
                                 : refundState === "requested"
-                                ? "bg-amber-50 border-amber-200 text-amber-900"
+                                ? "bg-amber-50/80 border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-800/70 dark:text-amber-200"
                                 : st === "pending"
-                                ? "bg-amber-50 border-amber-200 text-amber-900"
+                                ? "bg-amber-50/80 border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-800/70 dark:text-amber-200"
                                 : st === "rejected"
-                                ? "bg-red-50 border-red-200 text-red-800"
-                                : "bg-emerald-50 border-emerald-200 text-emerald-900"
+                                ? "bg-rose-50/80 border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-800/70 dark:text-rose-200"
+                                : "bg-emerald-50/80 border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800/70 dark:text-emerald-200"
                             }`}
                           >
                             <p className="text-[10px] font-black uppercase tracking-wider">
@@ -1141,18 +1142,18 @@ export default function TouristDashboardPage() {
                                 type="button"
                                 onClick={() => handleRequestRefund(reg)}
                                 disabled={isChoiceBusy}
-                                className="w-full py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
+                                className="w-full py-2.5 bg-rose-700 hover:bg-rose-600 dark:bg-rose-800 dark:hover:bg-rose-700 disabled:opacity-60 text-white text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
                               >
                                 {isChoiceBusy ? "Submitting..." : "Request Refund"}
                               </button>
                             )}
                             {refundState === "requested" && (
-                              <span className="w-full py-2.5 px-3 bg-amber-100 text-amber-900 text-[11px] font-black rounded-xl uppercase text-center">
+                              <span className="w-full py-2.5 px-3 bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300 text-[11px] font-black rounded-xl uppercase text-center">
                                 Refund Requested
                               </span>
                             )}
                             {refundState === "refunded" && (
-                              <span className="w-full py-2.5 px-3 bg-emerald-100 text-emerald-800 text-[11px] font-black rounded-xl uppercase text-center">
+                              <span className="w-full py-2.5 px-3 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 text-[11px] font-black rounded-xl uppercase text-center">
                                 Refund Confirmed
                               </span>
                             )}
@@ -1165,13 +1166,13 @@ export default function TouristDashboardPage() {
                                   return next;
                                 })
                               }
-                              className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold rounded-xl uppercase transition-all text-center"
+                              className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-slate-600 border border-stone-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:border-slate-700 text-xs font-bold rounded-xl uppercase transition-all text-center"
                             >
                               Hide Notice
                             </button>
                           </>
                         ) : phase === "Completed" ? (
-                          <span className="w-full py-2.5 bg-gray-100 text-gray-500 text-xs font-bold rounded-xl uppercase text-center shadow-sm">
+                          <span className="w-full py-2.5 bg-stone-100 text-slate-500 border border-stone-200/80 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 text-xs font-bold rounded-xl uppercase text-center shadow-sm">
                             Event completed
                           </span>
                         ) : (
@@ -1182,7 +1183,7 @@ export default function TouristDashboardPage() {
                                   type="button"
                                   onClick={() => handleContinueRescheduledEvent(reg)}
                                   disabled={isChoiceBusy}
-                                  className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
+                                  className="w-full py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 disabled:opacity-60 text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
                                 >
                                   {isChoiceBusy ? "Saving..." : "Continue Schedule"}
                                 </button>
@@ -1190,7 +1191,7 @@ export default function TouristDashboardPage() {
                                   type="button"
                                   onClick={() => handleRequestRefund(reg)}
                                   disabled={isChoiceBusy}
-                                  className="w-full py-2.5 bg-amber-100 hover:bg-amber-200 disabled:opacity-60 text-amber-900 text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
+                                  className="w-full py-2.5 bg-amber-100 hover:bg-amber-200 disabled:opacity-60 text-amber-900 dark:bg-amber-950/70 dark:hover:bg-amber-900/70 dark:text-amber-200 text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
                                 >
                                   Request Refund
                                 </button>
@@ -1201,7 +1202,7 @@ export default function TouristDashboardPage() {
                                 type="button"
                                 onClick={() => handleRequestRefund(reg)}
                                 disabled={isChoiceBusy}
-                                className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 disabled:opacity-60 text-amber-900 border border-amber-200 text-xs font-bold rounded-xl uppercase transition-all text-center"
+                                className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 disabled:opacity-60 text-amber-900 border border-amber-200 dark:bg-amber-950/50 dark:hover:bg-amber-950/80 dark:text-amber-200 dark:border-amber-800/70 text-xs font-bold rounded-xl uppercase transition-all text-center"
                               >
                                 Request Refund Instead
                               </button>
@@ -1211,7 +1212,7 @@ export default function TouristDashboardPage() {
                                 type="button"
                                 onClick={() => handleTouristCheckIn(reg)}
                                 disabled={busyCheckInId === reg.id}
-                                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
+                                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-600 dark:bg-emerald-800 dark:hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
                               >
                                 {busyCheckInId === reg.id ? "Checking In..." : "Check In / Mark Present"}
                               </button>
@@ -1221,7 +1222,7 @@ export default function TouristDashboardPage() {
                                 type="button"
                                 onClick={() => handleUndoTouristCheckIn(reg)}
                                 disabled={busyCheckInId === reg.id}
-                                className="w-full py-2.5 bg-amber-100 hover:bg-amber-200 disabled:opacity-60 text-amber-900 text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
+                                className="w-full py-2.5 bg-amber-100 hover:bg-amber-200 disabled:opacity-60 text-amber-900 dark:bg-amber-950/70 dark:hover:bg-amber-900/70 dark:text-amber-200 text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
                               >
                                 Undo Check-In
                               </button>
@@ -1229,7 +1230,7 @@ export default function TouristDashboardPage() {
                             {st === "rejected" && (
                               <button
                                 onClick={() => openResubmit(reg)}
-                                className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
+                                className="w-full py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
                               >
                                 Resubmit Registration
                               </button>
@@ -1237,7 +1238,7 @@ export default function TouristDashboardPage() {
                             {refundState === "none" && (
                               <button
                                 onClick={() => handleCancelRegistration(reg.id)}
-                                className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
+                                className="w-full py-2.5 bg-rose-50/80 hover:bg-rose-100 text-rose-700 border border-rose-200/80 dark:bg-rose-950/40 dark:hover:bg-rose-950/70 dark:text-rose-300 dark:border-rose-900/60 text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
                               >
                                 Cancel Registration
                               </button>
@@ -1257,8 +1258,8 @@ export default function TouristDashboardPage() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Interested Events</h1>
-                <p className="text-xs text-gray-500 font-semibold mt-0.5">
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Interested Events</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
                   Events you starred on the public schedule. You get a reminder here one day before they start.
                 </p>
               </div>
@@ -1266,10 +1267,10 @@ export default function TouristDashboardPage() {
             </div>
 
             {upcomingInterested.length === 0 ? (
-              <div className="bg-white p-12 rounded-2xl border border-dashed border-gray-200 text-center space-y-3 shadow-sm">
-                <p className="text-gray-400 text-xs font-bold uppercase">You haven't marked any upcoming events as interested.</p>
+              <div className="bg-white dark:bg-slate-900 p-12 rounded-2xl border border-dashed border-stone-200 dark:border-slate-800 text-center space-y-3 shadow-sm">
+                <p className="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase">You haven't marked any upcoming events as interested.</p>
                 <Link href="/programs">
-                  <button className="px-4 py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-xs transition-all shadow-sm">
+                  <button className="px-4 py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-xs transition-all shadow-sm">
                     Browse events
                   </button>
                 </Link>
@@ -1283,7 +1284,7 @@ export default function TouristDashboardPage() {
                   const duplicateMatches = duplicatesByEventId.get(String(ev.id)) || [];
 
                   return (
-                    <div key={ev.id} className="bg-white p-5 rounded-2xl border border-gray-200 flex flex-col md:flex-row gap-5 shadow-sm">
+                    <div key={ev.id} className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-stone-200/90 dark:border-slate-800 flex flex-col md:flex-row gap-5 shadow-sm">
                       {img ? (
                         <button type="button" onClick={() => setViewerSrc(img)} className={EVENT_THUMB} aria-label={`View full photo of ${ev.event_name}`}>
                           <img
@@ -1296,19 +1297,19 @@ export default function TouristDashboardPage() {
                           />
                         </button>
                       ) : (
-                        <div className={`${EVENT_THUMB} flex items-center justify-center text-gray-400 text-[10px] font-bold uppercase`}>No Photo</div>
+                        <div className={`${EVENT_THUMB} flex items-center justify-center text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase`}>No Photo</div>
                       )}
                       <div className="space-y-2 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-3">
-                          <h3 className="font-black text-base text-slate-900">{ev.event_name}</h3>
+                          <h3 className="font-black text-base text-slate-900 dark:text-slate-100">{ev.event_name}</h3>
                           <span className={`px-2.5 py-1 text-[10px] font-black rounded-full uppercase ${phaseBadge[getPhase(ev.status)]}`}>
                             {getPhase(ev.status) === "Ongoing" ? "Happening now" : getPhase(ev.status)}
                           </span>
-                          <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-800">{startsLabel(ev)}</span>
+                          <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300">{startsLabel(ev)}</span>
                         </div>
                         {duplicateMatches.length > 0 && (
-                          <div className="bg-amber-50 border border-amber-300 rounded-xl p-2.5 text-xs text-amber-950">
-                            <strong className="uppercase text-[10px] tracking-wider text-amber-800 block">
+                          <div className="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300/80 dark:border-amber-800/70 rounded-xl p-2.5 text-xs text-amber-950 dark:text-amber-200">
+                            <strong className="uppercase text-[10px] tracking-wider text-amber-800 dark:text-amber-300 block">
                               Duplicate / Overlapping Event Notice
                             </strong>
                             Another scheduled event matches this title or date/venue:{" "}
@@ -1319,8 +1320,8 @@ export default function TouristDashboardPage() {
                             .
                           </div>
                         )}
-                        <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{ev.description || "No event description provided."}</p>
-                        <div className="text-xs font-semibold text-gray-500 space-y-0.5 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2">{ev.description || "No event description provided."}</p>
+                        <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 space-y-0.5 bg-stone-50 dark:bg-slate-800 p-3 rounded-xl border border-stone-200/70 dark:border-slate-700 [&_strong]:text-slate-900 dark:[&_strong]:text-white">
                           <p><strong>Venue:</strong> {ev.venue || "TBA"}</p>
                           <p>
                             <strong>Date & Time:</strong> {formatDate(startDateVal)}
@@ -1331,13 +1332,13 @@ export default function TouristDashboardPage() {
                       </div>
                       <div className="flex flex-col justify-center items-stretch gap-2.5 min-w-[160px]">
                         <Link href="/programs" className="w-full">
-                          <button className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center">
+                          <button className="w-full py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center">
                             {regTypeOf(ev) === "interested" ? "View event" : "View & join"}
                           </button>
                         </Link>
                         <button
                           onClick={() => removeInterest(ev.id)}
-                          className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
+                          className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-slate-700 border border-stone-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl uppercase transition-all shadow-sm text-center"
                         >
                           Remove
                         </button>
@@ -1354,15 +1355,15 @@ export default function TouristDashboardPage() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Official Event Calendar</h1>
-                <p className="text-xs text-gray-500 font-semibold mt-0.5">
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Official Event Calendar</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
                   Explore the 1-year municipal event schedule across Daet and inspect same-day activities.
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <BackButton />
                 <Link href="/programs">
-                  <button className="px-4 py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-xs transition-all whitespace-nowrap shadow-sm">
+                  <button className="px-4 py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-xs transition-all whitespace-nowrap shadow-sm">
                     Join Events →
                   </button>
                 </Link>
@@ -1381,8 +1382,8 @@ export default function TouristDashboardPage() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Notifications & Event Alerts</h1>
-                <p className="text-xs text-gray-500 font-semibold mt-0.5">Real-time schedule updates, cancellation notices, and status alerts for your municipal activities.</p>
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Notifications & Event Alerts</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">Real-time schedule updates, cancellation notices, and status alerts for your municipal activities.</p>
               </div>
               <BackButton />
             </div>
@@ -1392,24 +1393,24 @@ export default function TouristDashboardPage() {
                 {reminders
                   .filter((ev) => !dismissedNotifs.has(`reminder-${ev.id}`))
                   .map((ev) => (
-                    <div key={`reminder-${ev.id}`} className="bg-amber-50 p-5 rounded-2xl border border-amber-200 shadow-sm relative flex gap-3 items-start">
+                    <div key={`reminder-${ev.id}`} className="bg-amber-50/90 dark:bg-amber-950/40 p-5 rounded-2xl border border-amber-200 dark:border-amber-800/70 shadow-sm relative flex gap-3 items-start">
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black text-amber-700 uppercase tracking-wider">Reminder - event you are interested in</span>
-                          <span className="text-[10px] text-amber-700 font-bold uppercase">{startsLabel(ev)}</span>
+                          <span className="text-[10px] font-black text-amber-800 dark:text-amber-300 uppercase tracking-wider">Reminder - event you are interested in</span>
+                          <span className="text-[10px] text-amber-800 dark:text-amber-300 font-bold uppercase">{startsLabel(ev)}</span>
                         </div>
-                        <p className="text-xs font-bold text-slate-900">
-                          <span className="text-blue-900">{ev.event_name}</span>{" "}
+                        <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                          <span className="underline">{ev.event_name}</span>{" "}
                           {getPhase(ev.status) === "Ongoing" ? "is happening now." : "starts within the next day."}
                         </p>
-                        <p className="text-[11px] text-gray-600">
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300">
                           Location: {ev.venue || "TBA"} | {formatDate(ev.event_date || ev.date)}
                           {formatTime(ev.event_time) ? ` at ${formatTime(ev.event_time)}` : ""}
                         </p>
                       </div>
                       <button
                         onClick={() => dismissNotification(`reminder-${ev.id}`)}
-                        className="text-gray-400 hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                        className="text-slate-400 hover:text-rose-500 transition-colors p-1 flex-shrink-0"
                         aria-label="Dismiss notification"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -1420,7 +1421,7 @@ export default function TouristDashboardPage() {
             )}
 
             {totalActiveNotifications === 0 ? (
-              <div className="bg-white p-12 rounded-2xl border border-dashed border-gray-200 text-center text-gray-400 text-xs font-bold uppercase shadow-sm">
+              <div className="bg-white dark:bg-slate-900 p-12 rounded-2xl border border-dashed border-stone-200 dark:border-slate-800 text-center text-slate-400 dark:text-slate-500 text-xs font-bold uppercase shadow-sm">
                 No active notifications or updates available.
               </div>
             ) : (
@@ -1442,12 +1443,12 @@ export default function TouristDashboardPage() {
                     return (
                       <div
                         key={reg.id}
-                        className={`bg-white p-5 rounded-2xl border shadow-sm relative flex gap-3 items-start ${
+                        className={`bg-white dark:bg-slate-900 p-5 rounded-2xl border shadow-sm relative flex gap-3 items-start ${
                           isCancelled
-                            ? "border-red-300 bg-red-50/30"
+                            ? "border-rose-300 dark:border-rose-800/80 bg-rose-50/30 dark:bg-rose-950/20"
                             : isRescheduled
-                            ? "border-amber-300 bg-amber-50/30"
-                            : "border-gray-200"
+                            ? "border-amber-300 dark:border-amber-800/80 bg-amber-50/30 dark:bg-amber-950/20"
+                            : "border-stone-200/90 dark:border-slate-800"
                         }`}
                       >
                         <div className="flex-1 min-w-0 space-y-1.5">
@@ -1456,10 +1457,10 @@ export default function TouristDashboardPage() {
                               <span
                                 className={`text-[10px] font-black uppercase tracking-wider ${
                                   isCancelled
-                                    ? "text-red-700"
+                                    ? "text-rose-700 dark:text-rose-300"
                                     : isRescheduled
-                                    ? "text-amber-800"
-                                    : "text-blue-900"
+                                    ? "text-amber-800 dark:text-amber-300"
+                                    : "text-slate-700 dark:text-slate-200"
                                 }`}
                               >
                                 {isCancelled
@@ -1475,25 +1476,25 @@ export default function TouristDashboardPage() {
                                   : "Event Update"}
                               </span>
                               {serialId && (st === "confirmed" || isCancelled || isRescheduled) && (
-                                <span className="px-2 py-0.5 rounded-md bg-blue-950 text-white font-mono text-[10px] font-bold">
+                                <span className="px-2 py-0.5 rounded-md bg-stone-800 text-stone-50 dark:bg-slate-800 dark:text-slate-200 dark:border dark:border-slate-700 font-mono text-[10px] font-bold">
                                   Serial: {serialId}
                                 </span>
                               )}
                               {refundState === "requested" && (
-                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[9px] font-black uppercase">
+                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300 text-[9px] font-black uppercase">
                                   Refund Requested
                                 </span>
                               )}
                               {refundState === "refunded" && (
-                                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase">
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 text-[9px] font-black uppercase">
                                   Refunded
                                 </span>
                               )}
                             </div>
-                            <span className="text-[10px] text-gray-400 font-semibold">{new Date(reg.created_at).toLocaleDateString()}</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-400 font-semibold">{new Date(reg.created_at).toLocaleDateString()}</span>
                           </div>
-                          <p className="text-xs font-bold text-slate-900">
-                            <span className="text-blue-900">{event.event_name || "Municipal Program"}</span>{" "}
+                          <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                            <span className="underline">{event.event_name || "Municipal Program"}</span>{" "}
                             {isCancelled
                               ? "has been cancelled. Use your Serial ID and the organizer contact details below to claim a refund."
                               : isRescheduled
@@ -1511,29 +1512,29 @@ export default function TouristDashboardPage() {
                               : "registration is confirmed. You are on the official attendee list."}
                           </p>
                           {(isCancelled || isRescheduled) && actionMeta.action_reason && (
-                            <p className="text-xs text-slate-700 bg-white border border-gray-200 rounded-xl p-3">
+                            <p className="text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl p-3">
                               <strong>Reason:</strong> {actionMeta.action_reason}
                             </p>
                           )}
                           {(isCancelled || isRescheduled) && actionMeta.organizer_contact_info && (
-                            <p className="text-xs text-blue-950 bg-blue-50 border border-blue-200 rounded-xl p-3">
+                            <p className="text-xs text-slate-800 dark:text-slate-200 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl p-3">
                               <strong>Organizer Refund & Inquiry Contact:</strong> {actionMeta.organizer_contact_info}
                             </p>
                           )}
                           {st === "rejected" && reg.rejection_reason && (
-                            <p className="text-xs text-red-700 bg-red-50 border border-red-100 rounded-xl p-3 mt-1">
+                            <p className="text-xs text-rose-700 dark:text-rose-200 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/70 rounded-xl p-3 mt-1">
                               <strong>Organizer note:</strong> {reg.rejection_reason}
                             </p>
                           )}
                           <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
-                            <p className="text-[11px] text-gray-500">
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
                               Location: {event.venue || "TBA"} | {isRescheduled ? "New Date:" : "Scheduled Date:"} {formatDate(event.event_date || event.date)}
                             </p>
                             {(isCancelled || isRescheduled) && (
                               <button
                                 type="button"
                                 onClick={() => setActiveTab("my-events")}
-                                className="px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white rounded-lg text-[10px] font-bold uppercase transition-all"
+                                className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-lg text-[10px] font-bold uppercase transition-all"
                               >
                                 Manage in My Events →
                               </button>
@@ -1542,7 +1543,7 @@ export default function TouristDashboardPage() {
                         </div>
                         <button
                           onClick={() => dismissNotification(`reg-notif-${reg.id}`)}
-                          className="text-gray-400 hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                          className="text-slate-400 hover:text-rose-500 transition-colors p-1 flex-shrink-0"
                           aria-label="Dismiss notification"
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -1557,30 +1558,30 @@ export default function TouristDashboardPage() {
 
         {activeTab === "account" && (
           <div className="flex flex-col items-center justify-center min-h-[70vh] py-10">
-            <div className="w-full max-w-xl bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden space-y-6">
-              <div className="flex items-center gap-4 p-6 border-b border-gray-100 bg-gradient-to-r from-blue-900 to-indigo-900 text-white">
+            <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/90 dark:border-slate-800 shadow-xl overflow-hidden space-y-6">
+              <div className="flex items-center gap-4 p-6 border-b border-stone-200/80 dark:border-slate-800 bg-stone-800 dark:bg-slate-800 text-stone-50">
                 <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-xl font-black flex-shrink-0">
                   {(profile?.full_name || user?.email || "T").trim().charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <p className="text-lg font-black truncate">{profile?.full_name || "Tourist Account"}</p>
-                  <p className="text-xs text-blue-200 truncate">{user?.email}</p>
+                  <p className="text-xs text-stone-300 dark:text-slate-300 truncate">{user?.email}</p>
                 </div>
               </div>
 
               <div className="px-6 pb-6">
-                <dl className="divide-y divide-gray-100 text-xs">
+                <dl className="divide-y divide-stone-100 dark:divide-slate-800 text-xs">
                   {accountRows.map(([label, value]) => (
                     <div key={label} className="grid grid-cols-3 gap-4 py-3.5">
-                      <dt className="font-bold text-gray-500">{label}</dt>
-                      <dd className="col-span-2 font-semibold text-slate-800 break-words">
-                        {value !== undefined && value !== null && value !== "" ? String(value) : <span className="text-gray-300">Not provided</span>}
+                      <dt className="font-bold text-slate-500 dark:text-slate-400">{label}</dt>
+                      <dd className="col-span-2 font-semibold text-slate-800 dark:text-slate-200 break-words">
+                        {value !== undefined && value !== null && value !== "" ? String(value) : <span className="text-slate-300 dark:text-slate-600">Not provided</span>}
                       </dd>
                     </div>
                   ))}
                   <div className="grid grid-cols-3 gap-4 py-3.5">
-                    <dt className="font-bold text-gray-500">Active registrations</dt>
-                    <dd className="col-span-2 font-semibold text-slate-800">{visibleRegistrations.length}</dd>
+                    <dt className="font-bold text-slate-500 dark:text-slate-400">Active registrations</dt>
+                    <dd className="col-span-2 font-semibold text-slate-800 dark:text-slate-200">{visibleRegistrations.length}</dd>
                   </div>
                 </dl>
               </div>
@@ -1594,24 +1595,24 @@ export default function TouristDashboardPage() {
 
         {activeTab === "settings" && (
           <div className="flex flex-col items-center justify-center min-h-[70vh] py-10">
-            <div className="w-full max-w-md bg-white p-8 rounded-2xl border border-gray-200 shadow-xl space-y-6 text-xs font-semibold">
-              <div className="text-center border-b border-gray-100 pb-4 relative">
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Account Settings</h1>
-                <p className="text-[11px] text-gray-500 font-semibold mt-1 uppercase tracking-widest">Update password and security</p>
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 p-8 rounded-2xl border border-stone-200/90 dark:border-slate-800 shadow-xl space-y-6 text-xs font-semibold">
+              <div className="text-center border-b border-stone-100 dark:border-slate-800 pb-4 relative">
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Account Settings</h1>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold mt-1 uppercase tracking-widest">Update password and security</p>
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-[10px] text-gray-500 mb-1.5 font-bold uppercase tracking-wider text-center">ACCOUNT EMAIL</label>
-                  <input type="email" disabled value={newEmail} className="w-full p-3.5 bg-gray-100 border border-gray-200 rounded-xl font-bold text-slate-700 text-center cursor-not-allowed" />
+                  <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1.5 font-bold uppercase tracking-wider text-center">ACCOUNT EMAIL</label>
+                  <input type="email" disabled value={newEmail} className="w-full p-3.5 bg-stone-100 dark:bg-slate-800/80 border border-stone-200 dark:border-slate-700 rounded-xl font-bold text-slate-600 dark:text-slate-400 text-center cursor-not-allowed" />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-gray-500 mb-1.5 font-bold uppercase tracking-wider text-center">NEW PASSWORD</label>
+                  <label className="block text-[10px] text-slate-500 dark:text-slate-400 mb-1.5 font-bold uppercase tracking-wider text-center">NEW PASSWORD</label>
                   <input
                     type="password"
                     placeholder="••••••••"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-center transition-all"
+                    className="w-full p-3.5 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-400/30 text-center transition-all"
                   />
                 </div>
                 <button
@@ -1626,7 +1627,7 @@ export default function TouristDashboardPage() {
                       setTimeout(() => setPwSaved(false), 2000);
                     }
                   }}
-                  className="w-full py-3.5 mt-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all"
+                  className="w-full py-3.5 mt-2 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all"
                 >
                   {pwSaved ? "Saved ✓" : "Save Account Settings"}
                 </button>
@@ -1651,18 +1652,18 @@ export default function TouristDashboardPage() {
 
         return (
           <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
             onClick={() => setCalendarSelectedEvent(null)}
           >
             <div
-              className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto text-xs font-semibold"
+              className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto border border-stone-100 dark:border-slate-800 text-xs font-semibold"
               onClick={(e) => e.stopPropagation()}
             >
               {img && (
                 <button
                   type="button"
                   onClick={() => setViewerSrc(img)}
-                  className="relative w-full aspect-[16/9] bg-slate-100 block group overflow-hidden"
+                  className="relative w-full aspect-[16/9] bg-stone-100 dark:bg-slate-800 block group overflow-hidden"
                 >
                   <img
                     src={img}
@@ -1683,31 +1684,31 @@ export default function TouristDashboardPage() {
                   <span className={`px-2.5 py-1 text-[10px] font-black rounded-full uppercase ${phaseBadge[getPhase(calendarSelectedEvent.status)]}`}>
                     {getPhase(calendarSelectedEvent.status) === "Ongoing" ? "Happening now" : getPhase(calendarSelectedEvent.status)}
                   </span>
-                  <span className="px-2.5 py-1 text-[10px] font-bold rounded-full uppercase bg-slate-100 text-slate-600">
+                  <span className="px-2.5 py-1 text-[10px] font-bold rounded-full uppercase bg-stone-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                     {REG_TYPE_LABEL[regTypeOf(calendarSelectedEvent)]}
                   </span>
                   {alreadyRegistered && (
-                    <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-emerald-100 text-emerald-800">
+                    <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
                       Registered
                     </span>
                   )}
                   {matchedSerial && (
-                    <span className="px-2.5 py-1 text-[10px] font-mono font-bold rounded-full bg-blue-950 text-white">
+                    <span className="px-2.5 py-1 text-[10px] font-mono font-bold rounded-full bg-stone-800 text-stone-50 dark:bg-slate-800 dark:text-slate-100 dark:border dark:border-slate-700">
                       {matchedSerial}
                     </span>
                   )}
                   {!alreadyRegistered && alreadyInterested && (
-                    <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-800">
+                    <span className="px-2.5 py-1 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300">
                       ★ Interested
                     </span>
                   )}
                 </div>
 
-                <h3 className="text-xl font-black text-slate-900 leading-snug">{calendarSelectedEvent.event_name}</h3>
+                <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 leading-snug">{calendarSelectedEvent.event_name}</h3>
 
                 {duplicateMatches.length > 0 && (
-                  <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-0.5">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                  <div className="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300/80 dark:border-amber-800/70 rounded-xl p-3 text-xs text-amber-950 dark:text-amber-200 space-y-0.5">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
                       Duplicate / Overlapping Event Notice
                     </p>
                     <p className="font-medium">
@@ -1721,11 +1722,11 @@ export default function TouristDashboardPage() {
                   </div>
                 )}
 
-                <p className="text-gray-600 leading-relaxed whitespace-pre-line">
+                <p className="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
                   {calendarSelectedEvent.description || "No event description provided."}
                 </p>
 
-                <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-1.5 text-gray-600">
+                <div className="bg-stone-50 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700 rounded-xl p-4 space-y-1.5 text-slate-600 dark:text-slate-300 [&_strong]:text-slate-900 dark:[&_strong]:text-white">
                   <p><strong>Organizer:</strong> {calendarSelectedEvent.organizer_name || "Municipal Tourism Office"}</p>
                   <p><strong>Venue:</strong> {calendarSelectedEvent.venue || "TBA"}</p>
                   <p>
@@ -1745,7 +1746,7 @@ export default function TouristDashboardPage() {
                   <Link href="/programs" className="flex-1">
                     <button
                       type="button"
-                      className="w-full py-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
+                      className="w-full py-3 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
                     >
                       {alreadyRegistered ? "Open Public Schedule" : "Go to Programs to Join →"}
                     </button>
@@ -1753,7 +1754,7 @@ export default function TouristDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setCalendarSelectedEvent(null)}
-                    className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold transition-all"
+                    className="px-5 py-3 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold transition-all"
                   >
                     Close
                   </button>
@@ -1767,23 +1768,23 @@ export default function TouristDashboardPage() {
       {resubmitReg && (() => {
         const event = eventsMap[resubmitReg.event_id] || {};
         return (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-[35px] max-w-md w-full p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto text-xs font-semibold">
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-slate-900 rounded-[35px] max-w-md w-full p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto border border-stone-100 dark:border-slate-800 text-xs font-semibold">
               <div>
-                <span className="text-[10px] font-black text-blue-900 bg-blue-100 px-3 py-1 rounded-full uppercase tracking-wider">
+                <span className="text-[10px] font-black text-slate-700 dark:text-slate-200 bg-stone-100 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700 px-3 py-1 rounded-full uppercase tracking-wider">
                   Resubmit Registration
                 </span>
-                <h2 className="text-xl font-black text-gray-900 mt-2">{event.event_name || "Event"}</h2>
+                <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 mt-2">{event.event_name || "Event"}</h2>
                 {resubmitReg.rejection_reason && (
-                  <p className="mt-2 text-red-700 bg-red-50 border border-red-100 rounded-xl p-3 font-medium">
+                  <p className="mt-2 text-rose-700 dark:text-rose-200 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/70 rounded-xl p-3 font-medium">
                     <strong>Organizer note:</strong> {resubmitReg.rejection_reason}
                   </p>
                 )}
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-gray-600 uppercase">Registration fee</span>
-                <span className="text-lg font-black text-blue-900">{peso(event.fee_amount)}</span>
+                <span className="text-slate-600 dark:text-slate-400 uppercase">Registration fee</span>
+                <span className="text-lg font-black text-slate-900 dark:text-slate-100">{peso(event.fee_amount)}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -1796,7 +1797,9 @@ export default function TouristDashboardPage() {
                     type="button"
                     onClick={() => { setResubForm({ ...resubForm, method: opt.value }); setResubQrUrl(null); }}
                     className={`py-3 rounded-xl border-2 font-bold transition-all text-center ${
-                      resubForm.method === opt.value ? "border-blue-900 bg-white text-blue-900 shadow-sm" : "border-gray-200 bg-white text-gray-500 hover:border-blue-300"
+                      resubForm.method === opt.value
+                        ? "border-stone-800 bg-stone-50 text-slate-900 shadow-sm dark:border-slate-200 dark:bg-slate-800 dark:text-slate-100"
+                        : "border-stone-200 bg-white text-slate-500 hover:border-stone-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-slate-500"
                     }`}
                   >
                     {opt.label}
@@ -1805,44 +1808,44 @@ export default function TouristDashboardPage() {
               </div>
 
               {resubForm.method === "cash" ? (
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-1">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Pay your cash here</p>
-                  <p className="text-gray-800 whitespace-pre-line">
+                <div className="bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl p-3 space-y-1">
+                  <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Pay your cash here</p>
+                  <p className="text-slate-800 dark:text-slate-200 whitespace-pre-line">
                     {event.cash_payment_details || "The organizer has not stated a cash payment location yet."}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3 text-center">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Pay via QR Ph (GCash, Maya, Banks)</p>
+                  <div className="bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl p-4 space-y-3 text-center">
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Pay via QR Ph (GCash, Maya, Banks)</p>
                     {resubQrUrl ? (
                       <div className="space-y-2">
-                        <img src={resubQrUrl} alt="QR Ph Code" className="w-48 h-48 mx-auto border border-gray-200 rounded-lg p-2 bg-white" />
-                        <p className="text-[10px] text-gray-500 font-medium">Scan using GCash, Maya, or any participating bank app to pay {peso(event.fee_amount)}.</p>
+                        <img src={resubQrUrl} alt="QR Ph Code" className="w-48 h-48 mx-auto border border-stone-200 dark:border-slate-700 rounded-lg p-2 bg-white" />
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Scan using GCash, Maya, or any participating bank app to pay {peso(event.fee_amount)}.</p>
                       </div>
                     ) : (
-                      <button type="button" onClick={handleGenerateResubQR} disabled={generatingResubQR} className="px-6 py-2.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl text-xs font-bold transition-all shadow-sm">
+                      <button type="button" onClick={handleGenerateResubQR} disabled={generatingResubQR} className="px-6 py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 disabled:opacity-60 rounded-xl text-xs font-bold transition-all shadow-sm">
                         {generatingResubQR ? "Generating QR Code..." : "Generate QR Ph Code"}
                       </button>
                     )}
                   </div>
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-1">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Alternative Online Transfer</p>
-                    <p className="text-gray-800 whitespace-pre-line">
+                  <div className="bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl p-3 space-y-1">
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Alternative Online Transfer</p>
+                    <p className="text-slate-800 dark:text-slate-200 whitespace-pre-line">
                       {event.online_payment_details || "The organizer has not provided alternative bank details yet."}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-gray-600 mb-1">PAYMENT REFERENCE NO.</label>
+                    <label className="block text-slate-600 dark:text-slate-400 mb-1">PAYMENT REFERENCE NO.</label>
                     <input
                       type="text"
                       value={resubForm.reference}
                       onChange={(e) => setResubForm({ ...resubForm, reference: e.target.value })}
-                      className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900"
+                      className="w-full p-3 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-400/30"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-600 mb-1">RECEIPT SCREENSHOT (OPTIONAL)</label>
+                    <label className="block text-slate-600 dark:text-slate-400 mb-1">RECEIPT SCREENSHOT (OPTIONAL)</label>
                     <FilePicker files={resubProof} onChange={setResubProof} multiple={false} accept="image/*" label="Attach receipt photo" />
                   </div>
                 </div>
@@ -1852,14 +1855,14 @@ export default function TouristDashboardPage() {
                 <button
                   onClick={handleResubmit}
                   disabled={resubSaving}
-                  className="w-full py-3.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm text-center"
+                  className="w-full py-3.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 disabled:opacity-60 rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm text-center"
                 >
                   {resubSaving ? "Submitting..." : "Resubmit"}
                 </button>
                 <button
                   onClick={() => setResubmitReg(null)}
                   disabled={resubSaving}
-                  className="px-5 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold transition-all text-center"
+                  className="px-5 py-3.5 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold transition-all text-center"
                 >
                   Cancel
                 </button>
@@ -1867,7 +1870,7 @@ export default function TouristDashboardPage() {
             </div>
           </div>
         );
-      })}
+      })()}
 
       {viewerSrc && <ImageLightbox src={viewerSrc} alt="Event photo" onClose={() => setViewerSrc(null)} />}
       {feedbackUI}

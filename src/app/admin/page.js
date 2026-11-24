@@ -16,7 +16,7 @@ import TeamDetails from "@/components/ui/TeamDetails";
 const OFFICIAL_ADMIN_EMAIL = "admin.daet@gmail.com";
 
 const EVENT_THUMB =
-  "relative w-full md:w-56 h-44 md:h-40 flex-shrink-0 self-start rounded-xl overflow-hidden bg-slate-100 group";
+  "relative w-full md:w-56 h-44 md:h-40 flex-shrink-0 self-start rounded-xl overflow-hidden bg-stone-100 dark:bg-slate-800 group";
 
 const EVENT_FILTERS = [
   "All",
@@ -307,45 +307,45 @@ const statusBadgeClass = (status) => {
     case "approved":
     case "upcoming":
     case "ongoing":
-      return "bg-blue-100 text-blue-900";
+      return "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200";
     case "rescheduled":
-      return "bg-indigo-100 text-indigo-900";
+      return "bg-indigo-100/80 text-indigo-900 dark:bg-indigo-950/70 dark:text-indigo-200";
     case "reschedule requested":
-      return "bg-amber-100 text-amber-900";
+      return "bg-amber-100/90 text-amber-900 dark:bg-amber-950/70 dark:text-amber-200";
     case "completed":
-      return "bg-gray-200 text-gray-700";
+      return "bg-stone-200 text-stone-700 dark:bg-slate-800 dark:text-slate-300";
     case "rejected":
-      return "bg-red-100 text-red-800";
+      return "bg-rose-100/90 text-rose-800 dark:bg-rose-950/80 dark:text-rose-200";
     case "requires changes":
-      return "bg-indigo-100 text-indigo-800";
+      return "bg-indigo-100/80 text-indigo-800 dark:bg-indigo-950/70 dark:text-indigo-200";
     case "requirements needed":
-      return "bg-teal-100 text-teal-800";
+      return "bg-teal-100/90 text-teal-800 dark:bg-teal-950/70 dark:text-teal-200";
     case "requirements submitted":
-      return "bg-cyan-100 text-cyan-800";
+      return "bg-cyan-100/90 text-cyan-800 dark:bg-cyan-950/70 dark:text-cyan-200";
     case "cancelled":
-      return "bg-slate-200 text-slate-700";
+      return "bg-stone-200 text-stone-700 dark:bg-slate-800 dark:text-slate-300";
     case "cancellation requested":
-      return "bg-orange-100 text-orange-800";
+      return "bg-orange-100/90 text-orange-900 dark:bg-orange-950/70 dark:text-orange-200";
     default:
-      return "bg-amber-100 text-amber-800";
+      return "bg-amber-100/90 text-amber-900 dark:bg-amber-950/70 dark:text-amber-200";
   }
 };
 
 const regStateBadgeClass = (st) =>
   st === "confirmed"
-    ? "bg-emerald-100 text-emerald-800"
+    ? "bg-teal-100/90 text-teal-800 dark:bg-teal-950/70 dark:text-teal-200"
     : st === "pending"
-    ? "bg-amber-100 text-amber-800"
-    : "bg-red-100 text-red-700";
+    ? "bg-amber-100/90 text-amber-800 dark:bg-amber-950/70 dark:text-amber-200"
+    : "bg-rose-100/90 text-rose-800 dark:bg-rose-950/80 dark:text-rose-200";
 
 const attendanceBadgeMeta = (attendance) => {
   if (attendance === "confirmed") {
-    return { label: "Present (Confirmed)", cls: "bg-emerald-100 text-emerald-800" };
+    return { label: "Present (Confirmed)", cls: "bg-teal-100/90 text-teal-800 dark:bg-teal-950/70 dark:text-teal-200" };
   }
   if (attendance === "marked") {
-    return { label: "Checked In (Awaiting Organizer)", cls: "bg-amber-100 text-amber-800" };
+    return { label: "Checked In (Awaiting Organizer)", cls: "bg-amber-100/90 text-amber-800 dark:bg-amber-950/70 dark:text-amber-200" };
   }
-  return { label: "Not Checked In", cls: "bg-slate-100 text-slate-600" };
+  return { label: "Not Checked In", cls: "bg-stone-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" };
 };
 
 function EventMedia({ images, onPreview, className = EVENT_THUMB, emptyTextClass = "text-[10px]" }) {
@@ -353,7 +353,7 @@ function EventMedia({ images, onPreview, className = EVENT_THUMB, emptyTextClass
     return <ImageCarousel images={images} onPreview={onPreview} className={className} />;
   }
   return (
-    <div className={`${className} flex items-center justify-center text-gray-400 ${emptyTextClass} font-bold uppercase`}>
+    <div className={`${className} flex items-center justify-center text-stone-400 dark:text-slate-500 ${emptyTextClass} font-bold uppercase`}>
       No Photo
     </div>
   );
@@ -364,9 +364,9 @@ function ModalBackdrop({ maxWidth = "max-w-3xl", padding = "p-8", children }) {
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 bg-slate-950/65 backdrop-blur-sm flex items-center justify-center p-4 z-50"
     >
-      <div className={`bg-white rounded-2xl ${maxWidth} w-full ${padding} shadow-2xl space-y-6 text-xs font-semibold max-h-[92vh] overflow-y-auto`}>
+      <div className={`bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 rounded-2xl ${maxWidth} w-full ${padding} shadow-2xl space-y-6 text-xs font-semibold max-h-[92vh] overflow-y-auto`}>
         {children}
       </div>
     </div>
@@ -1218,22 +1218,22 @@ export default function UnifiedAdminDashboard() {
   const reviewingEvent = reviewingEventId ? events.find((e) => String(e.id) === String(reviewingEventId)) : null;
 
   return (
-    <div className="daet-ui">
+    <div className="daet-ui text-slate-800 dark:text-slate-100">
       {notifications.length > 0 && (
         <div className="fixed top-6 right-6 z-50 space-y-3 w-[320px] max-w-[90vw]">
           {notifications.slice(0, 4).map((n) => (
-            <div key={n.id} className="bg-white border border-gray-200 shadow-xl rounded-2xl p-4 relative flex gap-3 items-start animate-fade-in">
+            <div key={n.id} className="bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 shadow-xl rounded-2xl p-4 relative flex gap-3 items-start animate-fade-in">
               <div className="flex-1 min-w-0">
-                <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{n.title}</h4>
-                <p className="text-xs font-semibold text-gray-500 mt-1 leading-snug">{n.message}</p>
+                <h4 className="text-[11px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">{n.title}</h4>
+                <p className="text-xs font-semibold text-stone-500 dark:text-slate-400 mt-1 leading-snug">{n.message}</p>
               </div>
-              <button onClick={() => dismissNotification(n.id)} className="text-gray-400 hover:text-red-500 transition-colors p-1" aria-label="Dismiss">
+              <button onClick={() => dismissNotification(n.id)} className="text-stone-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 transition-colors p-1" aria-label="Dismiss">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
               </button>
             </div>
           ))}
           {notifications.length > 4 && (
-            <div className="text-center text-[10px] font-bold text-gray-500 bg-white/80 backdrop-blur-sm rounded-xl py-2 shadow-sm border border-gray-100">
+            <div className="text-center text-[10px] font-bold text-stone-500 dark:text-slate-400 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-xl py-2 shadow-sm border border-stone-200 dark:border-slate-800">
               + {notifications.length - 4} more alerts
             </div>
           )}
@@ -1262,7 +1262,7 @@ export default function UnifiedAdminDashboard() {
         }}
       >
         {loading && (
-          <div className="text-center py-16 text-gray-400 text-xs font-bold uppercase tracking-widest">
+          <div className="text-center py-16 text-stone-400 dark:text-slate-500 text-xs font-bold uppercase tracking-widest">
             Synchronizing database records...
           </div>
         )}
@@ -1271,18 +1271,18 @@ export default function UnifiedAdminDashboard() {
           <div className="space-y-8">
             <div className="flex flex-wrap justify-between items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">System Overview Dashboard</h1>
-                <p className="text-xs text-gray-500 font-semibold mt-0.5">Real-time portal metrics across Daet Municipal Tourism Operations</p>
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">System Overview Dashboard</h1>
+                <p className="text-xs text-stone-500 dark:text-slate-400 font-semibold mt-0.5">Real-time portal metrics across Daet Municipal Tourism Operations</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => setActiveTab("organizer-approvals")} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all">
+                <button onClick={() => setActiveTab("organizer-approvals")} className="px-4 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all">
                   Review Organizers ({activePendingOrganizersCount})
                 </button>
-                <button onClick={() => setActiveTab("event-approvals")} className="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-xl transition-all shadow-sm">
+                <button onClick={() => setActiveTab("event-approvals")} className="px-4 py-2 bg-slate-700 hover:bg-slate-800 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 text-xs font-bold rounded-xl transition-all shadow-sm">
                   Review Events ({activePendingEventsCount})
                 </button>
                 {totalScheduleRequestsCount > 0 && (
-                  <button onClick={() => setActiveTab("cancellation-requests")} className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm">
+                  <button onClick={() => setActiveTab("cancellation-requests")} className="px-4 py-2 bg-amber-700/90 hover:bg-amber-800 text-amber-50 dark:bg-amber-900/70 dark:hover:bg-amber-900 dark:text-amber-100 text-xs font-bold rounded-xl transition-all shadow-sm">
                     Schedule & Cancel Requests ({totalScheduleRequestsCount})
                   </button>
                 )}
@@ -1290,62 +1290,62 @@ export default function UnifiedAdminDashboard() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              <div className="dash-stat">
-                <span className="dash-stat-label text-gray-400">Total Organizers</span>
-                <p className="dash-stat-value text-slate-900">{totalOrganizersCount}</p>
-                <div className="text-[11px] font-semibold text-gray-500 flex justify-between pt-2 border-t border-gray-100">
-                  <span>Verified: <strong className="text-emerald-700">{verifiedOrganizersCount}</strong></span>
-                  <span>Pending: <strong className="text-amber-600">{activePendingOrganizersCount}</strong></span>
+              <div className="dash-stat dark:bg-slate-900 dark:border-slate-800">
+                <span className="dash-stat-label text-stone-500 dark:text-slate-400">Total Organizers</span>
+                <p className="dash-stat-value text-slate-900 dark:text-slate-100">{totalOrganizersCount}</p>
+                <div className="text-[11px] font-semibold text-stone-500 dark:text-slate-400 flex justify-between pt-2 border-t border-stone-200/80 dark:border-slate-800">
+                  <span>Verified: <strong className="text-teal-700 dark:text-teal-400">{verifiedOrganizersCount}</strong></span>
+                  <span>Pending: <strong className="text-amber-700 dark:text-amber-400">{activePendingOrganizersCount}</strong></span>
                 </div>
               </div>
 
-              <div className="dash-stat">
-                <span className="dash-stat-label text-amber-700">Pending Approvals</span>
-                <p className="dash-stat-value text-amber-700">{totalPendingApprovals}</p>
-                <div className="text-[11px] font-semibold text-gray-500 flex justify-between pt-2 border-t border-amber-100">
-                  <span>Accounts: <strong className="text-amber-800">{activePendingOrganizersCount}</strong></span>
-                  <span>Events/Req: <strong className="text-amber-800">{activePendingEventsCount + activeScheduleRequestsBadge}</strong></span>
+              <div className="dash-stat dark:bg-slate-900 dark:border-slate-800">
+                <span className="dash-stat-label text-amber-800 dark:text-amber-400">Pending Approvals</span>
+                <p className="dash-stat-value text-amber-800 dark:text-amber-300">{totalPendingApprovals}</p>
+                <div className="text-[11px] font-semibold text-stone-500 dark:text-slate-400 flex justify-between pt-2 border-t border-amber-200/70 dark:border-amber-900/50">
+                  <span>Accounts: <strong className="text-amber-900 dark:text-amber-300">{activePendingOrganizersCount}</strong></span>
+                  <span>Events/Req: <strong className="text-amber-900 dark:text-amber-300">{activePendingEventsCount + activeScheduleRequestsBadge}</strong></span>
                 </div>
               </div>
 
-              <div className="dash-stat">
-                <span className="dash-stat-label text-gray-400">Total Events</span>
-                <p className="dash-stat-value text-blue-900">{totalEventsCount}</p>
-                <div className="text-[11px] font-semibold text-gray-500 pt-2 border-t border-gray-100">
-                  Active / Published: <strong className="text-emerald-700">{activeEventsCount}</strong>
+              <div className="dash-stat dark:bg-slate-900 dark:border-slate-800">
+                <span className="dash-stat-label text-stone-500 dark:text-slate-400">Total Events</span>
+                <p className="dash-stat-value text-slate-900 dark:text-slate-100">{totalEventsCount}</p>
+                <div className="text-[11px] font-semibold text-stone-500 dark:text-slate-400 pt-2 border-t border-stone-200/80 dark:border-slate-800">
+                  Active / Published: <strong className="text-teal-700 dark:text-teal-400">{activeEventsCount}</strong>
                 </div>
               </div>
 
-              <div className="dash-stat">
-                <span className="dash-stat-label text-gray-400">System Users / Tourist</span>
-                <p className="dash-stat-value text-slate-900">{totalTouristsCount}</p>
-                <div className="text-[11px] font-semibold text-gray-500 pt-2 border-t border-gray-100">
+              <div className="dash-stat dark:bg-slate-900 dark:border-slate-800">
+                <span className="dash-stat-label text-stone-500 dark:text-slate-400">System Users / Tourist</span>
+                <p className="dash-stat-value text-slate-900 dark:text-slate-100">{totalTouristsCount}</p>
+                <div className="text-[11px] font-semibold text-stone-500 dark:text-slate-400 pt-2 border-t border-stone-200/80 dark:border-slate-800">
                   Registered Tourists
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4 shadow-sm">
-                <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-                  <h3 className="font-bold text-slate-900 text-sm uppercase">Pending Organizer Applications</h3>
-                  <button onClick={() => setActiveTab("organizer-approvals")} className="text-xs text-blue-900 font-bold hover:underline">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200 dark:border-slate-800 p-6 space-y-4 shadow-sm">
+                <div className="flex justify-between items-center border-b border-stone-200/80 dark:border-slate-800 pb-3">
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm uppercase">Pending Organizer Applications</h3>
+                  <button onClick={() => setActiveTab("organizer-approvals")} className="text-xs text-slate-700 dark:text-slate-300 font-bold hover:underline">
                     View All →
                   </button>
                 </div>
                 {activePendingOrganizersCount === 0 ? (
-                  <p className="text-xs text-gray-400 font-semibold py-4 text-center">No pending organizer account applications.</p>
+                  <p className="text-xs text-stone-400 dark:text-slate-500 font-semibold py-4 text-center">No pending organizer account applications.</p>
                 ) : (
                   <div className="space-y-3">
                     {pendingOrganizersList.slice(0, 3).map((org) => (
-                      <div key={org.id} className="p-3.5 bg-gray-50 rounded-xl flex justify-between items-center text-xs">
+                      <div key={org.id} className="p-3.5 bg-stone-50 dark:bg-slate-800/70 border border-stone-200/60 dark:border-slate-700/60 rounded-xl flex justify-between items-center text-xs">
                         <div>
-                          <p className="font-bold text-slate-900">{org.organization || org.full_name}</p>
-                          <p className="text-[10px] text-gray-500">{org.email}</p>
+                          <p className="font-bold text-slate-900 dark:text-slate-100">{org.organization || org.full_name}</p>
+                          <p className="text-[10px] text-stone-500 dark:text-slate-400">{org.email}</p>
                         </div>
                         <button
                           onClick={() => setInspectingOrganizer(org)}
-                          className="px-3.5 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-[10px] font-bold uppercase shadow-sm transition-all whitespace-nowrap"
+                          className="px-3.5 py-2 bg-slate-700 hover:bg-slate-800 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl text-[10px] font-bold uppercase shadow-sm transition-all whitespace-nowrap"
                         >
                           Inspect & Verify
                         </button>
@@ -1355,32 +1355,32 @@ export default function UnifiedAdminDashboard() {
                 )}
               </div>
 
-              <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4 shadow-sm">
-                <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-                  <h3 className="font-bold text-slate-900 text-sm uppercase">Event Proposals Needing Review</h3>
-                  <button onClick={() => setActiveTab("event-approvals")} className="text-xs text-blue-900 font-bold hover:underline">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200 dark:border-slate-800 p-6 space-y-4 shadow-sm">
+                <div className="flex justify-between items-center border-b border-stone-200/80 dark:border-slate-800 pb-3">
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm uppercase">Event Proposals Needing Review</h3>
+                  <button onClick={() => setActiveTab("event-approvals")} className="text-xs text-slate-700 dark:text-slate-300 font-bold hover:underline">
                     View All →
                   </button>
                 </div>
                 {activePendingEventsCount === 0 ? (
-                  <p className="text-xs text-gray-400 font-semibold py-4 text-center">No event proposals awaiting review.</p>
+                  <p className="text-xs text-stone-400 dark:text-slate-500 font-semibold py-4 text-center">No event proposals awaiting review.</p>
                 ) : (
                   <div className="space-y-3">
                     {pendingEventsList.slice(0, 3).map((event) => {
                       const hasDuplicates = (duplicatesByEventId.get(String(event.id)) || []).length > 0;
                       return (
-                        <div key={event.id} className="p-3.5 bg-gray-50 rounded-xl flex justify-between items-center gap-3 text-xs">
+                        <div key={event.id} className="p-3.5 bg-stone-50 dark:bg-slate-800/70 border border-stone-200/60 dark:border-slate-700/60 rounded-xl flex justify-between items-center gap-3 text-xs">
                           <div className="min-w-0">
-                            <p className="font-bold text-slate-900 truncate">{event.event_name}</p>
-                            <p className="text-[10px] text-gray-500">
+                            <p className="font-bold text-slate-900 dark:text-slate-100 truncate">{event.event_name}</p>
+                            <p className="text-[10px] text-stone-500 dark:text-slate-400">
                               Status: {event.status}
-                              {hasDuplicates && <span className="ml-2 text-amber-700 font-black">• Similar event exists</span>}
+                              {hasDuplicates && <span className="ml-2 text-amber-700 dark:text-amber-400 font-black">• Similar event exists</span>}
                             </p>
                           </div>
                           {event.status === "Requirements Submitted" ? (
                             <button
                               onClick={() => setActiveTab("event-approvals")}
-                              className="px-3.5 py-2 bg-cyan-700 hover:bg-cyan-800 text-white rounded-xl text-[10px] font-bold uppercase transition-all whitespace-nowrap"
+                              className="px-3.5 py-2 bg-teal-700/90 hover:bg-teal-800 text-teal-50 dark:bg-teal-900/70 dark:hover:bg-teal-900 dark:text-teal-100 rounded-xl text-[10px] font-bold uppercase transition-all whitespace-nowrap"
                             >
                               Review files
                             </button>
@@ -1388,7 +1388,7 @@ export default function UnifiedAdminDashboard() {
                             <button
                               onClick={() => updateEventStatus(event.id, "Approved")}
                               disabled={busyActionId === event.id}
-                              className="px-3.5 py-2 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl text-[10px] font-bold uppercase shadow-sm transition-all whitespace-nowrap"
+                              className="px-3.5 py-2 bg-slate-700 hover:bg-slate-800 disabled:opacity-60 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl text-[10px] font-bold uppercase shadow-sm transition-all whitespace-nowrap"
                             >
                               {busyActionId === event.id ? "Approving..." : "Approve"}
                             </button>
@@ -1407,18 +1407,18 @@ export default function UnifiedAdminDashboard() {
           <div className="space-y-6">
             <div className="flex justify-between items-center dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Organizer Approvals & Verifications</h1>
-                <p className="text-xs text-gray-500 font-semibold mt-0.5">Inspect organizer accounts, valid ID, logo, BIR TIN photo, DTI/SEC photo, and business permit photo.</p>
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Organizer Approvals & Verifications</h1>
+                <p className="text-xs text-stone-500 dark:text-slate-400 font-semibold mt-0.5">Inspect organizer accounts, valid ID, logo, BIR TIN photo, DTI/SEC photo, and business permit photo.</p>
               </div>
-              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all">
+              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all">
                 ← Back to Overview
               </button>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200 dark:border-slate-800 overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b border-gray-200 font-bold uppercase text-gray-500">
+                  <thead className="bg-stone-100/80 dark:bg-slate-800/80 border-b border-stone-200 dark:border-slate-700 font-bold uppercase text-stone-500 dark:text-slate-400">
                     <tr>
                       <th className="p-4">Organization & Logo</th>
                       <th className="p-4">Representative Info</th>
@@ -1427,10 +1427,10 @@ export default function UnifiedAdminDashboard() {
                       <th className="p-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 font-medium text-gray-700">
+                  <tbody className="divide-y divide-stone-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-300">
                     {organizers.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="p-8 text-center text-gray-400 font-bold uppercase">
+                        <td colSpan="5" className="p-8 text-center text-stone-400 dark:text-slate-500 font-bold uppercase">
                           No organizer applications found.
                         </td>
                       </tr>
@@ -1438,24 +1438,24 @@ export default function UnifiedAdminDashboard() {
                       organizers.map((org) => {
                         const resolvedLogo = getImageUrl(org.logo_url);
                         return (
-                          <tr key={org.id}>
+                          <tr key={org.id} className="hover:bg-stone-50/70 dark:hover:bg-slate-800/40 transition-colors">
                             <td className="p-4 flex items-center gap-3">
                               {resolvedLogo && (
                                 <img
                                   src={resolvedLogo}
                                   alt="Logo"
-                                  className="w-10 h-10 object-cover rounded-lg border"
+                                  className="w-10 h-10 object-cover rounded-lg border border-stone-200 dark:border-slate-700"
                                   onError={(e) => handleImageFallback(e, 200)}
                                 />
                               )}
                               <div>
-                                <p className="font-bold text-slate-900">{org.organization || "Independent Host"}</p>
-                                <p className="text-[10px] text-gray-500">{org.email}</p>
+                                <p className="font-bold text-slate-900 dark:text-slate-100">{org.organization || "Independent Host"}</p>
+                                <p className="text-[10px] text-stone-500 dark:text-slate-400">{org.email}</p>
                               </div>
                             </td>
                             <td className="p-4">
-                              <p>{org.organizer_full_name || org.full_name}</p>
-                              <p className="text-[11px] text-gray-500">{org.address || "No address"}</p>
+                              <p className="text-slate-800 dark:text-slate-200">{org.organizer_full_name || org.full_name}</p>
+                              <p className="text-[11px] text-stone-500 dark:text-slate-400">{org.address || "No address"}</p>
                             </td>
                             <td className="p-4 space-y-0.5 text-[11px]">
                               <p><strong>Type:</strong> {org.org_type || "N/A"}</p>
@@ -1463,8 +1463,11 @@ export default function UnifiedAdminDashboard() {
                             </td>
                             <td className="p-4">
                               <span className={`px-2.5 py-1 rounded-full font-black text-[10px] uppercase ${
-                                org.status === "Approved" ? "bg-emerald-100 text-emerald-800" :
-                                org.status === "Rejected" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
+                                org.status === "Approved"
+                                  ? "bg-teal-100/90 text-teal-800 dark:bg-teal-950/70 dark:text-teal-200"
+                                  : org.status === "Rejected"
+                                  ? "bg-rose-100/90 text-rose-800 dark:bg-rose-950/80 dark:text-rose-200"
+                                  : "bg-amber-100/90 text-amber-800 dark:bg-amber-950/70 dark:text-amber-200"
                               }`}>
                                 {org.status === "Approved" ? "Verified" : org.status === "Rejected" ? "Rejected" : "Pending"}
                               </span>
@@ -1473,14 +1476,14 @@ export default function UnifiedAdminDashboard() {
                               <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-1.5">
                                 <button
                                   onClick={() => setInspectingOrganizer(org)}
-                                  className="px-3.5 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
+                                  className="px-3.5 py-2 bg-slate-700 hover:bg-slate-800 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
                                 >
                                   Inspect Documents
                                 </button>
                                 {org.status === "Approved" && (
                                   <button
                                     onClick={() => openOrganizerDeepDive(org)}
-                                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
+                                    className="px-3.5 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
                                   >
                                     View Profile & Events
                                   </button>
@@ -1488,7 +1491,7 @@ export default function UnifiedAdminDashboard() {
                                 {org.status !== "Rejected" && (
                                   <button
                                     onClick={() => setFeedbackModal({ isOpen: true, type: "reject-organizer", targetId: org.id, reason: "" })}
-                                    className="px-3.5 py-2 bg-gray-100 hover:bg-red-800 hover:text-white text-gray-700 rounded-xl font-bold text-[10px] uppercase transition-all text-center whitespace-nowrap"
+                                    className="px-3.5 py-2 bg-stone-100 hover:bg-rose-800/90 hover:text-rose-50 text-slate-700 dark:bg-slate-800/60 dark:hover:bg-rose-900 dark:text-slate-300 dark:hover:text-rose-100 rounded-xl font-bold text-[10px] uppercase transition-all text-center whitespace-nowrap"
                                   >
                                     Reject
                                   </button>
@@ -1510,15 +1513,15 @@ export default function UnifiedAdminDashboard() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Event Proposals Management Hub</h1>
-                <p className="text-xs text-gray-500 font-semibold mt-0.5">Evaluate event details, manage compliance, and handle event proposals.</p>
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Event Proposals Management Hub</h1>
+                <p className="text-xs text-stone-500 dark:text-slate-400 font-semibold mt-0.5">Evaluate event details, manage compliance, and handle event proposals.</p>
               </div>
-              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all whitespace-nowrap">
+              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all whitespace-nowrap">
                 ← Back to Overview
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-1.5 bg-white p-1.5 rounded-2xl border border-gray-200 w-fit max-w-full">
+            <div className="flex flex-wrap gap-1.5 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-stone-200 dark:border-slate-800 w-fit max-w-full">
               {EVENT_FILTERS.map((f) => {
                 const count = events.filter((e) => matchesEventFilter(e, f)).length;
                 return (
@@ -1526,10 +1529,12 @@ export default function UnifiedAdminDashboard() {
                     key={f}
                     onClick={() => setEventStatusFilter(f)}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                      eventStatusFilter === f ? "bg-blue-900 text-white shadow-sm" : "text-gray-600 hover:bg-gray-100"
+                      eventStatusFilter === f
+                        ? "bg-slate-700 text-stone-50 dark:bg-slate-200 dark:text-slate-900 shadow-sm"
+                        : "text-slate-600 hover:bg-stone-100 dark:text-slate-400 dark:hover:bg-slate-800"
                     }`}
                   >
-                    {f} <span className={eventStatusFilter === f ? "text-blue-100" : "text-gray-400"}>{count}</span>
+                    {f} <span className={eventStatusFilter === f ? "text-stone-300 dark:text-slate-600" : "text-stone-400 dark:text-slate-500"}>{count}</span>
                   </button>
                 );
               })}
@@ -1555,27 +1560,27 @@ export default function UnifiedAdminDashboard() {
                 const isBusy = busyActionId === event.id;
 
                 return (
-                  <div key={event.id} className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col md:flex-row justify-between gap-5 shadow-sm">
+                  <div key={event.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200 dark:border-slate-800 p-5 flex flex-col md:flex-row justify-between gap-5 shadow-sm">
                     <EventMedia images={eventImages} onPreview={setViewerSrc} />
 
                     <div className="space-y-3 flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-3">
-                        <h3 className="font-black text-slate-900 text-base">
-                          <button type="button" onClick={() => { setReviewTab("details"); setReviewingEventId(event.id); }} className="text-left hover:text-blue-900 hover:underline">
+                        <h3 className="font-black text-slate-900 dark:text-slate-100 text-base">
+                          <button type="button" onClick={() => { setReviewTab("details"); setReviewingEventId(event.id); }} className="text-left hover:text-slate-600 dark:hover:text-slate-300 hover:underline">
                             {event.event_name}
                           </button>
                         </h3>
                         <span className={`px-2.5 py-1 rounded-full font-black text-[10px] uppercase ${statusBadgeClass(event.status)}`}>
                           {event.status || "Pending"}
                         </span>
-                        <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-slate-100 text-slate-700">
+                        <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-stone-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                           {REG_TYPE_LABEL[regTypeOf(event)]}
                         </span>
                       </div>
 
                       {duplicateMatches.length > 0 && (
-                        <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-900 space-y-1">
-                          <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                        <div className="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/70 rounded-xl p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
                             Warning: Existing Matching Event Detected ({duplicateMatches.length})
                           </p>
                           <p className="font-medium">
@@ -1589,9 +1594,9 @@ export default function UnifiedAdminDashboard() {
                         </div>
                       )}
 
-                      <p className="text-xs text-gray-600 leading-relaxed">{event.description || "No description provided."}</p>
+                      <p className="text-xs text-stone-600 dark:text-slate-300 leading-relaxed">{event.description || "No description provided."}</p>
 
-                      <div className="text-xs text-gray-500 font-semibold space-y-1 bg-gray-50 p-3 rounded-xl">
+                      <div className="text-xs text-slate-600 dark:text-slate-300 font-semibold space-y-1 bg-stone-50 dark:bg-slate-800/70 p-3 rounded-xl">
                         <p><strong>Organizer:</strong> {event.organizer_name || "N/A"}</p>
                         <p><strong>Venue Location:</strong> {event.venue || "TBA"}</p>
                         <p><strong>Proposed Date:</strong> {event.event_date || "TBA"}</p>
@@ -1599,53 +1604,53 @@ export default function UnifiedAdminDashboard() {
                         <p><strong>Registration fee:</strong> {event.is_paid ? `${peso(event.fee_amount)} (paid event)` : "Free"}</p>
                         <p>
                           <strong>Registered participants:</strong> {eventRegCount}
-                          {eventPendingRegCount > 0 && <span className="text-amber-700"> ({eventPendingRegCount} awaiting payment confirmation)</span>}
+                          {eventPendingRegCount > 0 && <span className="text-amber-700 dark:text-amber-400"> ({eventPendingRegCount} awaiting payment confirmation)</span>}
                         </p>
                         {isRescheduleReq && actionMeta.reschedule_date && (
-                          <p className="text-amber-800">
+                          <p className="text-amber-800 dark:text-amber-300">
                             <strong>Requested New Schedule:</strong> {formatDate(actionMeta.reschedule_date)}
                             {actionMeta.reschedule_time ? ` (${formatTime(actionMeta.reschedule_time)}${actionMeta.reschedule_end_time ? ` – ${formatTime(actionMeta.reschedule_end_time)}` : ""})` : ""}
                           </p>
                         )}
                         {actionMeta.action_reason && !isApproved && (
-                          <p className="text-red-600">
+                          <p className="text-rose-700 dark:text-rose-300">
                             <strong>{isRescheduleReq ? "Reschedule Reason:" : isCancellationReq ? "Cancellation Reason:" : "Note / Reason:"}</strong>{" "}
                             {actionMeta.action_reason}
                           </p>
                         )}
                         {actionMeta.organizer_contact_info && (
-                          <p className="text-blue-900">
+                          <p className="text-slate-800 dark:text-slate-200">
                             <strong>Organizer Support / Refund Contact:</strong> {actionMeta.organizer_contact_info}
                           </p>
                         )}
-                        {event.revision_notes && <p className="text-indigo-700"><strong>Requires Changes Notes:</strong> {event.revision_notes}</p>}
+                        {event.revision_notes && <p className="text-indigo-700 dark:text-indigo-300"><strong>Requires Changes Notes:</strong> {event.revision_notes}</p>}
                       </div>
 
                       {showLetterPanel && (
-                        <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 space-y-2">
+                        <div className="bg-teal-50/80 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/70 rounded-xl p-3 space-y-2">
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-[10px] font-black text-teal-800 uppercase tracking-wider">Approval letter sent to organizer</p>
+                            <p className="text-[10px] font-black text-teal-800 dark:text-teal-300 uppercase tracking-wider">Approval letter sent to organizer</p>
                             {event.approval_sent_at && (
-                              <span className="text-[10px] text-teal-700 font-semibold">{new Date(event.approval_sent_at).toLocaleString()}</span>
+                              <span className="text-[10px] text-teal-700 dark:text-teal-400 font-semibold">{new Date(event.approval_sent_at).toLocaleString()}</span>
                             )}
                           </div>
                           {event.approval_instructions && (
-                            <p className="text-xs text-teal-900 font-medium whitespace-pre-line">{event.approval_instructions}</p>
+                            <p className="text-xs text-teal-900 dark:text-teal-100 font-medium whitespace-pre-line">{event.approval_instructions}</p>
                           )}
                           <AttachmentList files={approvalFiles} onPreview={setViewerSrc} emptyText="No file attached to this letter." />
                         </div>
                       )}
 
                       {showSubmissionPanel && (
-                        <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-3 space-y-2">
+                        <div className="bg-cyan-50/80 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800/70 rounded-xl p-3 space-y-2">
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-[10px] font-black text-cyan-800 uppercase tracking-wider">Requirements submitted by organizer</p>
+                            <p className="text-[10px] font-black text-cyan-800 dark:text-cyan-300 uppercase tracking-wider">Requirements submitted by organizer</p>
                             {event.requirement_submitted_at && (
-                              <span className="text-[10px] text-cyan-700 font-semibold">{new Date(event.requirement_submitted_at).toLocaleString()}</span>
+                              <span className="text-[10px] text-cyan-700 dark:text-cyan-400 font-semibold">{new Date(event.requirement_submitted_at).toLocaleString()}</span>
                             )}
                           </div>
                           {event.requirement_note && (
-                            <p className="text-xs text-cyan-900 font-medium whitespace-pre-line">
+                            <p className="text-xs text-cyan-900 dark:text-cyan-100 font-medium whitespace-pre-line">
                               <strong>Organizer statement:</strong> {event.requirement_note}
                             </p>
                           )}
@@ -1654,9 +1659,9 @@ export default function UnifiedAdminDashboard() {
                       )}
 
                       {isApproved && (
-                        <p className="text-[11px] font-semibold text-gray-500 bg-blue-50/60 border border-blue-100 rounded-xl px-3 py-2">
+                        <p className="text-[11px] font-semibold text-stone-600 dark:text-slate-300 bg-stone-100/80 dark:bg-slate-800/80 border border-stone-200 dark:border-slate-700 rounded-xl px-3 py-2">
                           Event progress updates automatically from the date and time the organizer set
-                          {event.event_time ? ` (starts ${formatTime(event.event_time)})` : ""}. Current stage: <strong className="text-blue-900">{event.status}</strong>
+                          {event.event_time ? ` (starts ${formatTime(event.event_time)})` : ""}. Current stage: <strong className="text-slate-900 dark:text-slate-100">{event.status}</strong>
                         </p>
                       )}
                     </div>
@@ -1664,14 +1669,14 @@ export default function UnifiedAdminDashboard() {
                     <div className="flex flex-col justify-center gap-2 md:min-w-[180px]">
                       <button
                         onClick={() => { setReviewTab("details"); setReviewingEventId(event.id); }}
-                        className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-xs transition-all shadow-sm"
+                        className="w-full py-2.5 bg-slate-700 hover:bg-slate-800 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-xs transition-all shadow-sm"
                       >
                         Review full details
                       </button>
                       {(isRescheduleReq || isCancellationReq) && (
                         <button
                           onClick={() => setActiveTab("cancellation-requests")}
-                          className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-sm transition-all"
+                          className="w-full py-2.5 bg-amber-700/90 hover:bg-amber-800 text-amber-50 dark:bg-amber-900/70 dark:hover:bg-amber-900 dark:text-amber-100 rounded-xl font-bold text-xs shadow-sm transition-all"
                         >
                           {isRescheduleReq ? "Review Reschedule" : "Review Cancellation"}
                         </button>
@@ -1681,28 +1686,28 @@ export default function UnifiedAdminDashboard() {
                           <button
                             onClick={() => updateEventStatus(event.id, "Approved")}
                             disabled={isApproved || isBusy}
-                            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-100 disabled:text-blue-400 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs shadow-sm transition-all"
+                            className="w-full py-2.5 bg-teal-700/90 hover:bg-teal-800 disabled:bg-stone-100 disabled:text-stone-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 disabled:cursor-not-allowed text-teal-50 dark:bg-teal-900/70 dark:hover:bg-teal-900 dark:text-teal-100 rounded-xl font-bold text-xs shadow-sm transition-all"
                           >
                             {isApproved ? "Approved" : isBusy ? "Updating..." : "Approve Event"}
                           </button>
                           <button
                             onClick={() => setFeedbackModal({ isOpen: true, type: "revision-event", targetId: event.id, reason: "" })}
                             disabled={isBusy}
-                            className="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-60 text-indigo-700 border border-indigo-200 rounded-xl font-bold text-xs transition-all"
+                            className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 disabled:opacity-60 text-slate-700 border border-stone-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs transition-all"
                           >
                             Requires Changes
                           </button>
                           <button
                             onClick={() => openApprovalModal(event)}
                             disabled={isBusy}
-                            className="w-full py-2.5 bg-teal-50 hover:bg-teal-100 disabled:opacity-60 text-teal-800 border border-teal-200 rounded-xl font-bold text-xs transition-all"
+                            className="w-full py-2.5 bg-teal-50/90 hover:bg-teal-100 disabled:opacity-60 text-teal-900 border border-teal-200 dark:bg-teal-950/50 dark:hover:bg-teal-900/70 dark:text-teal-200 dark:border-teal-800/70 rounded-xl font-bold text-xs transition-all"
                           >
                             {approvalFiles.length > 0 || event.approval_instructions ? "Send New Approval Letter" : "Send Approval Letter"}
                           </button>
                           <button
                             onClick={() => setFeedbackModal({ isOpen: true, type: "reject-event", targetId: event.id, reason: "" })}
                             disabled={isBusy}
-                            className="w-full py-2.5 bg-white hover:bg-red-50 disabled:opacity-60 text-red-600 border border-red-200 rounded-xl font-bold text-xs transition-all"
+                            className="w-full py-2.5 bg-stone-50 hover:bg-rose-50 disabled:opacity-60 text-rose-800 border border-rose-200 dark:bg-slate-900 dark:hover:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/70 rounded-xl font-bold text-xs transition-all"
                           >
                             Reject Event
                           </button>
@@ -1711,7 +1716,7 @@ export default function UnifiedAdminDashboard() {
                       <button
                         onClick={() => deleteEvent(event.id)}
                         disabled={isBusy}
-                        className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-60 text-gray-600 rounded-xl font-bold text-xs transition-all"
+                        className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 disabled:opacity-60 text-slate-600 dark:bg-slate-800/60 dark:hover:bg-slate-800 dark:text-slate-400 rounded-xl font-bold text-xs transition-all"
                       >
                         Delete
                       </button>
@@ -1721,18 +1726,18 @@ export default function UnifiedAdminDashboard() {
               })}
 
               {events.length === 0 ? (
-                <div className="bg-white p-12 rounded-2xl border border-dashed border-gray-200 text-center text-gray-400 text-xs font-bold uppercase">
+                <div className="bg-white dark:bg-slate-900 p-12 rounded-2xl border border-dashed border-stone-300 dark:border-slate-700 text-center text-stone-400 dark:text-slate-500 text-xs font-bold uppercase">
                   No event proposals have been submitted yet.
                 </div>
               ) : filteredEvents.length === 0 ? (
-                <div className="bg-white p-12 rounded-2xl border border-dashed border-gray-200 text-center space-y-3">
-                  <p className="text-gray-400 text-xs font-bold uppercase">
+                <div className="bg-white dark:bg-slate-900 p-12 rounded-2xl border border-dashed border-stone-300 dark:border-slate-700 text-center space-y-3">
+                  <p className="text-stone-400 dark:text-slate-500 text-xs font-bold uppercase">
                     No event proposals match the “{eventStatusFilter}” filter.
                   </p>
                   <button
                     type="button"
                     onClick={() => setEventStatusFilter("All")}
-                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all"
+                    className="px-4 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all"
                   >
                     Show All Events
                   </button>
@@ -1746,14 +1751,14 @@ export default function UnifiedAdminDashboard() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Official Event Calendar</h1>
-                <p className="text-xs text-gray-500 font-semibold mt-0.5">
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Official Event Calendar</h1>
+                <p className="text-xs text-stone-500 dark:text-slate-400 font-semibold mt-0.5">
                   Click any month to view its complete schedule and full event list, or select a date to inspect all events scheduled on that day.
                 </p>
               </div>
               <button
                 onClick={() => setActiveTab("overview")}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all whitespace-nowrap"
+                className="px-4 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all whitespace-nowrap"
               >
                 ← Back to Overview
               </button>
@@ -1774,25 +1779,25 @@ export default function UnifiedAdminDashboard() {
           <div className="space-y-8">
             <div className="flex justify-between items-center dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Schedule Change & Cancellation Requests</h1>
-                <p className="text-xs text-gray-500 font-semibold mt-0.5">
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Schedule Change & Cancellation Requests</h1>
+                <p className="text-xs text-stone-500 dark:text-slate-400 font-semibold mt-0.5">
                   Approve or reject organizer rescheduling and cancellation requests. Approving immediately notifies all joined tourists with the reason and organizer refund contact details.
                 </p>
               </div>
-              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all">
+              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all">
                 ← Back to Overview
               </button>
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-gray-200 pb-2">
-                <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">
+              <div className="flex items-center justify-between border-b border-stone-200 dark:border-slate-800 pb-2">
+                <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">
                   Event Rescheduling Requests ({rescheduleRequestsList.length})
                 </h2>
               </div>
 
               {rescheduleRequestsList.length === 0 ? (
-                <div className="bg-white p-10 rounded-2xl border border-dashed border-gray-200 text-center text-gray-400 text-xs font-bold uppercase">
+                <div className="bg-white dark:bg-slate-900 p-10 rounded-2xl border border-dashed border-stone-300 dark:border-slate-700 text-center text-stone-400 dark:text-slate-500 text-xs font-bold uppercase">
                   No active event rescheduling requests pending review.
                 </div>
               ) : (
@@ -1806,27 +1811,27 @@ export default function UnifiedAdminDashboard() {
                     ).length;
 
                     return (
-                      <div key={event.id} className="bg-white rounded-2xl border border-amber-300 p-5 flex flex-col md:flex-row justify-between gap-5 shadow-sm">
+                      <div key={event.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-amber-300/80 dark:border-amber-800/70 p-5 flex flex-col md:flex-row justify-between gap-5 shadow-sm">
                         <EventMedia images={reschedImages} onPreview={setViewerSrc} />
                         <div className="space-y-3 flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-3">
-                            <h3 className="font-black text-slate-900 text-base">{event.event_name}</h3>
-                            <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-amber-100 text-amber-900">
+                            <h3 className="font-black text-slate-900 dark:text-slate-100 text-base">{event.event_name}</h3>
+                            <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-amber-100/90 text-amber-900 dark:bg-amber-950/70 dark:text-amber-200">
                               Reschedule Requested
                             </span>
-                            <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-blue-50 text-blue-900">
+                            <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-stone-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                               {joinedCount} Joined Tourist{joinedCount === 1 ? "" : "s"}
                             </span>
                           </div>
-                          <p className="text-xs text-gray-600">{event.description}</p>
-                          <div className="text-xs text-gray-700 font-semibold space-y-1.5 bg-amber-50/70 p-4 rounded-xl border border-amber-200/80">
+                          <p className="text-xs text-stone-600 dark:text-slate-300">{event.description}</p>
+                          <div className="text-xs text-slate-700 dark:text-slate-300 font-semibold space-y-1.5 bg-amber-50/70 dark:bg-amber-950/30 p-4 rounded-xl border border-amber-200/80 dark:border-amber-900/50">
                             <p><strong>Organizer Host:</strong> {event.organizer_name || "N/A"} • Venue: {event.venue || "TBA"}</p>
                             <p>
                               <strong>Current Schedule:</strong> {formatDate(event.event_date)}
                               {event.event_end_date && event.event_end_date !== event.event_date ? ` to ${formatDate(event.event_end_date)}` : ""}
                               {formatTimeRange(event) ? ` | ${formatTimeRange(event)}` : ""}
                             </p>
-                            <p className="text-blue-950">
+                            <p className="text-slate-900 dark:text-slate-100">
                               <strong>Proposed New Schedule:</strong>{" "}
                               {meta.reschedule_date ? formatDate(meta.reschedule_date) : "TBA"}
                               {meta.reschedule_end_date && meta.reschedule_end_date !== meta.reschedule_date
@@ -1836,10 +1841,10 @@ export default function UnifiedAdminDashboard() {
                                 ? ` | ${formatTime(meta.reschedule_time)}${meta.reschedule_end_time ? ` – ${formatTime(meta.reschedule_end_time)}` : ""}`
                                 : ""}
                             </p>
-                            <p className="text-amber-950 pt-1 border-t border-amber-200/80">
+                            <p className="text-amber-900 dark:text-amber-200 pt-1 border-t border-amber-200/80 dark:border-amber-900/50">
                               <strong>Reason for Rescheduling:</strong> {meta.action_reason || "No reason stated."}
                             </p>
-                            <p className="text-blue-900">
+                            <p className="text-slate-800 dark:text-slate-200">
                               <strong>Organizer Refund & Inquiry Contact:</strong> {meta.organizer_contact_info || "Not provided"}
                             </p>
                           </div>
@@ -1849,14 +1854,14 @@ export default function UnifiedAdminDashboard() {
                           <button
                             onClick={() => handleApproveReschedule(event)}
                             disabled={isBusy}
-                            className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold text-xs shadow-sm transition-all"
+                            className="w-full py-2.5 bg-slate-700 hover:bg-slate-800 disabled:opacity-60 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-xs shadow-sm transition-all"
                           >
                             {isBusy ? "Processing..." : "Approve Reschedule"}
                           </button>
                           <button
                             onClick={() => setFeedbackModal({ isOpen: true, type: "reject-reschedule", targetId: event.id, reason: "" })}
                             disabled={isBusy}
-                            className="w-full py-2.5 bg-white hover:bg-red-50 disabled:opacity-60 text-red-600 border border-red-200 rounded-xl font-bold text-xs transition-all"
+                            className="w-full py-2.5 bg-stone-50 hover:bg-rose-50 disabled:opacity-60 text-rose-800 border border-rose-200 dark:bg-slate-900 dark:hover:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/70 rounded-xl font-bold text-xs transition-all"
                           >
                             Reject Reschedule
                           </button>
@@ -1869,14 +1874,14 @@ export default function UnifiedAdminDashboard() {
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-gray-200 pb-2">
-                <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">
+              <div className="flex items-center justify-between border-b border-stone-200 dark:border-slate-800 pb-2">
+                <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">
                   Event Cancellation Requests ({cancellationRequestsList.length})
                 </h2>
               </div>
 
               {cancellationRequestsList.length === 0 ? (
-                <div className="bg-white p-10 rounded-2xl border border-dashed border-gray-200 text-center text-gray-400 text-xs font-bold uppercase">
+                <div className="bg-white dark:bg-slate-900 p-10 rounded-2xl border border-dashed border-stone-300 dark:border-slate-700 text-center text-stone-400 dark:text-slate-500 text-xs font-bold uppercase">
                   No active event cancellation requests pending review.
                 </div>
               ) : (
@@ -1890,26 +1895,26 @@ export default function UnifiedAdminDashboard() {
                     ).length;
 
                     return (
-                      <div key={event.id} className="bg-white rounded-2xl border border-red-200 p-5 flex flex-col md:flex-row justify-between gap-5 shadow-sm">
+                      <div key={event.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-rose-200/80 dark:border-rose-900/60 p-5 flex flex-col md:flex-row justify-between gap-5 shadow-sm">
                         <EventMedia images={cancelImages} onPreview={setViewerSrc} />
                         <div className="space-y-3 flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-3">
-                            <h3 className="font-black text-slate-900 text-base">{event.event_name}</h3>
-                            <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-red-100 text-red-800">
+                            <h3 className="font-black text-slate-900 dark:text-slate-100 text-base">{event.event_name}</h3>
+                            <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-rose-100/90 text-rose-800 dark:bg-rose-950/80 dark:text-rose-200">
                               Cancellation Requested
                             </span>
-                            <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-blue-50 text-blue-900">
+                            <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-stone-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                               {joinedCount} Registered Tourist{joinedCount === 1 ? "" : "s"}
                             </span>
                           </div>
-                          <p className="text-xs text-gray-600">{event.description}</p>
-                          <div className="text-xs text-gray-700 font-semibold space-y-1.5 bg-red-50 p-4 rounded-xl border border-red-100">
+                          <p className="text-xs text-stone-600 dark:text-slate-300">{event.description}</p>
+                          <div className="text-xs text-slate-700 dark:text-slate-300 font-semibold space-y-1.5 bg-rose-50/70 dark:bg-rose-950/30 p-4 rounded-xl border border-rose-200/70 dark:border-rose-900/50">
                             <p><strong>Organizer Host:</strong> {event.organizer_name || "N/A"}</p>
                             <p><strong>Event Date:</strong> {event.event_date || "TBA"}{formatTimeRange(event) ? ` | ${formatTimeRange(event)}` : ""} | Venue: {event.venue || "TBA"}</p>
-                            <p className="text-red-700 pt-1 border-t border-red-200">
+                            <p className="text-rose-800 dark:text-rose-300 pt-1 border-t border-rose-200/70 dark:border-rose-900/50">
                               <strong>Cancellation Reason Provided:</strong> {meta.action_reason || "No reason stated."}
                             </p>
-                            <p className="text-blue-900">
+                            <p className="text-slate-800 dark:text-slate-200">
                               <strong>Organizer Refund & Inquiry Contact:</strong> {meta.organizer_contact_info || "Not provided"}
                             </p>
                           </div>
@@ -1919,14 +1924,14 @@ export default function UnifiedAdminDashboard() {
                           <button
                             onClick={() => handleApproveCancellation(event)}
                             disabled={isBusy}
-                            className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold text-xs shadow-sm transition-all"
+                            className="w-full py-2.5 bg-slate-700 hover:bg-slate-800 disabled:opacity-60 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-xs shadow-sm transition-all"
                           >
                             {isBusy ? "Processing..." : "Approve Cancellation"}
                           </button>
                           <button
                             onClick={() => setFeedbackModal({ isOpen: true, type: "reject-cancellation", targetId: event.id, reason: "" })}
                             disabled={isBusy}
-                            className="w-full py-2.5 bg-white hover:bg-red-50 disabled:opacity-60 text-red-600 border border-red-200 rounded-xl font-bold text-xs transition-all"
+                            className="w-full py-2.5 bg-stone-50 hover:bg-rose-50 disabled:opacity-60 text-rose-800 border border-rose-200 dark:bg-slate-900 dark:hover:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/70 rounded-xl font-bold text-xs transition-all"
                           >
                             Reject Cancellation
                           </button>
@@ -1944,16 +1949,16 @@ export default function UnifiedAdminDashboard() {
           <div className="space-y-6">
             <div className="flex justify-between items-center dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">System User Management</h1>
-                <p className="text-xs text-gray-500 font-semibold mt-0.5">Manage and inspect tourist and organizer accounts.</p>
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">System User Management</h1>
+                <p className="text-xs text-stone-500 dark:text-slate-400 font-semibold mt-0.5">Manage and inspect tourist and organizer accounts.</p>
               </div>
-              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all">
+              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all">
                 ← Back to Overview
               </button>
             </div>
 
             <div className="relative">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 dark:text-slate-500 pointer-events-none" aria-hidden="true">
                 <circle cx="11" cy="11" r="7" />
                 <path d="m20 20-3.5-3.5" />
               </svg>
@@ -1963,31 +1968,31 @@ export default function UnifiedAdminDashboard() {
                 onChange={(e) => setUserSearch(e.target.value)}
                 placeholder="Search accounts by name, organization, email, phone or address..."
                 aria-label="Search accounts"
-                className="w-full pl-11 pr-24 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-11 pr-24 py-3 bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 rounded-2xl text-sm font-medium text-slate-700 dark:text-slate-200 placeholder:text-stone-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400"
               />
               {userSearch && (
                 <button
                   type="button"
                   onClick={() => setUserSearch("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-[10px] font-bold uppercase transition-all"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold uppercase transition-all"
                 >
                   Clear
                 </button>
               )}
             </div>
             {userQuery && (
-              <p className="text-xs text-gray-500 font-semibold -mt-3">
+              <p className="text-xs text-stone-500 dark:text-slate-400 font-semibold -mt-3">
                 {shownTourists.length} of {tourists.length} tourist accounts and {shownOrganizers.length} of {organizers.length} organizer accounts match “{userSearch.trim()}”.
               </p>
             )}
 
-            <div className="flex gap-2 border-b border-gray-200 pb-3">
+            <div className="flex gap-2 border-b border-stone-200 dark:border-slate-800 pb-3">
               <button
                 onClick={() => setUserManagementSubTab("tourists")}
                 className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${
                   userManagementSubTab === "tourists"
-                    ? "bg-blue-900 text-white shadow-md"
-                    : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                    ? "bg-slate-700 text-stone-50 dark:bg-slate-200 dark:text-slate-900 shadow-md"
+                    : "bg-white text-slate-600 hover:bg-stone-100 border border-stone-200 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:border-slate-800"
                 }`}
               >
                 Tourist Accounts ({userQuery ? `${shownTourists.length}/${tourists.length}` : tourists.length})
@@ -1996,8 +2001,8 @@ export default function UnifiedAdminDashboard() {
                 onClick={() => setUserManagementSubTab("organizers")}
                 className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${
                   userManagementSubTab === "organizers"
-                    ? "bg-blue-900 text-white shadow-md"
-                    : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                    ? "bg-slate-700 text-stone-50 dark:bg-slate-200 dark:text-slate-900 shadow-md"
+                    : "bg-white text-slate-600 hover:bg-stone-100 border border-stone-200 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:border-slate-800"
                 }`}
               >
                 Organizer Accounts ({userQuery ? `${shownOrganizers.length}/${organizers.length}` : organizers.length})
@@ -2005,13 +2010,13 @@ export default function UnifiedAdminDashboard() {
             </div>
 
             {userManagementSubTab === "tourists" && (
-              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                <div className="p-4 bg-slate-50 border-b border-gray-200 font-bold text-slate-900 text-xs uppercase">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                <div className="p-4 bg-stone-100/80 dark:bg-slate-800/80 border-b border-stone-200 dark:border-slate-700 font-bold text-slate-900 dark:text-slate-100 text-xs uppercase">
                   Registered Tourist Accounts
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-gray-50 border-b border-gray-200 font-bold uppercase text-gray-500">
+                    <thead className="bg-stone-50 dark:bg-slate-800/40 border-b border-stone-200 dark:border-slate-800 font-bold uppercase text-stone-500 dark:text-slate-400">
                       <tr>
                         <th className="p-4">Name</th>
                         <th className="p-4">Phone Number</th>
@@ -2023,17 +2028,17 @@ export default function UnifiedAdminDashboard() {
                         <th className="p-4 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 font-medium text-gray-700">
+                    <tbody className="divide-y divide-stone-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-300">
                       {shownTourists.length === 0 ? (
                         <tr>
-                          <td colSpan="8" className="p-8 text-center text-gray-400 font-bold uppercase">
+                          <td colSpan="8" className="p-8 text-center text-stone-400 dark:text-slate-500 font-bold uppercase">
                             {userQuery ? "No tourist accounts match your search." : "No tourist accounts found."}
                           </td>
                         </tr>
                       ) : (
                         shownTourists.map((usr) => (
-                          <tr key={usr.id}>
-                            <td className="p-4 font-bold text-slate-900">{usr.full_name || "Unnamed Tourist"}</td>
+                          <tr key={usr.id} className="hover:bg-stone-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                            <td className="p-4 font-bold text-slate-900 dark:text-slate-100">{usr.full_name || "Unnamed Tourist"}</td>
                             <td className="p-4">{usr.contact_number || usr.phone || "N/A"}</td>
                             <td className="p-4">{usr.email}</td>
                             <td className="p-4">{usr.age || "N/A"}</td>
@@ -2041,7 +2046,9 @@ export default function UnifiedAdminDashboard() {
                             <td className="p-4">{usr.address || usr.home_address || "N/A"}</td>
                             <td className="p-4">
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                usr.is_suspended ? "bg-red-100 text-red-800" : "bg-emerald-100 text-emerald-800"
+                                usr.is_suspended
+                                  ? "bg-rose-100/90 text-rose-800 dark:bg-rose-950/80 dark:text-rose-200"
+                                  : "bg-teal-100/90 text-teal-800 dark:bg-teal-950/70 dark:text-teal-200"
                               }`}>
                                 {usr.is_suspended ? "Suspended" : "Active"}
                               </span>
@@ -2050,7 +2057,7 @@ export default function UnifiedAdminDashboard() {
                               <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-1.5">
                                 <button
                                   onClick={() => setViewingAccount({ kind: "tourist", data: usr })}
-                                  className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
+                                  className="px-3.5 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
                                 >
                                   View Account
                                 </button>
@@ -2058,7 +2065,9 @@ export default function UnifiedAdminDashboard() {
                                   onClick={() => handleToggleUserSuspension(usr.id, usr.is_suspended)}
                                   disabled={busyActionId === usr.id}
                                   className={`px-3.5 py-2 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap disabled:opacity-60 ${
-                                    usr.is_suspended ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-red-100 hover:bg-red-200 text-red-700"
+                                    usr.is_suspended
+                                      ? "bg-teal-700/90 hover:bg-teal-800 text-teal-50 dark:bg-teal-900/70 dark:hover:bg-teal-900 dark:text-teal-200"
+                                      : "bg-amber-100/90 hover:bg-amber-200/80 text-amber-900 dark:bg-amber-950/60 dark:hover:bg-amber-900/70 dark:text-amber-200"
                                   }`}
                                 >
                                   {usr.is_suspended ? "Reactivate" : "Suspend Account"}
@@ -2066,7 +2075,7 @@ export default function UnifiedAdminDashboard() {
                                 <button
                                   onClick={() => handleDeleteAccount(usr, "tourist")}
                                   disabled={deletingId === usr.id}
-                                  className="px-3.5 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
+                                  className="px-3.5 py-2 bg-rose-800/90 hover:bg-rose-900 disabled:opacity-60 text-rose-50 dark:bg-rose-950/85 dark:hover:bg-rose-900 dark:text-rose-200 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
                                 >
                                   {deletingId === usr.id ? "Deleting..." : "Delete"}
                                 </button>
@@ -2082,13 +2091,13 @@ export default function UnifiedAdminDashboard() {
             )}
 
             {userManagementSubTab === "organizers" && (
-              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                <div className="p-4 bg-slate-50 border-b border-gray-200 font-bold text-slate-900 text-xs uppercase">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                <div className="p-4 bg-stone-100/80 dark:bg-slate-800/80 border-b border-stone-200 dark:border-slate-700 font-bold text-slate-900 dark:text-slate-100 text-xs uppercase">
                   Registered Organizer Accounts
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-gray-50 border-b border-gray-200 font-bold uppercase text-gray-500">
+                    <thead className="bg-stone-50 dark:bg-slate-800/40 border-b border-stone-200 dark:border-slate-800 font-bold uppercase text-stone-500 dark:text-slate-400">
                       <tr>
                         <th className="p-4">Name / Org</th>
                         <th className="p-4">Phone Number</th>
@@ -2100,17 +2109,17 @@ export default function UnifiedAdminDashboard() {
                         <th className="p-4 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 font-medium text-gray-700">
+                    <tbody className="divide-y divide-stone-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-300">
                       {shownOrganizers.length === 0 ? (
                         <tr>
-                          <td colSpan="8" className="p-8 text-center text-gray-400 font-bold uppercase">
+                          <td colSpan="8" className="p-8 text-center text-stone-400 dark:text-slate-500 font-bold uppercase">
                             {userQuery ? "No organizer accounts match your search." : "No organizer accounts found."}
                           </td>
                         </tr>
                       ) : (
                         shownOrganizers.map((org) => (
-                          <tr key={org.id}>
-                            <td className="p-4 font-bold text-slate-900">
+                          <tr key={org.id} className="hover:bg-stone-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                            <td className="p-4 font-bold text-slate-900 dark:text-slate-100">
                               {org.organization ? `${org.organization} (${org.organizer_full_name || org.full_name})` : (org.full_name || "Unnamed Organizer")}
                             </td>
                             <td className="p-4">{org.contact_number || org.phone || "N/A"}</td>
@@ -2120,7 +2129,9 @@ export default function UnifiedAdminDashboard() {
                             <td className="p-4">{org.address || "N/A"}</td>
                             <td className="p-4">
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                org.is_suspended ? "bg-red-100 text-red-800" : "bg-emerald-100 text-emerald-800"
+                                org.is_suspended
+                                  ? "bg-rose-100/90 text-rose-800 dark:bg-rose-950/80 dark:text-rose-200"
+                                  : "bg-teal-100/90 text-teal-800 dark:bg-teal-950/70 dark:text-teal-200"
                               }`}>
                                 {org.is_suspended ? "Suspended" : "Active"}
                               </span>
@@ -2129,7 +2140,7 @@ export default function UnifiedAdminDashboard() {
                               <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-1.5">
                                 <button
                                   onClick={() => setViewingAccount({ kind: "organizer", data: org })}
-                                  className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
+                                  className="px-3.5 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
                                 >
                                   View Account
                                 </button>
@@ -2137,7 +2148,9 @@ export default function UnifiedAdminDashboard() {
                                   onClick={() => handleToggleUserSuspension(org.id, org.is_suspended)}
                                   disabled={busyActionId === org.id}
                                   className={`px-3.5 py-2 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap disabled:opacity-60 ${
-                                    org.is_suspended ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-red-100 hover:bg-red-200 text-red-700"
+                                    org.is_suspended
+                                      ? "bg-teal-700/90 hover:bg-teal-800 text-teal-50 dark:bg-teal-900/70 dark:hover:bg-teal-900 dark:text-teal-200"
+                                      : "bg-amber-100/90 hover:bg-amber-200/80 text-amber-900 dark:bg-amber-950/60 dark:hover:bg-amber-900/70 dark:text-amber-200"
                                   }`}
                                 >
                                   {org.is_suspended ? "Reactivate" : "Suspend Account"}
@@ -2145,7 +2158,7 @@ export default function UnifiedAdminDashboard() {
                                 <button
                                   onClick={() => handleDeleteAccount(org, "organizer")}
                                   disabled={deletingId === org.id}
-                                  className="px-3.5 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
+                                  className="px-3.5 py-2 bg-rose-800/90 hover:bg-rose-900 disabled:opacity-60 text-rose-50 dark:bg-rose-950/85 dark:hover:bg-rose-900 dark:text-rose-200 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
                                 >
                                   {deletingId === org.id ? "Deleting..." : "Delete"}
                                 </button>
@@ -2164,13 +2177,13 @@ export default function UnifiedAdminDashboard() {
 
         {!loading && activeTab === "admin-settings" && (
           <div className="flex flex-col items-center justify-center min-h-[70vh] py-10">
-            <div className="w-full max-w-md bg-white p-8 rounded-2xl border border-gray-200 shadow-xl space-y-6">
-              <div className="text-center border-b border-gray-100 pb-4 relative">
-                <button onClick={() => setActiveTab("overview")} className="absolute left-0 top-1 text-gray-400 hover:text-gray-900 transition-colors" aria-label="Back">
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 p-8 rounded-2xl border border-stone-200 dark:border-slate-800 shadow-xl space-y-6">
+              <div className="text-center border-b border-stone-200/80 dark:border-slate-800 pb-4 relative">
+                <button onClick={() => setActiveTab("overview")} className="absolute left-0 top-1 text-stone-400 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors" aria-label="Back">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                 </button>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Admin Profile</h1>
-                <p className="text-[11px] text-gray-500 font-semibold mt-1 uppercase tracking-widest">Municipal Tourism Office Settings</p>
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Admin Profile</h1>
+                <p className="text-[11px] text-stone-500 dark:text-slate-400 font-semibold mt-1 uppercase tracking-widest">Municipal Tourism Office Settings</p>
               </div>
               <form
                 onSubmit={async (e) => {
@@ -2193,23 +2206,23 @@ export default function UnifiedAdminDashboard() {
                 className="space-y-5 text-xs font-semibold"
               >
                 <div>
-                  <label className="block text-[10px] text-gray-500 mb-1.5 font-bold uppercase tracking-wider text-center">OFFICIAL ADMIN EMAIL</label>
-                  <input type="email" disabled value={adminEmail} className="w-full p-3.5 bg-gray-100 border border-gray-200 rounded-xl font-bold text-slate-700 text-center cursor-not-allowed" />
+                  <label className="block text-[10px] text-stone-500 dark:text-slate-400 mb-1.5 font-bold uppercase tracking-wider text-center">OFFICIAL ADMIN EMAIL</label>
+                  <input type="email" disabled value={adminEmail} className="w-full p-3.5 bg-stone-100 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl font-bold text-slate-700 dark:text-slate-300 text-center cursor-not-allowed" />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-gray-500 mb-1.5 font-bold uppercase tracking-wider text-center">UPDATE PASSWORD</label>
+                  <label className="block text-[10px] text-stone-500 dark:text-slate-400 mb-1.5 font-bold uppercase tracking-wider text-center">UPDATE PASSWORD</label>
                   <input
                     type="password"
                     placeholder="••••••••"
                     value={adminPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-center transition-all"
+                    className="w-full p-3.5 bg-stone-50 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-100 text-center transition-all"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={savingPassword}
-                  className="w-full py-3.5 mt-2 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all"
+                  className="w-full py-3.5 mt-2 bg-slate-700 hover:bg-slate-800 disabled:opacity-60 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all"
                 >
                   {savingPassword ? "Saving..." : pwSaved ? "Saved ✓" : "Save Admin Settings"}
                 </button>
@@ -2221,14 +2234,14 @@ export default function UnifiedAdminDashboard() {
 
       {inspectingOrganizer && (
         <ModalBackdrop maxWidth="max-w-3xl">
-          <div className="flex justify-between items-center border-b pb-4">
+          <div className="flex justify-between items-center border-b border-stone-200 dark:border-slate-800 pb-4">
             <div>
-              <h3 className="text-lg font-black text-slate-900 uppercase">
+              <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 uppercase">
                 Organizer Verification Documents: {inspectingOrganizer.organization}
               </h3>
-              <p className="text-gray-500 font-medium">Review attached credibility credentials and photos</p>
+              <p className="text-stone-500 dark:text-slate-400 font-medium">Review attached credibility credentials and photos</p>
             </div>
-            <button onClick={() => setInspectingOrganizer(null)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all">← Back</button>
+            <button onClick={() => setInspectingOrganizer(null)} className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-all">← Back</button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2242,25 +2255,25 @@ export default function UnifiedAdminDashboard() {
               const docUrl = getImageUrl(doc.value);
               return (
                 <div key={doc.label} className={doc.span || ""}>
-                  <p className="text-gray-600 mb-1 font-bold">{doc.label}</p>
+                  <p className="text-stone-600 dark:text-slate-300 mb-1 font-bold">{doc.label}</p>
                   {doc.value ? (
                     <button type="button" onClick={() => setViewerSrc(docUrl)} className="block w-full" aria-label={`View full ${doc.alt}`}>
                       <img
                         src={docUrl}
                         alt={doc.alt}
-                        className="w-full h-40 object-cover rounded-xl border shadow-sm hover:opacity-90"
+                        className="w-full h-40 object-cover rounded-xl border border-stone-200 dark:border-slate-700 shadow-sm hover:opacity-90"
                         onError={(e) => handleImageFallback(e, 600)}
                       />
                     </button>
                   ) : (
-                    <div className="p-8 bg-gray-50 border rounded-xl text-center text-gray-400">{doc.empty}</div>
+                    <div className="p-8 bg-stone-50 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 rounded-xl text-center text-stone-400 dark:text-slate-500">{doc.empty}</div>
                   )}
                 </div>
               );
             })}
           </div>
 
-          <div className="space-y-2 bg-gray-50 p-4 rounded-xl">
+          <div className="space-y-2 bg-stone-50 dark:bg-slate-800/70 p-4 rounded-xl text-slate-700 dark:text-slate-300">
             <p><strong>Representative Full Name:</strong> {inspectingOrganizer.organizer_full_name || inspectingOrganizer.full_name}</p>
             <p><strong>Email Address:</strong> {inspectingOrganizer.email}</p>
             <p><strong>Contact Number:</strong> {inspectingOrganizer.contact_number || "N/A"}</p>
@@ -2273,7 +2286,7 @@ export default function UnifiedAdminDashboard() {
             <button
               onClick={() => handleApproveOrganizer(inspectingOrganizer.id)}
               disabled={busyActionId === inspectingOrganizer.id}
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold rounded-xl uppercase shadow-sm transition-all"
+              className="w-full py-2.5 bg-teal-700/90 hover:bg-teal-800 disabled:opacity-60 text-teal-50 dark:bg-teal-900/70 dark:hover:bg-teal-900 dark:text-teal-100 font-bold rounded-xl uppercase shadow-sm transition-all"
             >
               {busyActionId === inspectingOrganizer.id ? "Approving..." : "Approve & Verify Organizer Account"}
             </button>
@@ -2283,7 +2296,7 @@ export default function UnifiedAdminDashboard() {
                 setInspectingOrganizer(null);
                 setFeedbackModal({ isOpen: true, type: "reject-organizer", targetId, reason: "" });
               }}
-              className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl uppercase transition-all"
+              className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/60 dark:hover:bg-rose-900/80 dark:text-rose-200 dark:border-rose-800/70 font-bold rounded-xl uppercase transition-all"
             >
               Reject Application
             </button>
@@ -2312,21 +2325,21 @@ export default function UnifiedAdminDashboard() {
 
         return (
           <ModalBackdrop maxWidth="max-w-5xl">
-            <div className="flex justify-between items-start gap-4 border-b pb-4">
+            <div className="flex justify-between items-start gap-4 border-b border-stone-200 dark:border-slate-800 pb-4">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-lg font-black text-slate-900 uppercase">{ev.event_name}</h3>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 uppercase">{ev.event_name}</h3>
                   <span className={`px-2.5 py-1 rounded-full font-black text-[10px] uppercase ${statusBadgeClass(ev.status)}`}>{ev.status || "Pending"}</span>
-                  <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-slate-100 text-slate-700">{REG_TYPE_LABEL[regType]}</span>
+                  <span className="px-2.5 py-1 rounded-full font-black text-[10px] uppercase bg-stone-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">{REG_TYPE_LABEL[regType]}</span>
                 </div>
-                <p className="text-gray-500 font-medium mt-1">Review everything the organizer submitted for this event.</p>
+                <p className="text-stone-500 dark:text-slate-400 font-medium mt-1">Review everything the organizer submitted for this event.</p>
               </div>
-              <button onClick={() => setReviewingEventId(null)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold whitespace-nowrap transition-all">← Back</button>
+              <button onClick={() => setReviewingEventId(null)} className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold whitespace-nowrap transition-all">← Back</button>
             </div>
 
             {duplicateMatches.length > 0 && (
-              <div className="bg-amber-50 border border-amber-300 rounded-xl p-3.5 text-xs text-amber-900 space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+              <div className="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/70 rounded-xl p-3.5 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
                   Warning: Existing Matching Event Detected ({duplicateMatches.length})
                 </p>
                 <p className="font-medium">
@@ -2339,12 +2352,16 @@ export default function UnifiedAdminDashboard() {
               </div>
             )}
 
-            <div className="flex flex-wrap gap-1.5 bg-gray-100 p-1.5 rounded-2xl w-fit max-w-full">
+            <div className="flex flex-wrap gap-1.5 bg-stone-100 dark:bg-slate-800 p-1.5 rounded-2xl w-fit max-w-full">
               {tabs.map(([key, label]) => (
                 <button
                   key={key}
                   onClick={() => setReviewTab(key)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${tab === key ? "bg-white text-blue-900 shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    tab === key
+                      ? "bg-white text-slate-900 dark:bg-slate-700 dark:text-slate-100 shadow-sm"
+                      : "text-stone-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                  }`}
                 >
                   {label}
                 </button>
@@ -2355,21 +2372,21 @@ export default function UnifiedAdminDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                 <div className="md:col-span-2 space-y-3">
                   {img ? (
-                    <button type="button" onClick={() => setViewerSrc(img)} className="block w-full aspect-[16/9] rounded-xl overflow-hidden bg-slate-100 border border-gray-200" aria-label="View full photo">
+                    <button type="button" onClick={() => setViewerSrc(img)} className="block w-full aspect-[16/9] rounded-xl overflow-hidden bg-stone-100 dark:bg-slate-800 border border-stone-200 dark:border-slate-700" aria-label="View full photo">
                       <img src={img} alt={ev.event_name} className="w-full h-full object-cover" />
                     </button>
                   ) : (
-                    <div className="w-full aspect-[16/9] rounded-xl bg-slate-100 flex items-center justify-center text-[10px] text-gray-400 uppercase font-bold">No Photo</div>
+                    <div className="w-full aspect-[16/9] rounded-xl bg-stone-100 dark:bg-slate-800 flex items-center justify-center text-[10px] text-stone-400 dark:text-slate-500 uppercase font-bold">No Photo</div>
                   )}
                   <div className="space-y-1.5">
-                    <p className="text-[10px] font-black text-slate-900 uppercase">Proposal documents</p>
+                    <p className="text-[10px] font-black text-slate-900 dark:text-slate-100 uppercase">Proposal documents</p>
                     <AttachmentList files={proposalFiles} onPreview={setViewerSrc} emptyText="No proposal documents were attached." />
                   </div>
                 </div>
 
                 <div className="md:col-span-3 space-y-4">
-                  <p className="text-gray-700 font-medium leading-relaxed whitespace-pre-line">{ev.description || "No description provided."}</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 bg-gray-50 p-4 rounded-xl text-gray-600">
+                  <p className="text-slate-700 dark:text-slate-300 font-medium leading-relaxed whitespace-pre-line">{ev.description || "No description provided."}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 bg-stone-50 dark:bg-slate-800/70 p-4 rounded-xl text-slate-600 dark:text-slate-300">
                     <p><strong>Type of event:</strong> {REG_TYPE_LABEL[regType]}</p>
                     <p><strong>Organizer:</strong> {ev.organizer_name || "N/A"}</p>
                     <p><strong>Venue:</strong> {ev.venue || "TBA"}</p>
@@ -2388,10 +2405,10 @@ export default function UnifiedAdminDashboard() {
                     {ev.is_paid && ev.cash_payment_details && <p className="sm:col-span-2"><strong>Cash payment:</strong> {ev.cash_payment_details}</p>}
                     {ev.is_paid && ev.online_payment_details && <p className="sm:col-span-2"><strong>Online payment:</strong> {ev.online_payment_details}</p>}
                     {actionMeta.organizer_contact_info && (
-                      <p className="sm:col-span-2 text-blue-900"><strong>Organizer support / refund contact:</strong> {actionMeta.organizer_contact_info}</p>
+                      <p className="sm:col-span-2 text-slate-800 dark:text-slate-200"><strong>Organizer support / refund contact:</strong> {actionMeta.organizer_contact_info}</p>
                     )}
-                    {actionMeta.action_reason && <p className="sm:col-span-2 text-red-600"><strong>Schedule / status note:</strong> {actionMeta.action_reason}</p>}
-                    {ev.revision_notes && <p className="sm:col-span-2 text-indigo-700"><strong>Requires changes notes:</strong> {ev.revision_notes}</p>}
+                    {actionMeta.action_reason && <p className="sm:col-span-2 text-rose-700 dark:text-rose-300"><strong>Schedule / status note:</strong> {actionMeta.action_reason}</p>}
+                    {ev.revision_notes && <p className="sm:col-span-2 text-indigo-700 dark:text-indigo-300"><strong>Requires changes notes:</strong> {ev.revision_notes}</p>}
                   </div>
                 </div>
               </div>
@@ -2399,11 +2416,11 @@ export default function UnifiedAdminDashboard() {
 
             {tab === "attendees" && (
               attendeeRows.length === 0 ? (
-                <div className="p-8 text-center text-gray-400 font-bold uppercase">Nobody has registered for this event yet.</div>
+                <div className="p-8 text-center text-stone-400 dark:text-slate-500 font-bold uppercase">Nobody has registered for this event yet.</div>
               ) : (
-                <div className="border rounded-xl overflow-x-auto">
+                <div className="border border-stone-200 dark:border-slate-800 rounded-xl overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 font-bold uppercase text-gray-500 border-b">
+                    <thead className="bg-stone-100/80 dark:bg-slate-800/80 font-bold uppercase text-stone-500 dark:text-slate-400 border-b border-stone-200 dark:border-slate-700">
                       <tr>
                         <th className="p-3">Serial ID</th>
                         <th className="p-3">Name</th>
@@ -2417,20 +2434,20 @@ export default function UnifiedAdminDashboard() {
                         <th className="p-3">Attendance</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y text-gray-700">
+                    <tbody className="divide-y divide-stone-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
                       {attendeeRows.map((a) => {
                         const att = attendanceBadgeMeta(a.attendance);
                         return (
                           <tr key={a.key}>
-                            <td className="p-3 font-mono text-[11px] font-bold text-slate-700 whitespace-nowrap">
-                              {a.serial_id || <span className="text-gray-400 font-sans">Pending</span>}
+                            <td className="p-3 font-mono text-[11px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                              {a.serial_id || <span className="text-stone-400 dark:text-slate-500 font-sans">Pending</span>}
                             </td>
-                            <td className="p-3 font-bold text-slate-900">
+                            <td className="p-3 font-bold text-slate-900 dark:text-slate-100">
                               {a.name}
-                              {a.isLeader && <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-900 text-[9px] font-black uppercase">Leader</span>}
+                              {a.isLeader && <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200 text-[9px] font-black uppercase">Leader</span>}
                             </td>
                             {regType === "group" && <td className="p-3">{a.team_name || "-"}</td>}
-                            <td className="p-3">{a.email || "-"}<br /><span className="text-[10px] text-gray-400">{a.phone}</span></td>
+                            <td className="p-3">{a.email || "-"}<br /><span className="text-[10px] text-stone-400 dark:text-slate-500">{a.phone}</span></td>
                             <td className="p-3">{a.gender}</td>
                             <td className="p-3">{a.age} yrs</td>
                             <td className="p-3">{a.address}</td>
@@ -2438,7 +2455,7 @@ export default function UnifiedAdminDashboard() {
                             <td className="p-3">
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
                                 a.refundState === "refunded"
-                                  ? "bg-slate-200 text-slate-800"
+                                  ? "bg-stone-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
                                   : regStateBadgeClass(a.status)
                               }`}>
                                 {a.refundState === "refunded" ? "refunded" : a.status}
@@ -2456,7 +2473,7 @@ export default function UnifiedAdminDashboard() {
 
             {tab === "teams" && (
               teamRegs.length === 0 ? (
-                <div className="p-8 text-center text-gray-400 font-bold uppercase">No teams have registered for this event yet.</div>
+                <div className="p-8 text-center text-stone-400 dark:text-slate-500 font-bold uppercase">No teams have registered for this event yet.</div>
               ) : (
                 <div className="space-y-3">
                   {teamRegs.map((r) => {
@@ -2466,19 +2483,19 @@ export default function UnifiedAdminDashboard() {
                         <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase">
                           <span className={`px-2 py-0.5 rounded-full ${regStateBadgeClass(regState(r))}`}>{regState(r)}</span>
                           {teamSerial && (
-                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 font-mono">
+                            <span className="px-2 py-0.5 rounded-full bg-stone-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 font-mono">
                               Serial: {teamSerial}
                             </span>
                           )}
                           {r.payment_method && (
-                            <span className="text-gray-500">
+                            <span className="text-stone-500 dark:text-slate-400">
                               Payment: {r.payment_method}
                               {r.amount_due ? ` · ${peso(r.amount_due)}` : ""}
                               {r.payment_reference ? ` · Ref ${r.payment_reference}` : ""}
                             </span>
                           )}
                           {r.payment_proof_url && (
-                            <button type="button" onClick={() => setViewerSrc(getImageUrl(r.payment_proof_url))} className="text-blue-900 hover:underline">View receipt</button>
+                            <button type="button" onClick={() => setViewerSrc(getImageUrl(r.payment_proof_url))} className="text-slate-800 dark:text-slate-200 hover:underline">View receipt</button>
                           )}
                         </div>
                         <TeamDetails registration={r} onPreview={(url) => setViewerSrc(getImageUrl(url))} />
@@ -2491,17 +2508,17 @@ export default function UnifiedAdminDashboard() {
 
             {tab === "interested" && (
               interestedList.loading ? (
-                <div className="p-8 text-center text-gray-400 font-bold uppercase">Loading interested tourists...</div>
+                <div className="p-8 text-center text-stone-400 dark:text-slate-500 font-bold uppercase">Loading interested tourists...</div>
               ) : interestedList.error ? (
-                <div className="p-6 text-center text-red-600 bg-red-50 rounded-xl font-bold">
+                <div className="p-6 text-center text-rose-700 dark:text-rose-300 bg-rose-50/80 dark:bg-rose-950/40 rounded-xl font-bold">
                   Could not load the interested list: {interestedList.error}. Run the SQL file that creates the event_interested_list function.
                 </div>
               ) : interestedList.rows.length === 0 ? (
-                <div className="p-8 text-center text-gray-400 font-bold uppercase">No tourists have marked this event as interested yet.</div>
+                <div className="p-8 text-center text-stone-400 dark:text-slate-500 font-bold uppercase">No tourists have marked this event as interested yet.</div>
               ) : (
-                <div className="border rounded-xl overflow-x-auto">
+                <div className="border border-stone-200 dark:border-slate-800 rounded-xl overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 font-bold uppercase text-gray-500 border-b">
+                    <thead className="bg-stone-100/80 dark:bg-slate-800/80 font-bold uppercase text-stone-500 dark:text-slate-400 border-b border-stone-200 dark:border-slate-700">
                       <tr>
                         <th className="p-3">Name</th>
                         <th className="p-3">Email</th>
@@ -2509,10 +2526,10 @@ export default function UnifiedAdminDashboard() {
                         <th className="p-3">Marked interested</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y text-gray-700">
+                    <tbody className="divide-y divide-stone-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
                       {interestedList.rows.map((row) => (
                         <tr key={row.user_id}>
-                          <td className="p-3 font-bold text-slate-900">{row.full_name || "Unnamed tourist"}</td>
+                          <td className="p-3 font-bold text-slate-900 dark:text-slate-100">{row.full_name || "Unnamed tourist"}</td>
                           <td className="p-3">{row.email || "-"}</td>
                           <td className="p-3">{row.contact_number || "-"}</td>
                           <td className="p-3">{row.created_at ? new Date(row.created_at).toLocaleDateString() : "N/A"}</td>
@@ -2529,20 +2546,20 @@ export default function UnifiedAdminDashboard() {
 
       {liveOrganizer && (
         <ModalBackdrop maxWidth="max-w-5xl">
-          <div className="flex justify-between items-start gap-4 border-b pb-4">
+          <div className="flex justify-between items-start gap-4 border-b border-stone-200 dark:border-slate-800 pb-4">
             <div>
-              <h3 className="text-lg font-black text-slate-900 uppercase">
+              <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 uppercase">
                 Organizer Deep-Dive: {liveOrganizer.organization || liveOrganizer.organizer_full_name || liveOrganizer.full_name}
               </h3>
-              <p className="text-gray-500 font-medium">Viewing hosted events and participant records</p>
+              <p className="text-stone-500 dark:text-slate-400 font-medium">Viewing hosted events and participant records</p>
             </div>
-            <button onClick={() => setViewingProfileOrganizer(null)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold whitespace-nowrap transition-all">← Back</button>
+            <button onClick={() => setViewingProfileOrganizer(null)} className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold whitespace-nowrap transition-all">← Back</button>
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-xs font-black text-slate-900 uppercase">Hosted events ({organizerEvents.length})</h4>
+            <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase">Hosted events ({organizerEvents.length})</h4>
             {organizerEvents.length === 0 ? (
-              <div className="p-6 text-center text-gray-400 font-bold uppercase bg-gray-50 rounded-xl">
+              <div className="p-6 text-center text-stone-400 dark:text-slate-500 font-bold uppercase bg-stone-50 dark:bg-slate-800/70 rounded-xl">
                 No events found for this organizer yet.
               </div>
             ) : (
@@ -2552,20 +2569,20 @@ export default function UnifiedAdminDashboard() {
                   const count = evRegs.filter((r) => regState(r) === "confirmed").length;
                   const resolvedEvImages = getImageList(ev.image_url);
                   return (
-                    <div key={ev.id} className="flex gap-3 p-3 border border-gray-200 rounded-xl bg-white">
+                    <div key={ev.id} className="flex gap-3 p-3 border border-stone-200 dark:border-slate-800 rounded-xl bg-stone-50/70 dark:bg-slate-800/60">
                       <EventMedia
                         images={resolvedEvImages}
                         onPreview={setViewerSrc}
-                        className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100"
+                        className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-stone-200 dark:bg-slate-700"
                         emptyTextClass="text-[9px]"
                       />
                       <div className="min-w-0 space-y-1">
-                        <p className="font-black text-slate-900 truncate">{ev.event_name}</p>
+                        <p className="font-black text-slate-900 dark:text-slate-100 truncate">{ev.event_name}</p>
                         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${statusBadgeClass(ev.status)}`}>
                           {ev.status || "Pending"}
                         </span>
-                        <p className="text-gray-500 font-medium truncate">{ev.venue || "TBA"} · {formatDate(ev.event_date || ev.date)}</p>
-                        <p className="text-gray-700">{count} registered {count === 1 ? "participant" : "participants"}</p>
+                        <p className="text-stone-500 dark:text-slate-400 font-medium truncate">{ev.venue || "TBA"} · {formatDate(ev.event_date || ev.date)}</p>
+                        <p className="text-slate-700 dark:text-slate-300">{count} registered {count === 1 ? "participant" : "participants"}</p>
                       </div>
                     </div>
                   );
@@ -2574,16 +2591,16 @@ export default function UnifiedAdminDashboard() {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-4 bg-gray-50 p-4 rounded-xl items-end">
+          <div className="flex flex-wrap gap-4 bg-stone-50 dark:bg-slate-800/70 p-4 rounded-xl items-end">
             <div>
-              <label className="block text-[10px] text-gray-500 mb-1">SELECT EVENT</label>
+              <label className="block text-[10px] text-stone-500 dark:text-slate-400 mb-1">SELECT EVENT</label>
               <select
                 value={adminSelectedEvent}
                 onChange={(e) => {
                   setAdminSelectedEvent(e.target.value);
                   setAdminTeamFilter("All");
                 }}
-                className="p-2 border rounded-xl bg-white"
+                className="p-2 border border-stone-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
               >
                 <option value="All">All Organizer Events ({organizerEvents.length})</option>
                 {organizerEvents.map((ev) => (
@@ -2593,11 +2610,11 @@ export default function UnifiedAdminDashboard() {
             </div>
 
             <div>
-              <label className="block text-[10px] text-gray-500 mb-1">GENDER</label>
+              <label className="block text-[10px] text-stone-500 dark:text-slate-400 mb-1">GENDER</label>
               <select
                 value={adminGenderFilter}
                 onChange={(e) => setAdminGenderFilter(e.target.value)}
-                className="p-2 border rounded-xl bg-white"
+                className="p-2 border border-stone-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
               >
                 <option value="All">All Genders</option>
                 <option value="Male">Male</option>
@@ -2607,11 +2624,11 @@ export default function UnifiedAdminDashboard() {
             </div>
 
             <div>
-              <label className="block text-[10px] text-gray-500 mb-1">AGE BRACKET</label>
+              <label className="block text-[10px] text-stone-500 dark:text-slate-400 mb-1">AGE BRACKET</label>
               <select
                 value={adminAgeFilter}
                 onChange={(e) => setAdminAgeFilter(e.target.value)}
-                className="p-2 border rounded-xl bg-white"
+                className="p-2 border border-stone-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
               >
                 <option value="All">All Age Brackets</option>
                 <option value="Youth (1-17)">Youth (1-17)</option>
@@ -2622,11 +2639,11 @@ export default function UnifiedAdminDashboard() {
 
             {showTeamFilter && (
               <div>
-                <label className="block text-[10px] text-gray-500 mb-1">TEAMS</label>
+                <label className="block text-[10px] text-stone-500 dark:text-slate-400 mb-1">TEAMS</label>
                 <select
                   value={adminTeamFilter}
                   onChange={(e) => setAdminTeamFilter(e.target.value)}
-                  className="p-2 border rounded-xl bg-white"
+                  className="p-2 border border-stone-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100"
                 >
                   <option value="All">All Teams ({deepDiveTeamNames.length})</option>
                   {deepDiveTeamNames.map((t) => (
@@ -2636,19 +2653,19 @@ export default function UnifiedAdminDashboard() {
               </div>
             )}
 
-            <div className="ml-auto text-slate-700 font-bold">
+            <div className="ml-auto text-slate-700 dark:text-slate-300 font-bold">
               Matching Attendees: {filteredDeepDiveAttendees.length}
             </div>
           </div>
 
           {filteredDeepDiveAttendees.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 font-bold uppercase">
+            <div className="p-8 text-center text-stone-400 dark:text-slate-500 font-bold uppercase">
               No participant records found matching the filter criteria.
             </div>
           ) : (
-            <div className="border rounded-xl overflow-x-auto">
+            <div className="border border-stone-200 dark:border-slate-800 rounded-xl overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 font-bold uppercase text-gray-500 border-b">
+                <thead className="bg-stone-100/80 dark:bg-slate-800/80 font-bold uppercase text-stone-500 dark:text-slate-400 border-b border-stone-200 dark:border-slate-700">
                   <tr>
                     <th className="p-3">Serial ID</th>
                     <th className="p-3">Participant Name</th>
@@ -2662,21 +2679,21 @@ export default function UnifiedAdminDashboard() {
                     <th className="p-3">Attendance</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y text-gray-700">
+                <tbody className="divide-y divide-stone-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
                   {filteredDeepDiveAttendees.map((attendee) => {
                     const att = attendanceBadgeMeta(attendee.attendance);
                     return (
                       <tr key={attendee.key}>
-                        <td className="p-3 font-mono text-[11px] font-bold text-slate-700 whitespace-nowrap">
+                        <td className="p-3 font-mono text-[11px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
                           {attendee.serial_id || "—"}
                         </td>
-                        <td className="p-3 font-bold text-slate-900">
+                        <td className="p-3 font-bold text-slate-900 dark:text-slate-100">
                           {attendee.name}
-                          {attendee.isLeader && <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-900 text-[9px] font-black uppercase">Leader</span>}
+                          {attendee.isLeader && <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200 text-[9px] font-black uppercase">Leader</span>}
                         </td>
                         {showTeamColumn && <td className="p-3">{attendee.team_name || "-"}</td>}
                         <td className="p-3">{events.find((ev) => String(ev.id) === String(attendee.event_id))?.event_name || "N/A"}</td>
-                        <td className="p-3">{attendee.email || "-"}<br /><span className="text-[10px] text-gray-400">{attendee.phone}</span></td>
+                        <td className="p-3">{attendee.email || "-"}<br /><span className="text-[10px] text-stone-400 dark:text-slate-500">{attendee.phone}</span></td>
                         <td className="p-3">{attendee.gender}</td>
                         <td className="p-3">{attendee.age} yrs</td>
                         <td className="p-3">{attendee.address}</td>
@@ -2741,30 +2758,30 @@ export default function UnifiedAdminDashboard() {
 
         return (
           <ModalBackdrop maxWidth="max-w-3xl">
-            <div className="flex justify-between items-start gap-4 border-b pb-4">
+            <div className="flex justify-between items-start gap-4 border-b border-stone-200 dark:border-slate-800 pb-4">
               <div>
-                <span className="px-2.5 py-0.5 bg-blue-100 text-blue-900 text-[10px] font-black rounded-full uppercase">
+                <span className="px-2.5 py-0.5 bg-stone-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 text-[10px] font-black rounded-full uppercase">
                   {isOrg ? "Organizer account" : "Tourist account"}
                 </span>
-                <h3 className="text-lg font-black text-slate-900 mt-2">
+                <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 mt-2">
                   {headingText}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setViewingAccount(null)}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold whitespace-nowrap transition-all"
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold whitespace-nowrap transition-all"
               >
                 ← Back to User Management
               </button>
             </div>
 
-            <dl className="divide-y divide-gray-100 border border-gray-100 rounded-xl overflow-hidden">
+            <dl className="divide-y divide-stone-100 dark:divide-slate-800 border border-stone-200 dark:border-slate-800 rounded-xl overflow-hidden">
               {rows.map(([label, value], idx) => (
                 <div key={`${label}-${idx}`} className="grid grid-cols-3 gap-4 px-4 py-3">
-                  <dt className="font-bold text-gray-500">{label}</dt>
-                  <dd className="col-span-2 text-slate-800 break-words">
-                    {value ? value : <span className="text-gray-300">Not provided</span>}
+                  <dt className="font-bold text-stone-500 dark:text-slate-400">{label}</dt>
+                  <dd className="col-span-2 text-slate-800 dark:text-slate-200 break-words">
+                    {value ? value : <span className="text-stone-300 dark:text-slate-600">Not provided</span>}
                   </dd>
                 </div>
               ))}
@@ -2772,25 +2789,25 @@ export default function UnifiedAdminDashboard() {
 
             {isOrg && docs.length > 0 && (
               <div className="space-y-2">
-                <h4 className="text-xs font-black text-slate-900 uppercase">Submitted documents</h4>
+                <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase">Submitted documents</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {docs.map(([label, value], idx) => {
                     const resolvedDocUrl = getImageUrl(value);
                     const fallbackText = toSafeDisplayValue(value);
                     return (
                       <div key={`${label}-${idx}`} className="space-y-1">
-                        <p className="text-gray-500 font-bold">{label}</p>
+                        <p className="text-stone-500 dark:text-slate-400 font-bold">{label}</p>
                         {isImageSrc(resolvedDocUrl) ? (
                           <button type="button" onClick={() => setViewerSrc(resolvedDocUrl)} className="block w-full" aria-label={`View full ${label}`}>
                             <img
                               src={resolvedDocUrl}
                               alt={label}
-                              className="w-full h-28 object-cover rounded-xl border hover:opacity-90"
+                              className="w-full h-28 object-cover rounded-xl border border-stone-200 dark:border-slate-700 hover:opacity-90"
                               onError={(e) => handleImageFallback(e, 300)}
                             />
                           </button>
                         ) : (
-                          <p className="p-3 bg-gray-50 border rounded-xl text-slate-800 break-words">{fallbackText}</p>
+                          <p className="p-3 bg-stone-50 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 break-words">{fallbackText}</p>
                         )}
                       </div>
                     );
@@ -2801,14 +2818,14 @@ export default function UnifiedAdminDashboard() {
 
             {isOrg ? (
               <div className="space-y-2">
-                <h4 className="text-xs font-black text-slate-900 uppercase">Hosted events ({acctEvents.length})</h4>
+                <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase">Hosted events ({acctEvents.length})</h4>
                 {acctEvents.length === 0 ? (
-                  <p className="p-4 bg-gray-50 rounded-xl text-gray-400 text-center font-bold uppercase">No events yet.</p>
+                  <p className="p-4 bg-stone-50 dark:bg-slate-800/70 rounded-xl text-stone-400 dark:text-slate-500 text-center font-bold uppercase">No events yet.</p>
                 ) : (
                   <ul className="space-y-2">
                     {acctEvents.map((ev) => (
-                      <li key={ev.id} className="flex items-center justify-between gap-3 p-3 border border-gray-200 rounded-xl">
-                        <span className="font-bold text-slate-900 truncate">{toSafeDisplayValue(ev.event_name)}</span>
+                      <li key={ev.id} className="flex items-center justify-between gap-3 p-3 border border-stone-200 dark:border-slate-800 rounded-xl">
+                        <span className="font-bold text-slate-900 dark:text-slate-100 truncate">{toSafeDisplayValue(ev.event_name)}</span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${statusBadgeClass(ev.status)}`}>{toSafeDisplayValue(ev.status) || "Pending"}</span>
                       </li>
                     ))}
@@ -2817,19 +2834,19 @@ export default function UnifiedAdminDashboard() {
               </div>
             ) : (
               <div className="space-y-2">
-                <h4 className="text-xs font-black text-slate-900 uppercase">Registered events ({acctRegs.length})</h4>
+                <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase">Registered events ({acctRegs.length})</h4>
                 {acctRegs.length === 0 ? (
-                  <p className="p-4 bg-gray-50 rounded-xl text-gray-400 text-center font-bold uppercase">No event registrations.</p>
+                  <p className="p-4 bg-stone-50 dark:bg-slate-800/70 rounded-xl text-stone-400 dark:text-slate-500 text-center font-bold uppercase">No event registrations.</p>
                 ) : (
                   <ul className="space-y-2">
                     {acctRegs.map((r) => {
                       const ev = events.find((e) => String(e.id) === String(r.event_id));
                       return (
-                        <li key={r.id} className="flex items-center justify-between gap-3 p-3 border border-gray-200 rounded-xl">
-                          <span className="font-bold text-slate-900 truncate">{toSafeDisplayValue(ev?.event_name) || "Removed event"}</span>
-                          <span className="text-gray-500 flex items-center gap-2">
+                        <li key={r.id} className="flex items-center justify-between gap-3 p-3 border border-stone-200 dark:border-slate-800 rounded-xl">
+                          <span className="font-bold text-slate-900 dark:text-slate-100 truncate">{toSafeDisplayValue(ev?.event_name) || "Removed event"}</span>
+                          <span className="text-stone-500 dark:text-slate-400 flex items-center gap-2">
                             {regState(r) !== "confirmed" && (
-                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${regState(r) === "pending" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700"}`}>
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${regState(r) === "pending" ? "bg-amber-100/90 text-amber-800 dark:bg-amber-950/70 dark:text-amber-200" : "bg-rose-100/90 text-rose-800 dark:bg-rose-950/80 dark:text-rose-200"}`}>
                                 {regState(r)}
                               </span>
                             )}
@@ -2851,31 +2868,31 @@ export default function UnifiedAdminDashboard() {
       {approvalModal.isOpen && (
         <ModalBackdrop maxWidth="max-w-lg" padding="p-6">
           <div>
-            <span className="px-2.5 py-1 bg-teal-100 text-teal-800 text-[10px] font-black rounded-full uppercase tracking-wider">
+            <span className="px-2.5 py-1 bg-teal-100/90 text-teal-800 dark:bg-teal-950/70 dark:text-teal-200 text-[10px] font-black rounded-full uppercase tracking-wider">
               Approval Letter
             </span>
-            <h3 className="text-lg font-black text-slate-900 uppercase mt-2">
+            <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 uppercase mt-2">
               {events.find((e) => e.id === approvalModal.eventId)?.event_name || "Event"}
             </h3>
-            <p className="text-gray-500 text-[11px] mt-1">
+            <p className="text-stone-500 dark:text-slate-400 text-[11px] mt-1">
               The organizer will see this letter, your instructions and the attached files in their dashboard. The event stays
               unpublished until you approve it after they send the requirements.
             </p>
           </div>
 
           <div>
-            <label className="block text-gray-600 mb-1 uppercase">Instructions / statement *</label>
+            <label className="block text-stone-600 dark:text-slate-300 mb-1 uppercase">Instructions / statement *</label>
             <textarea
               rows={5}
               placeholder="e.g. Print the attached approval letter and submit it to the Municipal Hall, then upload the stamped copy together with your mayor's permit."
               value={approvalModal.message}
               onChange={(e) => setApprovalModal({ ...approvalModal, message: e.target.value })}
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full p-3 bg-stone-50 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-600"
             />
           </div>
 
           <div>
-            <label className="block text-gray-600 mb-1 uppercase">Attachments (letter, documents, photos)</label>
+            <label className="block text-stone-600 dark:text-slate-300 mb-1 uppercase">Attachments (letter, documents, photos)</label>
             <FilePicker
               files={approvalModal.files}
               onChange={(files) => setApprovalModal({ ...approvalModal, files })}
@@ -2888,14 +2905,14 @@ export default function UnifiedAdminDashboard() {
             <button
               onClick={handleSendApprovalLetter}
               disabled={sendingApproval}
-              className="w-full py-2.5 bg-teal-700 hover:bg-teal-800 disabled:opacity-60 text-white font-bold rounded-xl uppercase shadow-sm transition-all"
+              className="w-full py-2.5 bg-teal-700/90 hover:bg-teal-800 disabled:opacity-60 text-teal-50 dark:bg-teal-900/70 dark:hover:bg-teal-900 dark:text-teal-100 font-bold rounded-xl uppercase shadow-sm transition-all"
             >
               {sendingApproval ? "Uploading & sending..." : "Send to organizer"}
             </button>
             <button
               onClick={closeApprovalModal}
               disabled={sendingApproval}
-              className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-all"
+              className="px-5 py-2.5 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 font-bold rounded-xl transition-all"
             >
               ← Back
             </button>
@@ -2905,7 +2922,7 @@ export default function UnifiedAdminDashboard() {
 
       {feedbackModal.isOpen && (
         <ModalBackdrop maxWidth="max-w-md" padding="p-6">
-          <h3 className="text-lg font-black text-slate-900 uppercase">
+          <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 uppercase">
             {feedbackModal.type === "reject-organizer"
               ? "Reject Organizer Application"
               : feedbackModal.type === "reject-event"
@@ -2916,7 +2933,7 @@ export default function UnifiedAdminDashboard() {
               ? "Deny Rescheduling Request"
               : "Provide Event Revision Feedback"}
           </h3>
-          <p className="text-gray-500 text-[11px]">
+          <p className="text-stone-500 dark:text-slate-400 text-[11px]">
             Please state the official reason or required corrections clearly. This will be visible to the organizer.
           </p>
 
@@ -2926,7 +2943,7 @@ export default function UnifiedAdminDashboard() {
             placeholder="Type reason or feedback here..."
             value={feedbackModal.reason}
             onChange={(e) => setFeedbackModal({ ...feedbackModal, reason: e.target.value })}
-            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-3 bg-stone-50 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"
           />
 
           <div className="flex gap-3 pt-2">
@@ -2936,14 +2953,14 @@ export default function UnifiedAdminDashboard() {
                 else handleSubmitEventFeedback();
               }}
               disabled={submittingFeedback}
-              className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white font-bold rounded-xl uppercase shadow-sm transition-all"
+              className="w-full py-2.5 bg-slate-700 hover:bg-slate-800 disabled:opacity-60 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 font-bold rounded-xl uppercase shadow-sm transition-all"
             >
               {submittingFeedback ? "Submitting..." : "Submit Feedback"}
             </button>
             <button
               onClick={() => setFeedbackModal({ isOpen: false, type: "", targetId: null, reason: "" })}
               disabled={submittingFeedback}
-              className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-all"
+              className="px-5 py-2.5 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 font-bold rounded-xl transition-all"
             >
               ← Back
             </button>

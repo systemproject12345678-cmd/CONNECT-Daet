@@ -15,7 +15,7 @@ import TimePicker from "@/components/ui/TimePicker";
 import EventCalendar from "@/components/ui/EventCalendar";
 
 const EVENT_THUMB =
-  "relative w-full md:w-56 h-44 md:h-40 flex-shrink-0 self-start rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/80 group";
+  "relative w-full md:w-56 h-44 md:h-40 flex-shrink-0 self-start rounded-2xl overflow-hidden bg-stone-100 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700 group";
 
 const REG_OVERRIDE_STORAGE_KEY = "daet_organizer_reg_overrides_v1";
 const EVENT_OVERRIDE_STORAGE_KEY = "daet_event_action_overrides_v1";
@@ -155,18 +155,18 @@ const attendanceBadgeMeta = (attendance) => {
   if (attendance === "confirmed") {
     return {
       label: "Present (Confirmed)",
-      cls: "bg-emerald-50 text-emerald-800 border border-emerald-200/80",
+      cls: "bg-emerald-50 text-emerald-800 border border-emerald-200/80 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/70",
     };
   }
   if (attendance === "marked") {
     return {
       label: "Tourist Checked In",
-      cls: "bg-amber-50 text-amber-800 border border-amber-300/80",
+      cls: "bg-amber-50 text-amber-800 border border-amber-300/80 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/70",
     };
   }
   return {
     label: "Not Checked In",
-    cls: "bg-slate-100 text-slate-600 border border-slate-200/80",
+    cls: "bg-stone-100 text-slate-600 border border-stone-200/80 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
   };
 };
 
@@ -197,29 +197,29 @@ const statusBadge = (status) => {
   switch ((status || "").toLowerCase()) {
     case "approved":
     case "upcoming":
-      return "bg-blue-50 text-blue-800 border border-blue-200/70";
+      return "bg-sky-50 text-sky-800 border border-sky-200/70 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800/70";
     case "ongoing":
-      return "bg-emerald-50 text-emerald-800 border border-emerald-200/70";
+      return "bg-emerald-50 text-emerald-800 border border-emerald-200/70 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/70";
     case "completed":
-      return "bg-slate-100 text-slate-700 border border-slate-200";
+      return "bg-stone-100 text-slate-700 border border-stone-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700";
     case "rejected":
-      return "bg-red-50 text-red-700 border border-red-200/70";
+      return "bg-rose-50 text-rose-700 border border-rose-200/70 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/70";
     case "requires changes":
-      return "bg-indigo-50 text-indigo-800 border border-indigo-200/70";
+      return "bg-indigo-50 text-indigo-800 border border-indigo-200/70 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800/70";
     case "requirements needed":
-      return "bg-teal-50 text-teal-800 border border-teal-200/70";
+      return "bg-teal-50 text-teal-800 border border-teal-200/70 dark:bg-teal-950/60 dark:text-teal-300 dark:border-teal-800/70";
     case "requirements submitted":
-      return "bg-cyan-50 text-cyan-800 border border-cyan-200/70";
+      return "bg-cyan-50 text-cyan-800 border border-cyan-200/70 dark:bg-cyan-950/60 dark:text-cyan-300 dark:border-cyan-800/70";
     case "cancelled":
-      return "bg-slate-200 text-slate-700 border border-slate-300";
+      return "bg-stone-200 text-slate-700 border border-stone-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700";
     case "cancellation requested":
-      return "bg-orange-50 text-orange-800 border border-orange-200/70";
+      return "bg-orange-50 text-orange-800 border border-orange-200/70 dark:bg-orange-950/60 dark:text-orange-300 dark:border-orange-800/70";
     case "reschedule requested":
-      return "bg-amber-50 text-amber-800 border border-amber-300/80";
+      return "bg-amber-50 text-amber-800 border border-amber-300/80 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/70";
     case "rescheduled":
-      return "bg-indigo-50 text-indigo-800 border border-indigo-200/80";
+      return "bg-indigo-50 text-indigo-800 border border-indigo-200/80 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800/70";
     default:
-      return "bg-amber-50 text-amber-800 border border-amber-200/70";
+      return "bg-amber-50 text-amber-800 border border-amber-200/70 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/70";
   }
 };
 
@@ -232,72 +232,72 @@ function TeamDetails({ registration, onPreview }) {
 
   return (
     <div className="space-y-4 text-xs font-semibold">
-      <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <div className="bg-stone-50 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h4 className="font-black text-sm text-slate-900">{registration.team_name || "Team Details"}</h4>
+            <h4 className="font-black text-sm text-slate-900 dark:text-slate-100">{registration.team_name || "Team Details"}</h4>
             {serialId && (
-              <span className="px-2.5 py-0.5 rounded-full bg-blue-900 text-white font-mono text-[10px] font-bold">
+              <span className="px-2.5 py-0.5 rounded-full bg-stone-800 text-stone-50 dark:bg-slate-700 dark:text-slate-100 font-mono text-[10px] font-bold">
                 Serial: {serialId}
               </span>
             )}
           </div>
-          <p className="text-slate-500 mt-0.5">
-            Registered by <strong className="text-slate-700">{registration.first_name} {registration.last_name}</strong> • {members.length} members • {new Date(registration.created_at).toLocaleDateString()}
+          <p className="text-slate-500 dark:text-slate-400 mt-0.5">
+            Registered by <strong className="text-slate-800 dark:text-slate-200">{registration.first_name} {registration.last_name}</strong> • {members.length} members • {new Date(registration.created_at).toLocaleDateString()}
           </p>
         </div>
         <button
           type="button"
           onClick={() => setShowMembers(!showMembers)}
-          className="text-blue-900 hover:underline font-bold text-xs"
+          className="px-3 py-1.5 rounded-xl bg-stone-200/70 hover:bg-stone-200 text-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200 font-bold text-xs transition-colors"
         >
           {showMembers ? "Hide members ▲" : "Show members ▼"}
         </button>
       </div>
 
-      <div className="bg-slate-50/70 border border-slate-200/70 rounded-2xl p-4 space-y-2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-slate-700">
+      <div className="bg-stone-50/70 dark:bg-slate-800/80 border border-stone-200/70 dark:border-slate-700 rounded-2xl p-4 space-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-slate-700 dark:text-slate-300">
           <div>
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Team leader contact</span>
-            <span className="text-slate-900 font-bold">{registration.email || "-"} • {registration.phone_number || "-"}</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-400 block">Team leader contact</span>
+            <span className="text-slate-900 dark:text-slate-100 font-bold">{registration.email || "-"} • {registration.phone_number || "-"}</span>
           </div>
           <div>
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Leader address</span>
-            <span className="text-slate-900 font-bold">{registration.home_address || "-"}</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-400 block">Leader address</span>
+            <span className="text-slate-900 dark:text-slate-100 font-bold">{registration.home_address || "-"}</span>
           </div>
         </div>
       </div>
 
       {showMembers && (
         <div className="space-y-3 pt-1">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Team Member Roster</p>
+          <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Team Member Roster</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {members.map((m, idx) => {
               const isLeader = idx === 0;
               return (
-                <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2 flex flex-col justify-between">
+                <div key={idx} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-stone-200/90 dark:border-slate-700 shadow-2xs space-y-2 flex flex-col justify-between">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <h5 className="font-black text-slate-900 text-sm flex flex-wrap items-center gap-2">
+                      <h5 className="font-black text-slate-900 dark:text-slate-100 text-sm flex flex-wrap items-center gap-2">
                         {m.first_name} {m.last_name}
                         {isLeader && (
-                          <span className="px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200/60 rounded-full text-[9px] font-black uppercase">
+                          <span className="px-2 py-0.5 bg-stone-100 text-slate-700 border border-stone-200/80 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600 rounded-full text-[9px] font-black uppercase">
                             Leader
                           </span>
                         )}
                         {serialId && (
-                          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md font-mono text-[10px] font-bold">
+                          <span className="px-2 py-0.5 bg-stone-100 text-slate-700 dark:bg-slate-900 dark:text-slate-300 rounded-md font-mono text-[10px] font-bold">
                             {serialId}-{idx + 1}
                           </span>
                         )}
                       </h5>
-                      <p className="text-slate-500 text-[11px] mt-0.5">
+                      <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-0.5">
                         {m.gender || "N/A"} • {m.age ? `${m.age} yrs` : ""} {m.civil_status ? `• ${m.civil_status}` : ""}
                       </p>
                     </div>
                   </div>
 
-                  <div className="border-t border-slate-100 pt-2 space-y-1 text-[11px] text-slate-600">
+                  <div className="border-t border-stone-100 dark:border-slate-700 pt-2 space-y-1 text-[11px] text-slate-600 dark:text-slate-300">
                     {m.home_address && <p className="truncate" title={m.home_address}>📍 {m.home_address}</p>}
                     {m.phone_number && <p>📞 {m.phone_number}</p>}
                     {m.email && <p className="truncate">✉️ {m.email}</p>}
@@ -1117,8 +1117,8 @@ export default function OrganizerDashboardPage() {
 
   if (loading) {
     return (
-      <div className="daet-ui min-h-[60vh] flex flex-col items-center justify-center gap-3 text-sm font-semibold text-slate-400">
-        <div className="w-7 h-7 border-2 border-blue-900/20 border-t-blue-900 rounded-full animate-spin" />
+      <div className="daet-ui min-h-[60vh] flex flex-col items-center justify-center gap-3 text-sm font-semibold text-slate-500 dark:text-slate-400">
+        <div className="w-7 h-7 border-2 border-stone-300 border-t-slate-700 dark:border-slate-700 dark:border-t-slate-200 rounded-full animate-spin" />
         <span>Authenticating organizer credentials...</span>
       </div>
     );
@@ -1154,20 +1154,20 @@ export default function OrganizerDashboardPage() {
           <div className="space-y-8">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Dashboard Overview</h1>
-                <p className="text-xs font-semibold text-slate-500 mt-0.5">Live operational metrics and event proposal status tracker</p>
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Dashboard Overview</h1>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">Live operational metrics and event proposal status tracker</p>
               </div>
               <Link href="/programs/submit">
-                <button className="px-4 py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-xs shadow-sm transition-all flex items-center gap-1.5">
+                <button className="px-4 py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-xs shadow-sm transition-all flex items-center gap-1.5">
                   <span>+ Submit Event Proposal</span>
                 </button>
               </Link>
             </div>
 
             {duplicatesByEventId.size > 0 && (
-              <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-950">
+              <div className="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300/80 dark:border-amber-800/70 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-950 dark:text-amber-200">
                 <div className="space-y-0.5">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
                     Duplicate / Same-Schedule Event Warning ({duplicatesByEventId.size})
                   </p>
                   <p className="font-semibold">
@@ -1177,7 +1177,7 @@ export default function OrganizerDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setActiveTab("my-events")}
-                  className="px-3.5 py-2 bg-amber-900 hover:bg-amber-800 text-white rounded-xl font-bold text-[11px] uppercase whitespace-nowrap transition-all"
+                  className="px-3.5 py-2 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 dark:border dark:border-slate-700 rounded-xl font-bold text-[11px] uppercase whitespace-nowrap transition-all"
                 >
                   Inspect Events
                 </button>
@@ -1188,66 +1188,66 @@ export default function OrganizerDashboardPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab("my-events")}
-                className="dash-stat text-left hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group"
+                className="dash-stat text-left dark:bg-slate-900 dark:border-slate-800 hover:border-stone-300 dark:hover:border-slate-700 hover:shadow-md transition-all cursor-pointer group"
               >
-                <span className="dash-stat-label text-slate-400 group-hover:text-slate-600 transition-colors">Total Submitted</span>
-                <p className="dash-stat-value text-slate-900 mt-1">{totalEvents}</p>
+                <span className="dash-stat-label text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">Total Submitted</span>
+                <p className="dash-stat-value text-slate-900 dark:text-slate-100 mt-1">{totalEvents}</p>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("my-events")}
-                className="dash-stat text-left hover:border-emerald-300 hover:shadow-md transition-all cursor-pointer group"
+                className="dash-stat text-left dark:bg-slate-900 dark:border-slate-800 hover:border-emerald-300/80 dark:hover:border-emerald-800/70 hover:shadow-md transition-all cursor-pointer group"
               >
-                <span className="dash-stat-label text-emerald-700">Approved / Active</span>
-                <p className="dash-stat-value text-emerald-700 mt-1">{approvedEvents}</p>
+                <span className="dash-stat-label text-emerald-700 dark:text-emerald-400">Approved / Active</span>
+                <p className="dash-stat-value text-emerald-700 dark:text-emerald-300 mt-1">{approvedEvents}</p>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("my-events")}
-                className="dash-stat text-left hover:border-amber-300 hover:shadow-md transition-all cursor-pointer group"
+                className="dash-stat text-left dark:bg-slate-900 dark:border-slate-800 hover:border-amber-300/80 dark:hover:border-amber-800/70 hover:shadow-md transition-all cursor-pointer group"
               >
-                <span className="dash-stat-label text-amber-700">Under Review</span>
-                <p className="dash-stat-value text-amber-700 mt-1">{underReviewEvents}</p>
+                <span className="dash-stat-label text-amber-700 dark:text-amber-400">Under Review</span>
+                <p className="dash-stat-value text-amber-700 dark:text-amber-300 mt-1">{underReviewEvents}</p>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("my-events")}
-                className="dash-stat text-left hover:border-purple-300 hover:shadow-md transition-all cursor-pointer group"
+                className="dash-stat text-left dark:bg-slate-900 dark:border-slate-800 hover:border-purple-300/80 dark:hover:border-purple-800/70 hover:shadow-md transition-all cursor-pointer group"
               >
-                <span className="dash-stat-label text-purple-700">Requires Changes</span>
-                <p className="dash-stat-value text-purple-700 mt-1">{requiresChangesEvents}</p>
+                <span className="dash-stat-label text-purple-700 dark:text-purple-400">Requires Changes</span>
+                <p className="dash-stat-value text-purple-700 dark:text-purple-300 mt-1">{requiresChangesEvents}</p>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("my-events")}
-                className="dash-stat text-left hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group"
+                className="dash-stat text-left dark:bg-slate-900 dark:border-slate-800 hover:border-stone-300 dark:hover:border-slate-700 hover:shadow-md transition-all cursor-pointer group"
               >
-                <span className="dash-stat-label text-slate-400 group-hover:text-slate-600 transition-colors">Completed</span>
-                <p className="dash-stat-value text-slate-900 mt-1">{completedEvents}</p>
+                <span className="dash-stat-label text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors">Completed</span>
+                <p className="dash-stat-value text-slate-900 dark:text-slate-100 mt-1">{completedEvents}</p>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("my-events")}
-                className="dash-stat text-left hover:border-red-300 hover:shadow-md transition-all cursor-pointer group"
+                className="dash-stat text-left dark:bg-slate-900 dark:border-slate-800 hover:border-rose-300/80 dark:hover:border-rose-800/70 hover:shadow-md transition-all cursor-pointer group"
               >
-                <span className="dash-stat-label text-red-700">Rejected</span>
-                <p className="dash-stat-value text-red-700 mt-1">{rejectedEvents}</p>
+                <span className="dash-stat-label text-rose-700 dark:text-rose-400">Rejected</span>
+                <p className="dash-stat-value text-rose-700 dark:text-rose-300 mt-1">{rejectedEvents}</p>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("attendees")}
-                className="dash-stat text-left hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group"
+                className="dash-stat text-left dark:bg-slate-900 dark:border-slate-800 hover:border-sky-300/80 dark:hover:border-sky-800/70 hover:shadow-md transition-all cursor-pointer group"
               >
-                <span className="dash-stat-label text-blue-900">Official Attendees</span>
-                <p className="dash-stat-value text-blue-900 mt-1">{approvedAttendees.length}</p>
+                <span className="dash-stat-label text-sky-800 dark:text-sky-400">Official Attendees</span>
+                <p className="dash-stat-value text-sky-900 dark:text-sky-300 mt-1">{approvedAttendees.length}</p>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("my-events")}
-                className="dash-stat text-left hover:border-amber-300 hover:shadow-md transition-all cursor-pointer group"
+                className="dash-stat text-left dark:bg-slate-900 dark:border-slate-800 hover:border-amber-300/80 dark:hover:border-amber-800/70 hover:shadow-md transition-all cursor-pointer group"
               >
-                <span className="dash-stat-label text-amber-700">Pending Approval</span>
-                <p className="dash-stat-value text-amber-700 mt-1">{pendingForApproval}</p>
+                <span className="dash-stat-label text-amber-700 dark:text-amber-400">Pending Approval</span>
+                <p className="dash-stat-value text-amber-700 dark:text-amber-300 mt-1">{pendingForApproval}</p>
               </button>
             </div>
           </div>
@@ -1257,18 +1257,18 @@ export default function OrganizerDashboardPage() {
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">My Submitted Events</h1>
-                <p className="text-xs text-slate-500 font-semibold mt-0.5">Manage and review your submitted event proposals, request rescheduling or cancellation, and provide support contact details.</p>
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">My Submitted Events</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">Manage and review your submitted event proposals, request rescheduling or cancellation, and provide support contact details.</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setActiveTab("overview")}
-                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-all whitespace-nowrap"
+                  className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 border border-stone-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs transition-all whitespace-nowrap"
                 >
                   ← Overview
                 </button>
                 <Link href="/programs/submit">
-                  <button className="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-xs transition-all whitespace-nowrap shadow-sm">
+                  <button className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-xs transition-all whitespace-nowrap shadow-sm">
                     + Create Event
                   </button>
                 </Link>
@@ -1276,10 +1276,10 @@ export default function OrganizerDashboardPage() {
             </div>
 
             {events.length === 0 ? (
-              <div className="bg-white p-14 rounded-2xl border border-dashed border-slate-200 text-center space-y-3">
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">No events submitted yet</p>
+              <div className="bg-white dark:bg-slate-900 p-14 rounded-2xl border border-dashed border-stone-200 dark:border-slate-800 text-center space-y-3">
+                <p className="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-wider">No events submitted yet</p>
                 <Link href="/programs/submit">
-                  <button className="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-xs transition-all">
+                  <button className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-xs transition-all">
                     Submit Your First Proposal
                   </button>
                 </Link>
@@ -1307,7 +1307,7 @@ export default function OrganizerDashboardPage() {
                   return (
                     <div
                       key={event.id}
-                      className="bg-white p-5 rounded-2xl border border-slate-200/90 hover:border-slate-300 flex flex-col md:flex-row justify-between gap-5 shadow-sm transition-all"
+                      className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-stone-200/90 dark:border-slate-800 hover:border-stone-300 dark:hover:border-slate-700 flex flex-col md:flex-row justify-between gap-5 shadow-sm transition-all"
                     >
                       {eventImages.length > 0 ? (
                         <ImageCarousel
@@ -1316,35 +1316,35 @@ export default function OrganizerDashboardPage() {
                           className={EVENT_THUMB}
                         />
                       ) : (
-                        <div className={`${EVENT_THUMB} flex items-center justify-center text-slate-400 text-[10px] font-bold uppercase tracking-wider`}>
+                        <div className={`${EVENT_THUMB} flex items-center justify-center text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-wider`}>
                           No Photo
                         </div>
                       )}
 
                       <div className="space-y-3 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-black text-base text-slate-900 mr-1">{event.event_name}</h3>
+                          <h3 className="font-black text-base text-slate-900 dark:text-slate-100 mr-1">{event.event_name}</h3>
                           <span className={`px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase ${statusBadge(event.status)}`}>
                             {event.status || "Pending"}
                           </span>
                           {(needsRequirements || requirementsSent) && (
-                            <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-teal-600 text-white">
+                            <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-teal-700 text-white dark:bg-teal-900/80 dark:text-teal-200 dark:border dark:border-teal-700">
                               Approval Letter
                             </span>
                           )}
                           {event.is_paid && (
-                            <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-blue-900 text-white">
+                            <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-stone-800 text-stone-50 dark:bg-slate-700 dark:text-slate-100">
                               {peso(event.fee_amount)}
                             </span>
                           )}
-                          <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase bg-slate-100 text-slate-600">
+                          <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase bg-stone-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                             {REG_TYPE_LABEL[regTypeOf(event)]}
                           </span>
                         </div>
 
                         {duplicateMatches.length > 0 && (
-                          <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-1">
-                            <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                          <div className="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300/80 dark:border-amber-800/70 rounded-xl p-3 text-xs text-amber-950 dark:text-amber-200 space-y-1">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
                               Warning: Existing Matching Event Detected ({duplicateMatches.length})
                             </p>
                             <p className="font-medium">
@@ -1358,27 +1358,27 @@ export default function OrganizerDashboardPage() {
                           </div>
                         )}
 
-                        <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">{event.description}</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2">{event.description}</p>
 
-                        <div className="flex flex-wrap gap-2 pt-0.5 text-[11px] font-semibold text-slate-600">
-                          <span className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100">
-                            <strong className="text-slate-800">Venue:</strong> {event.venue || "TBA"}
+                        <div className="flex flex-wrap gap-2 pt-0.5 text-[11px] font-semibold text-slate-700 dark:text-slate-200">
+                          <span className="px-2.5 py-1 rounded-lg bg-stone-50 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700">
+                            <strong className="text-slate-900 dark:text-white">Venue:</strong> {event.venue || "TBA"}
                           </span>
-                          <span className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100">
-                            <strong className="text-slate-800">Date:</strong> {event.event_date || "TBA"} {event.event_end_date && event.event_end_date !== event.event_date ? `to ${event.event_end_date}` : ""}
+                          <span className="px-2.5 py-1 rounded-lg bg-stone-50 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700">
+                            <strong className="text-slate-900 dark:text-white">Date:</strong> {event.event_date || "TBA"} {event.event_end_date && event.event_end_date !== event.event_date ? `to ${event.event_end_date}` : ""}
                           </span>
-                          <span className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100">
-                            <strong className="text-slate-800">Time:</strong> {formatTimeRange(event) || "TBA"}
+                          <span className="px-2.5 py-1 rounded-lg bg-stone-50 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700">
+                            <strong className="text-slate-900 dark:text-white">Time:</strong> {formatTimeRange(event) || "TBA"}
                           </span>
-                          <span className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100">
-                            <strong className="text-slate-800">Fee:</strong> {event.is_paid ? peso(event.fee_amount) : "Free"}
+                          <span className="px-2.5 py-1 rounded-lg bg-stone-50 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700">
+                            <strong className="text-slate-900 dark:text-white">Fee:</strong> {event.is_paid ? peso(event.fee_amount) : "Free"}
                           </span>
                         </div>
 
                         {isRescheduleOrCancelFlow && (
-                          <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-3.5 text-xs space-y-1.5">
+                          <div className="bg-stone-50 dark:bg-slate-800 border border-stone-200/90 dark:border-slate-700 rounded-xl p-3.5 text-xs space-y-1.5">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-blue-900">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
                                 {status === "reschedule requested"
                                   ? "Rescheduling Request — Awaiting Admin Approval"
                                   : status === "rescheduled"
@@ -1390,14 +1390,14 @@ export default function OrganizerDashboardPage() {
                               <button
                                 type="button"
                                 onClick={() => openContactEditor(event)}
-                                className="text-[11px] font-bold text-blue-900 hover:underline"
+                                className="px-2.5 py-1 rounded-lg bg-stone-200/70 hover:bg-stone-200 text-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200 text-[11px] font-bold transition-colors"
                               >
                                 Update Contact Info
                               </button>
                             </div>
                             {actionMeta.reschedule_date && (
-                              <p className="text-slate-700 font-medium">
-                                <strong>Proposed / New Schedule:</strong> {actionMeta.reschedule_date}
+                              <p className="text-slate-700 dark:text-slate-300 font-medium">
+                                <strong className="text-slate-900 dark:text-white">Proposed / New Schedule:</strong> {actionMeta.reschedule_date}
                                 {actionMeta.reschedule_end_date && actionMeta.reschedule_end_date !== actionMeta.reschedule_date
                                   ? ` to ${actionMeta.reschedule_end_date}`
                                   : ""}
@@ -1406,55 +1406,55 @@ export default function OrganizerDashboardPage() {
                               </p>
                             )}
                             {actionMeta.action_reason && (
-                              <p className="text-slate-700 font-medium">
-                                <strong>Reason:</strong> {actionMeta.action_reason}
+                              <p className="text-slate-700 dark:text-slate-300 font-medium">
+                                <strong className="text-slate-900 dark:text-white">Reason:</strong> {actionMeta.action_reason}
                               </p>
                             )}
-                            <p className="text-slate-800 font-semibold">
-                              <strong>Tourist Refund / Inquiry Contact:</strong>{" "}
+                            <p className="text-slate-800 dark:text-slate-200 font-semibold">
+                              <strong className="text-slate-900 dark:text-white">Tourist Refund / Inquiry Contact:</strong>{" "}
                               {actionMeta.organizer_contact_info || "Not yet provided — click Update Contact Info"}
                             </p>
                           </div>
                         )}
 
                         {(needsRequirements || requirementsSent) && (
-                          <div className="bg-teal-50/80 border border-teal-200/80 rounded-xl p-4 space-y-3">
+                          <div className="bg-teal-50/80 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-800/70 rounded-xl p-4 space-y-3">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                              <p className="text-[10px] font-black text-teal-800 uppercase tracking-wider">
+                              <p className="text-[10px] font-black text-teal-800 dark:text-teal-300 uppercase tracking-wider">
                                 Approval letter from the Tourism Office
                               </p>
                               {event.approval_sent_at && (
-                                <span className="text-[10px] text-teal-700 font-semibold">{new Date(event.approval_sent_at).toLocaleString()}</span>
+                                <span className="text-[10px] text-teal-700 dark:text-teal-400 font-semibold">{new Date(event.approval_sent_at).toLocaleString()}</span>
                               )}
                             </div>
-                            <p className="text-xs font-bold text-teal-900">
+                            <p className="text-xs font-bold text-teal-900 dark:text-teal-200">
                               {needsRequirements
                                 ? "Action required: complete the requirements below before your event can be published on the main page."
                                 : "Your requirements were sent. Waiting for the Tourism Office to review them."}
                             </p>
                             {event.approval_instructions && (
-                              <div className="space-y-1 bg-white/70 rounded-lg p-3 border border-teal-100">
-                                <p className="text-[10px] font-black text-teal-700 uppercase tracking-wider">What you need to do</p>
-                                <p className="text-xs text-teal-900 font-medium whitespace-pre-line">{event.approval_instructions}</p>
+                              <div className="space-y-1 bg-white/80 dark:bg-slate-900/80 rounded-lg p-3 border border-teal-100 dark:border-teal-900/60">
+                                <p className="text-[10px] font-black text-teal-700 dark:text-teal-400 uppercase tracking-wider">What you need to do</p>
+                                <p className="text-xs text-teal-900 dark:text-slate-200 font-medium whitespace-pre-line">{event.approval_instructions}</p>
                               </div>
                             )}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                               <div className="space-y-1.5">
-                                <p className="text-[10px] font-black text-teal-700 uppercase tracking-wider">Files from the Tourism Office</p>
+                                <p className="text-[10px] font-black text-teal-700 dark:text-teal-400 uppercase tracking-wider">Files from the Tourism Office</p>
                                 <AttachmentList files={approvalFiles} onPreview={setViewerSrc} emptyText="No file was attached to this letter." />
                               </div>
                               {(requirementFiles.length > 0 || event.requirement_note) && (
                                 <div className="space-y-1.5">
-                                  <p className="text-[10px] font-black text-cyan-800 uppercase tracking-wider">
+                                  <p className="text-[10px] font-black text-cyan-800 dark:text-cyan-300 uppercase tracking-wider">
                                     What you sent
                                     {event.requirement_submitted_at && (
-                                      <span className="text-cyan-700 font-semibold normal-case block sm:inline sm:ml-1">
+                                      <span className="text-cyan-700 dark:text-cyan-400 font-semibold normal-case block sm:inline sm:ml-1">
                                         ({new Date(event.requirement_submitted_at).toLocaleString()})
                                       </span>
                                     )}
                                   </p>
                                   {event.requirement_note && (
-                                    <p className="text-xs text-slate-800 font-medium whitespace-pre-line">{event.requirement_note}</p>
+                                    <p className="text-xs text-slate-800 dark:text-slate-200 font-medium whitespace-pre-line">{event.requirement_note}</p>
                                   )}
                                   <AttachmentList files={requirementFiles} onPreview={setViewerSrc} />
                                 </div>
@@ -1464,18 +1464,18 @@ export default function OrganizerDashboardPage() {
                         )}
 
                         {isRejectedOrRevision && (event.revision_notes || event.rejection_reason) && (
-                          <div className="text-xs text-purple-800 bg-purple-50/90 border border-purple-200/70 rounded-xl p-3.5">
-                            <strong className="uppercase text-[10px] tracking-wider block text-purple-900 mb-0.5">Admin note</strong>
+                          <div className="text-xs text-purple-900 dark:text-purple-200 bg-purple-50/90 dark:bg-purple-950/40 border border-purple-200/70 dark:border-purple-800/70 rounded-xl p-3.5">
+                            <strong className="uppercase text-[10px] tracking-wider block text-purple-950 dark:text-purple-300 mb-0.5">Admin note</strong>
                             {actionMeta.action_reason || event.revision_notes || event.rejection_reason}
                           </div>
                         )}
                       </div>
 
-                      <div className="flex flex-wrap md:flex-col md:items-stretch justify-end md:justify-start items-center gap-2 min-w-[180px] pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                      <div className="flex flex-wrap md:flex-col md:items-stretch justify-end md:justify-start items-center gap-2 min-w-[180px] pt-2 md:pt-0 border-t md:border-t-0 border-stone-100 dark:border-slate-800">
                         {(needsRequirements || requirementsSent) && (
                           <button
                             onClick={() => openRequirements(event)}
-                            className="w-full text-center px-3.5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl uppercase transition-all shadow-sm"
+                            className="w-full text-center px-3.5 py-2.5 bg-teal-700 hover:bg-teal-600 dark:bg-teal-800 dark:hover:bg-teal-700 text-white text-xs font-bold rounded-xl uppercase transition-all shadow-sm"
                           >
                             {needsRequirements ? "Submit Requirements" : "Add / Update Files"}
                           </button>
@@ -1487,7 +1487,7 @@ export default function OrganizerDashboardPage() {
                               setEditingEvent(event);
                               setEditFiles([]);
                             }}
-                            className="w-full text-center px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl uppercase transition-all"
+                            className="w-full text-center px-3.5 py-2.5 bg-stone-100 hover:bg-stone-200 text-slate-800 border border-stone-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl uppercase transition-all"
                           >
                             Edit Details
                           </button>
@@ -1498,14 +1498,14 @@ export default function OrganizerDashboardPage() {
                             <button
                               type="button"
                               onClick={() => openRescheduleModal(event)}
-                              className="w-full text-center px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-900 text-xs font-bold rounded-xl uppercase transition-all"
+                              className="w-full text-center px-3.5 py-2.5 bg-stone-100 hover:bg-stone-200 border border-stone-200/90 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl uppercase transition-all"
                             >
                               Request Event Rescheduling
                             </button>
                             <button
                               type="button"
                               onClick={() => openCancelModal(event)}
-                              className="w-full text-center px-3.5 py-2.5 bg-red-50 hover:bg-red-100 border border-red-200/60 text-red-600 text-xs font-bold rounded-xl uppercase transition-all"
+                              className="w-full text-center px-3.5 py-2.5 bg-rose-50/80 hover:bg-rose-100 border border-rose-200/80 text-rose-700 dark:bg-rose-950/40 dark:hover:bg-rose-950/70 dark:border-rose-900/60 dark:text-rose-300 text-xs font-bold rounded-xl uppercase transition-all"
                             >
                               Cancel Event
                             </button>
@@ -1519,7 +1519,7 @@ export default function OrganizerDashboardPage() {
                               setExpandedEventId(event.id);
                               setActiveTab("attendees");
                             }}
-                            className="w-full text-center px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl uppercase transition-all"
+                            className="w-full text-center px-3.5 py-2.5 bg-stone-100 hover:bg-stone-200 text-slate-800 border border-stone-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl uppercase transition-all"
                           >
                             Attendees & Refunds
                           </button>
@@ -1537,20 +1537,20 @@ export default function OrganizerDashboardPage() {
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Event Schedule Calendar</h1>
-                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Event Schedule Calendar</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
                   Browse all official events posted in the main programs, or switch to view solely your own event schedule.
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setActiveTab("overview")}
-                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-all whitespace-nowrap"
+                  className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 border border-stone-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs transition-all whitespace-nowrap"
                 >
                   ← Overview
                 </button>
                 <Link href="/programs/submit">
-                  <button className="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-xs transition-all whitespace-nowrap shadow-sm">
+                  <button className="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-xs transition-all whitespace-nowrap shadow-sm">
                     + Propose Event
                   </button>
                 </Link>
@@ -1571,30 +1571,30 @@ export default function OrganizerDashboardPage() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">
                   Event Attendees, Attendance & Refunds
                 </h1>
-                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
                   Confirm participant payments to assign official Serial IDs, monitor attendance, and verify Serial IDs to process refunds for rescheduled or cancelled events.
                 </p>
               </div>
               <button
                 onClick={() => setActiveTab("overview")}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-all whitespace-nowrap self-start md:self-auto"
+                className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 border border-stone-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs transition-all whitespace-nowrap self-start md:self-auto"
               >
                 ← Overview
               </button>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm space-y-4">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/90 dark:border-slate-800 p-5 shadow-sm space-y-4">
               <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-blue-900 bg-blue-50 px-2.5 py-1 rounded-full">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 bg-stone-100 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700 px-2.5 py-1 rounded-full">
                   Serial ID Refund Verification
                 </span>
-                <h2 className="text-sm font-black text-slate-900 mt-1.5">
+                <h2 className="text-sm font-black text-slate-900 dark:text-slate-100 mt-1.5">
                   Verify Tourist Serial ID & Confirm Refund
                 </h2>
-                <p className="text-xs text-slate-500 font-medium">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                   Search a tourist's Serial ID from your conversation outside the system to verify their registration and confirm their refund.
                 </p>
               </div>
@@ -1605,11 +1605,11 @@ export default function OrganizerDashboardPage() {
                   placeholder="Enter Serial ID (e.g. DAET-17-99695D)"
                   value={refundLookupInput}
                   onChange={(e) => setRefundLookupInput(e.target.value)}
-                  className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase focus:outline-none focus:ring-2 focus:ring-blue-900"
+                  className="flex-1 p-3 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl font-mono uppercase text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-stone-400/40"
                 />
                 <button
                   type="submit"
-                  className="px-5 py-3 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
+                  className="px-5 py-3 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
                 >
                   Verify Serial ID
                 </button>
@@ -1620,7 +1620,7 @@ export default function OrganizerDashboardPage() {
                       setRefundLookupResult(null);
                       setRefundLookupInput("");
                     }}
-                    className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all"
+                    className="px-4 py-3 bg-stone-100 hover:bg-stone-200 text-slate-700 border border-stone-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl font-bold transition-all"
                   >
                     Clear
                   </button>
@@ -1630,8 +1630,8 @@ export default function OrganizerDashboardPage() {
               {refundLookupResult && (
                 <div>
                   {refundLookupResult.notFound ? (
-                    <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-900 space-y-1">
-                      <p className="font-black uppercase text-[10px] tracking-wider text-red-700">Serial ID Not Found</p>
+                    <div className="rounded-xl border border-rose-200 dark:border-rose-900/70 bg-rose-50 dark:bg-rose-950/40 p-4 text-xs text-rose-900 dark:text-rose-200 space-y-1">
+                      <p className="font-black uppercase text-[10px] tracking-wider text-rose-700 dark:text-rose-300">Serial ID Not Found</p>
                       <p className="font-semibold">
                         No attendee registration across your events matched <span className="font-mono">{refundLookupResult.query}</span>.
                       </p>
@@ -1643,19 +1643,19 @@ export default function OrganizerDashboardPage() {
                       const matchedSerial = resolveRegistrationSerial(matchedReg);
                       const refundSt = resolveRefundState(matchedReg);
                       return (
-                        <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 text-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="rounded-xl border border-stone-200 dark:border-slate-700 bg-stone-50/80 dark:bg-slate-800 p-4 text-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <div className="space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="px-2.5 py-0.5 rounded-lg bg-blue-950 text-white font-mono font-bold text-[11px]">
+                              <span className="px-2.5 py-0.5 rounded-lg bg-stone-800 text-stone-50 dark:bg-slate-950 dark:text-slate-100 font-mono font-bold text-[11px]">
                                 {matchedSerial}
                               </span>
                               <span
                                 className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
                                   refundSt === "refunded"
-                                    ? "bg-emerald-100 text-emerald-800"
+                                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300"
                                     : refundSt === "requested"
-                                    ? "bg-amber-100 text-amber-900"
-                                    : "bg-blue-100 text-blue-900"
+                                    ? "bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300"
+                                    : "bg-stone-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200"
                                 }`}
                               >
                                 {refundSt === "refunded"
@@ -1665,15 +1665,15 @@ export default function OrganizerDashboardPage() {
                                   : `Status: ${matchedReg.registration_status || "Confirmed"}`}
                               </span>
                             </div>
-                            <p className="font-black text-slate-900 text-sm">
+                            <p className="font-black text-slate-900 dark:text-slate-100 text-sm">
                               {matchedReg.first_name} {matchedReg.last_name}
                               {matchedReg.team_name ? ` (Team: ${matchedReg.team_name})` : ""}
                             </p>
-                            <p className="text-slate-600 font-medium">
-                              Event: <strong className="text-slate-800">{matchedEv?.event_name || "Event"}</strong> • Contact: {matchedReg.phone_number} • {matchedReg.email}
+                            <p className="text-slate-600 dark:text-slate-300 font-medium">
+                              Event: <strong className="text-slate-800 dark:text-white">{matchedEv?.event_name || "Event"}</strong> • Contact: {matchedReg.phone_number} • {matchedReg.email}
                             </p>
-                            <p className="text-slate-600 font-medium">
-                              Payment: <strong className="text-slate-800">{matchedReg.payment_method || "Free"}</strong>
+                            <p className="text-slate-600 dark:text-slate-300 font-medium">
+                              Payment: <strong className="text-slate-800 dark:text-white">{matchedReg.payment_method || "Free"}</strong>
                               {matchedReg.amount_due ? ` (${peso(matchedReg.amount_due)})` : ""}
                               {matchedReg.payment_reference ? ` • Ref: ${matchedReg.payment_reference}` : ""}
                             </p>
@@ -1685,12 +1685,12 @@ export default function OrganizerDashboardPage() {
                                 type="button"
                                 disabled={busyRegId === matchedReg.id}
                                 onClick={() => confirmRefundForAttendee(matchedReg)}
-                                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-bold uppercase text-[11px] transition-all shadow-sm"
+                                className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 dark:bg-emerald-800 dark:hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-bold uppercase text-[11px] transition-all shadow-sm"
                               >
                                 Confirm Refund Successful
                               </button>
                             ) : (
-                              <span className="px-3.5 py-2 rounded-xl bg-emerald-100 text-emerald-900 font-black uppercase text-[11px]">
+                              <span className="px-3.5 py-2 rounded-xl bg-emerald-100 text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-300 font-black uppercase text-[11px]">
                                 Moved to Refunded Attendees
                               </span>
                             )}
@@ -1704,7 +1704,7 @@ export default function OrganizerDashboardPage() {
             </div>
 
             {managedEventsList.length === 0 ? (
-              <div className="bg-white p-14 rounded-2xl border border-dashed border-slate-200 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">
+              <div className="bg-white dark:bg-slate-900 p-14 rounded-2xl border border-dashed border-stone-200 dark:border-slate-800 text-center text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-wider">
                 No approved events available to display attendees.
               </div>
             ) : (
@@ -1803,48 +1803,48 @@ export default function OrganizerDashboardPage() {
                   const isOfficialOrAttendanceTab = tab === "official" || tab === "attendance" || tab === "refunded";
 
                   return (
-                    <div key={event.id} className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-sm space-y-4">
+                    <div key={event.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200/90 dark:border-slate-800 p-5 sm:p-6 shadow-sm space-y-4">
                       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div className="space-y-1">
                           <div className="flex flex-wrap items-center gap-2.5">
-                            <h3 className="font-black text-base text-slate-900">{event.event_name}</h3>
+                            <h3 className="font-black text-base text-slate-900 dark:text-slate-100">{event.event_name}</h3>
                             <span className={`px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase ${statusBadge(event.status)}`}>
                               {event.status || "Approved"}
                             </span>
-                            <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-blue-900 text-white">
+                            <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-stone-800 text-stone-50 dark:bg-slate-700 dark:text-slate-100">
                               {regType === "interested"
                                 ? "Interested only"
                                 : `${regType === "group" ? "Group - " : ""}${event.is_paid ? `Paid - ${peso(event.fee_amount)}` : "Free"}`}
                             </span>
                             {pendingTotal > 0 && (
-                              <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-amber-400 text-slate-950">
+                              <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-amber-300/90 text-amber-950 dark:bg-amber-900/80 dark:text-amber-200">
                                 {pendingTotal} payment pending
                               </span>
                             )}
                             {refundReqCount > 0 && (
-                              <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                              <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800">
                                 {refundReqCount} refund requested
                               </span>
                             )}
                             {refunded.length > 0 && (
-                              <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-slate-200 text-slate-800">
+                              <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-stone-200 text-slate-800 dark:bg-slate-800 dark:text-slate-300">
                                 {refunded.length} refunded
                               </span>
                             )}
                             {checkedInAwaitingCount > 0 && (
-                              <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                              <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800">
                                 {checkedInAwaitingCount} checked in
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-500">
-                            Date: <strong className="text-slate-700">{event.event_date || "TBA"}</strong> •{" "}
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Date: <strong className="text-slate-700 dark:text-slate-200">{event.event_date || "TBA"}</strong> •{" "}
                             {regType === "interested" ? (
-                              <>Interested tourists: <strong className="text-slate-800">{Array.isArray(interestRows) ? interestRows.length : "-"}</strong></>
+                              <>Interested tourists: <strong className="text-slate-800 dark:text-slate-100">{Array.isArray(interestRows) ? interestRows.length : "-"}</strong></>
                             ) : (
                               <>
-                                Official {regType === "group" ? "teams" : "attendees"}: <strong className="text-slate-800">{official.length}</strong> •{" "}
-                                Confirmed present: <strong className="text-emerald-700">{presentCount} / {official.length}</strong>
+                                Official {regType === "group" ? "teams" : "attendees"}: <strong className="text-slate-800 dark:text-slate-100">{official.length}</strong> •{" "}
+                                Confirmed present: <strong className="text-emerald-700 dark:text-emerald-400">{presentCount} / {official.length}</strong>
                               </>
                             )}
                           </p>
@@ -1857,14 +1857,14 @@ export default function OrganizerDashboardPage() {
                                 setAttendeeTabs({ ...attendeeTabs, [event.id]: "attendance" });
                                 setExpandedEventId(event.id);
                               }}
-                              className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm"
+                              className="px-3.5 py-2.5 bg-emerald-700 hover:bg-emerald-600 dark:bg-emerald-800 dark:hover:bg-emerald-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm"
                             >
                               Monitor Attendance
                             </button>
                           )}
                           <button
                             onClick={() => setExpandedEventId(isExpanded ? null : event.id)}
-                            className="w-full md:w-44 text-center flex-shrink-0 px-4 py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm"
+                            className="w-full md:w-44 text-center flex-shrink-0 px-4 py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm"
                           >
                             {isExpanded ? (regType === "interested" ? "Hide Interested ▲" : "Hide Attendees ▲") : regType === "interested" ? "View Interested ▼" : "Inspect Attendees ▼"}
                           </button>
@@ -1872,16 +1872,16 @@ export default function OrganizerDashboardPage() {
                       </div>
 
                       {isExpanded && isCancelledOrRescheduled && (
-                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl p-3.5 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div className="space-y-0.5">
-                            <p className="font-black text-slate-900 uppercase text-[10px] tracking-wider">
+                            <p className="font-black text-slate-900 dark:text-slate-100 uppercase text-[10px] tracking-wider">
                               {statusLower === "cancelled"
                                 ? "Cancelled Event — Attendee Records Preserved for Refund Processing"
                                 : "Rescheduled Event — Attendee & Refund Support"}
                             </p>
-                            <p className="text-slate-600 font-medium">
+                            <p className="text-slate-600 dark:text-slate-300 font-medium">
                               Tourist Support Contact:{" "}
-                              <strong className="text-slate-900">
+                              <strong className="text-slate-900 dark:text-white">
                                 {actionMeta.organizer_contact_info || "Not set"}
                               </strong>
                             </p>
@@ -1889,7 +1889,7 @@ export default function OrganizerDashboardPage() {
                           <button
                             type="button"
                             onClick={() => openContactEditor(event)}
-                            className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-blue-900 rounded-xl font-bold text-[11px] self-start sm:self-center"
+                            className="px-3 py-1.5 bg-white hover:bg-stone-100 border border-stone-200 text-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 dark:border-slate-600 dark:text-slate-100 rounded-xl font-bold text-[11px] self-start sm:self-center transition-colors"
                           >
                             Edit Contact Info
                           </button>
@@ -1897,24 +1897,24 @@ export default function OrganizerDashboardPage() {
                       )}
 
                       {isExpanded && regType === "interested" && (
-                        <div className="pt-4 border-t border-slate-100 space-y-4">
-                          <p className="text-xs text-blue-900 bg-blue-50/80 border border-blue-100 rounded-xl p-3.5 font-medium">
-                            This event has no official registration. These are the tourists who tapped <strong>Interested</strong>, so you can estimate how many people to expect.
+                        <div className="pt-4 border-t border-stone-100 dark:border-slate-800 space-y-4">
+                          <p className="text-xs text-slate-700 dark:text-slate-200 bg-stone-50 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700 rounded-xl p-3.5 font-medium">
+                            This event has no official registration. These are the tourists who tapped <strong className="text-slate-900 dark:text-white">Interested</strong>, so you can estimate how many people to expect.
                           </p>
                           {interestRows === null || interestRows === undefined ? (
-                            <div className="p-6 text-center text-red-600 bg-red-50 rounded-xl text-xs font-bold">
+                            <div className="p-6 text-center text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 rounded-xl text-xs font-bold">
                               {interestRows === null
                                 ? "The interested list could not be loaded. Ask the administrator to run the interested-events SQL setup."
                                 : "Loading..."}
                             </div>
                           ) : interestRows.length === 0 ? (
-                            <div className="p-8 text-center text-slate-400 text-xs font-bold uppercase">No tourists have marked this event as interested yet.</div>
+                            <div className="p-8 text-center text-slate-400 dark:text-slate-500 text-xs font-bold uppercase">No tourists have marked this event as interested yet.</div>
                           ) : (
                             <>
-                              <p className="text-xs font-black uppercase text-slate-700">Total interested: {interestRows.length}</p>
-                              <div className="border border-slate-200 rounded-xl overflow-x-auto">
+                              <p className="text-xs font-black uppercase text-slate-700 dark:text-slate-200">Total interested: {interestRows.length}</p>
+                              <div className="border border-stone-200 dark:border-slate-700 rounded-xl overflow-x-auto">
                                 <table className="w-full text-left text-xs">
-                                  <thead className="bg-slate-50 font-bold uppercase text-[11px] text-slate-500 border-b border-slate-200">
+                                  <thead className="bg-stone-50 dark:bg-slate-800 font-bold uppercase text-[11px] text-slate-500 dark:text-slate-300 border-b border-stone-200 dark:border-slate-700">
                                     <tr>
                                       <th className="p-3.5">Tourist</th>
                                       <th className="p-3.5">Email</th>
@@ -1922,10 +1922,10 @@ export default function OrganizerDashboardPage() {
                                       <th className="p-3.5">Marked interested</th>
                                     </tr>
                                   </thead>
-                                  <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                                  <tbody className="divide-y divide-stone-100 dark:divide-slate-800 text-slate-700 dark:text-slate-200 font-medium [&>tr:hover]:!bg-stone-100/70 dark:[&>tr:hover]:!bg-slate-800">
                                     {interestRows.map((row) => (
-                                      <tr key={row.user_id} className="hover:bg-slate-50/70 transition-colors">
-                                        <td className="p-3.5 font-bold text-slate-900">{row.full_name || "Tourist"}</td>
+                                      <tr key={row.user_id} className="transition-colors">
+                                        <td className="p-3.5 font-bold text-slate-900 dark:text-slate-100">{row.full_name || "Tourist"}</td>
                                         <td className="p-3.5">{row.email || "-"}</td>
                                         <td className="p-3.5">{row.contact_number || "-"}</td>
                                         <td className="p-3.5">{row.created_at ? new Date(row.created_at).toLocaleDateString() : "N/A"}</td>
@@ -1940,14 +1940,16 @@ export default function OrganizerDashboardPage() {
                       )}
 
                       {isExpanded && regType !== "interested" && (
-                        <div className="pt-4 border-t border-slate-100 space-y-4">
-                          <div className="flex flex-wrap gap-1.5 bg-slate-100 p-1.5 rounded-2xl w-fit max-w-full">
+                        <div className="pt-4 border-t border-stone-100 dark:border-slate-800 space-y-4">
+                          <div className="flex flex-wrap gap-1.5 bg-stone-100 dark:bg-slate-800 p-1.5 rounded-2xl w-fit max-w-full">
                             {tabs.map(([key, label, count]) => (
                               <button
                                 key={key}
                                 onClick={() => setAttendeeTabs({ ...attendeeTabs, [event.id]: key })}
                                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                                  tab === key ? "bg-white text-blue-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                                  tab === key
+                                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100"
+                                    : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
                                 }`}
                               >
                                 {label}{" "}
@@ -1955,8 +1957,8 @@ export default function OrganizerDashboardPage() {
                                   className={`ml-1 ${
                                     (key.startsWith("pending") && Number(count) > 0) ||
                                     (key === "attendance" && checkedInAwaitingCount > 0)
-                                      ? "text-amber-600 font-black"
-                                      : "text-slate-400 font-semibold"
+                                      ? "text-amber-600 dark:text-amber-400 font-black"
+                                      : "text-slate-400 dark:text-slate-500 font-semibold"
                                   }`}
                                 >
                                   {count}
@@ -1966,23 +1968,23 @@ export default function OrganizerDashboardPage() {
                           </div>
 
                           {tab === "attendance" && (
-                            <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                            <div className="bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                               <div className="space-y-0.5">
-                                <p className="font-black text-emerald-950 uppercase text-[10px] tracking-wider">
+                                <p className="font-black text-emerald-950 dark:text-emerald-200 uppercase text-[10px] tracking-wider">
                                   Official Event Attendance Monitor
                                 </p>
-                                <p className="text-emerald-900 font-medium">
+                                <p className="text-emerald-900 dark:text-emerald-300 font-medium">
                                   Verify Serial IDs and confirm attendance for tourists who marked themselves present on their dashboard.
                                 </p>
                               </div>
                               <div className="flex flex-wrap gap-2 text-[11px] font-black">
-                                <span className="px-2.5 py-1 rounded-lg bg-white border border-emerald-200 text-emerald-800">
+                                <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300">
                                   Present: {presentCount}
                                 </span>
-                                <span className="px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 text-amber-900">
+                                <span className="px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-300">
                                   Awaiting Confirm: {checkedInAwaitingCount}
                                 </span>
-                                <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700">
+                                <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
                                   Not Checked In: {Math.max(0, official.length - presentCount - checkedInAwaitingCount)}
                                 </span>
                               </div>
@@ -1990,26 +1992,26 @@ export default function OrganizerDashboardPage() {
                           )}
 
                           {tab === "pending-cash" && (
-                            <div className="text-xs text-slate-600 bg-amber-50/60 border border-amber-200/70 rounded-xl p-3.5 font-medium space-y-1">
+                            <div className="text-xs text-slate-600 dark:text-slate-300 bg-amber-50/60 dark:bg-amber-950/40 border border-amber-200/70 dark:border-amber-800/60 rounded-xl p-3.5 font-medium space-y-1">
                               <p>
-                                <strong className="text-slate-800">Cash is handed over at:</strong>{" "}
+                                <strong className="text-slate-800 dark:text-slate-100">Cash is handed over at:</strong>{" "}
                                 {event.cash_payment_details || "The organizer did not state a cash payment location on the proposal."}
                               </p>
-                              <p className="text-[11px] text-slate-500">Confirm a participant only after you have received their payment to issue their official Serial ID.</p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400">Confirm a participant only after you have received their payment to issue their official Serial ID.</p>
                             </div>
                           )}
                           {tab === "pending-online" && (
-                            <div className="text-xs text-slate-600 bg-blue-50/60 border border-blue-200/70 rounded-xl p-3.5 font-medium space-y-1">
+                            <div className="text-xs text-slate-600 dark:text-slate-300 bg-stone-50 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700 rounded-xl p-3.5 font-medium space-y-1">
                               <p>
-                                <strong className="text-slate-800">Online payments go to:</strong>{" "}
+                                <strong className="text-slate-800 dark:text-slate-100">Online payments go to:</strong>{" "}
                                 {event.online_payment_details || "The organizer did not state online payment details on the proposal."}
                               </p>
-                              <p className="text-[11px] text-slate-500">Check the reference number / receipt against your account, then confirm to assign their official Serial ID.</p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400">Check the reference number / receipt against your account, then confirm to assign their official Serial ID.</p>
                             </div>
                           )}
 
-                          <div className="flex flex-col lg:flex-row justify-between lg:items-center bg-slate-50 border border-slate-200/70 p-3.5 rounded-xl gap-3 text-xs">
-                            <span className="font-bold uppercase text-slate-700 tracking-wide">
+                          <div className="flex flex-col lg:flex-row justify-between lg:items-center bg-stone-50 dark:bg-slate-800 border border-stone-200/70 dark:border-slate-700 p-3.5 rounded-xl gap-3 text-xs">
+                            <span className="font-bold uppercase text-slate-700 dark:text-slate-200 tracking-wide">
                               {tabs.find((t) => t[0] === tab)?.[1]} ({filteredList.length})
                             </span>
                             <div className="flex flex-wrap items-center gap-2">
@@ -2023,7 +2025,7 @@ export default function OrganizerDashboardPage() {
                                     [event.id]: { ...currentFilters, search: e.target.value },
                                   })
                                 }
-                                className="px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-900/20 w-full sm:w-56"
+                                className="px-3 py-2 border border-stone-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-xs font-medium text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-stone-400/30 w-full sm:w-56"
                               />
                               {tab === "attendance" && (
                                 <select
@@ -2034,7 +2036,7 @@ export default function OrganizerDashboardPage() {
                                       [event.id]: { ...currentFilters, attendance: e.target.value },
                                     })
                                   }
-                                  className="px-3 py-2 border border-slate-200 rounded-xl bg-white font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-900/20"
+                                  className="px-3 py-2 border border-stone-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-stone-400/30"
                                 >
                                   <option value="All">All Attendance</option>
                                   <option value="marked">Tourist Checked In</option>
@@ -2048,7 +2050,7 @@ export default function OrganizerDashboardPage() {
                                   ...eventFilters,
                                   [event.id]: { ...currentFilters, gender: e.target.value }
                                 })}
-                                className="px-3 py-2 border border-slate-200 rounded-xl bg-white font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-900/20"
+                                className="px-3 py-2 border border-stone-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-stone-400/30"
                               >
                                 <option value="All">All Genders</option>
                                 <option value="Male">Male</option>
@@ -2061,7 +2063,7 @@ export default function OrganizerDashboardPage() {
                                   ...eventFilters,
                                   [event.id]: { ...currentFilters, ageBracket: e.target.value }
                                 })}
-                                className="px-3 py-2 border border-slate-200 rounded-xl bg-white font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-900/20"
+                                className="px-3 py-2 border border-stone-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-stone-400/30"
                               >
                                 <option value="All">All Age Brackets</option>
                                 <option value="Youth (1-17)">Youth (1-17)</option>
@@ -2072,13 +2074,13 @@ export default function OrganizerDashboardPage() {
                           </div>
 
                           {filteredList.length === 0 ? (
-                            <div className="p-10 text-center text-slate-400 text-xs font-bold uppercase tracking-wider bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                            <div className="p-10 text-center text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-wider bg-stone-50/50 dark:bg-slate-800/50 rounded-xl border border-dashed border-stone-200 dark:border-slate-700">
                               {emptyText}
                             </div>
                           ) : (
-                            <div className="border border-slate-200 rounded-xl overflow-x-auto">
+                            <div className="border border-stone-200 dark:border-slate-700 rounded-xl overflow-x-auto">
                               <table className="w-full text-left text-xs">
-                                <thead className="bg-slate-50 font-bold uppercase text-[11px] text-slate-500 border-b border-slate-200">
+                                <thead className="bg-stone-50 dark:bg-slate-800 font-bold uppercase text-[11px] text-slate-500 dark:text-slate-300 border-b border-stone-200 dark:border-slate-700">
                                   <tr>
                                     {isOfficialOrAttendanceTab && <th className="p-3.5">Serial ID</th>}
                                     <th className="p-3.5">Participant Name</th>
@@ -2093,7 +2095,7 @@ export default function OrganizerDashboardPage() {
                                     {tab !== "rejected" && <th className="p-3.5 text-right">Actions</th>}
                                   </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                                <tbody className="divide-y divide-stone-100 dark:divide-slate-800 text-slate-700 dark:text-slate-200 font-medium [&>tr:hover]:!bg-stone-100/70 dark:[&>tr:hover]:!bg-slate-800">
                                   {filteredList.map((a) => {
                                     const serialId = resolveRegistrationSerial(a);
                                     const attendance = resolveAttendanceState(a);
@@ -2103,26 +2105,26 @@ export default function OrganizerDashboardPage() {
                                     return (
                                       <tr
                                         key={a.id}
-                                        className={`hover:bg-slate-50/70 transition-colors ${
-                                          refundState === "requested" ? "bg-amber-50/60" : ""
+                                        className={`transition-colors ${
+                                          refundState === "requested" ? "bg-amber-50/60 dark:bg-amber-950/30" : ""
                                         }`}
                                       >
                                         {isOfficialOrAttendanceTab && (
-                                          <td className="p-3.5 font-mono text-[11px] font-black text-blue-950 whitespace-nowrap">
+                                          <td className="p-3.5 font-mono text-[11px] font-black text-slate-900 dark:text-slate-100 whitespace-nowrap">
                                             {serialId || "—"}
                                           </td>
                                         )}
-                                        <td className="p-3.5 font-bold text-slate-900">
+                                        <td className="p-3.5 font-bold text-slate-900 dark:text-slate-100">
                                           {a.first_name} {a.last_name}
                                           {refundState === "requested" && (
-                                            <span className="block w-fit mt-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-black uppercase">
+                                            <span className="block w-fit mt-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800 text-[9px] font-black uppercase">
                                               Refund Requested
                                             </span>
                                           )}
                                           {a.team_name && (
-                                            <span className="block text-[10px] font-bold text-indigo-700 mt-0.5">
+                                            <span className="block text-[10px] font-bold text-indigo-700 dark:text-indigo-300 mt-0.5">
                                               Team: {a.team_name} ({teamMembersOf(a).length} members){" "}
-                                              <button type="button" onClick={() => setViewingTeam(a)} className="text-blue-600 hover:underline">
+                                              <button type="button" onClick={() => setViewingTeam(a)} className="text-slate-700 dark:text-slate-200 underline hover:opacity-80">
                                                 View team
                                               </button>
                                             </span>
@@ -2130,7 +2132,7 @@ export default function OrganizerDashboardPage() {
                                         </td>
                                         <td className="p-3.5">
                                           <span>{a.email}</span>
-                                          <span className="block text-[10px] text-slate-400 mt-0.5">{a.phone_number}</span>
+                                          <span className="block text-[10px] text-slate-400 dark:text-slate-400 mt-0.5">{a.phone_number}</span>
                                         </td>
                                         <td className="p-3.5 font-bold">{a.gender}</td>
                                         <td className="p-3.5 font-bold">{a.age} yrs</td>
@@ -2138,22 +2140,22 @@ export default function OrganizerDashboardPage() {
                                         <td className="p-3.5">{new Date(a.created_at).toLocaleDateString()}</td>
                                         {(showPaymentTabs || tab === "refunded") && (
                                           <td className="p-3.5">
-                                            <span className="font-bold text-slate-800">{a.payment_method || "N/A"}</span>
-                                            {a.amount_due ? <span className="text-slate-500"> {peso(a.amount_due)}</span> : null}
+                                            <span className="font-bold text-slate-800 dark:text-slate-100">{a.payment_method || "N/A"}</span>
+                                            {a.amount_due ? <span className="text-slate-500 dark:text-slate-400"> {peso(a.amount_due)}</span> : null}
                                             {a.payment_reference && (
-                                              <span className="block text-[10px] text-slate-500 mt-0.5">Ref: {a.payment_reference}</span>
+                                              <span className="block text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Ref: {a.payment_reference}</span>
                                             )}
                                             {a.payment_proof_url && (
                                               <button
                                                 type="button"
                                                 onClick={() => setViewerSrc(a.payment_proof_url)}
-                                                className="block text-[10px] font-bold text-blue-600 hover:underline mt-0.5"
+                                                className="block text-[10px] font-bold text-slate-700 dark:text-slate-200 underline hover:opacity-80 mt-0.5"
                                               >
                                                 View receipt
                                               </button>
                                             )}
                                             {refundState === "refunded" && (
-                                              <span className="block w-fit mt-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase">
+                                              <span className="block w-fit mt-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 text-[9px] font-black uppercase">
                                                 Refunded {a.refunded_at ? `• ${new Date(a.refunded_at).toLocaleDateString()}` : ""}
                                               </span>
                                             )}
@@ -2166,7 +2168,7 @@ export default function OrganizerDashboardPage() {
                                             </span>
                                           </td>
                                         )}
-                                        {tab === "rejected" && <td className="p-3.5 text-red-700">{a.rejection_reason || "-"}</td>}
+                                        {tab === "rejected" && <td className="p-3.5 text-rose-700 dark:text-rose-300">{a.rejection_reason || "-"}</td>}
                                         {tab !== "rejected" && (
                                           <td className="p-3.5 text-right whitespace-nowrap">
                                             <div className="inline-flex flex-wrap justify-end items-center gap-1.5">
@@ -2175,7 +2177,7 @@ export default function OrganizerDashboardPage() {
                                                   type="button"
                                                   onClick={() => revertRefundForAttendee(a)}
                                                   disabled={busyRegId === a.id}
-                                                  className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-60 text-slate-700 rounded-lg font-bold text-[10px] uppercase transition-all"
+                                                  className="px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 border border-stone-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 disabled:opacity-60 text-slate-700 dark:text-slate-200 rounded-lg font-bold text-[10px] uppercase transition-all"
                                                 >
                                                   Revert Refund
                                                 </button>
@@ -2184,7 +2186,7 @@ export default function OrganizerDashboardPage() {
                                                   <button
                                                     onClick={() => confirmRegistration(a)}
                                                     disabled={busyRegId === a.id}
-                                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-lg font-bold text-[10px] uppercase shadow-xs transition-all"
+                                                    className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 dark:bg-emerald-800 dark:hover:bg-emerald-700 disabled:opacity-60 text-white rounded-lg font-bold text-[10px] uppercase shadow-xs transition-all"
                                                   >
                                                     Confirm payment
                                                   </button>
@@ -2194,7 +2196,7 @@ export default function OrganizerDashboardPage() {
                                                       setRejectingReg(a);
                                                     }}
                                                     disabled={busyRegId === a.id}
-                                                    className="px-2.5 py-1.5 bg-white hover:bg-red-50 border border-red-200 text-red-600 rounded-lg font-bold text-[10px] uppercase transition-all"
+                                                    className="px-2.5 py-1.5 bg-rose-50/80 hover:bg-rose-100 border border-rose-200/80 text-rose-700 dark:bg-rose-950/40 dark:hover:bg-rose-950/70 dark:border-rose-900/60 dark:text-rose-300 rounded-lg font-bold text-[10px] uppercase transition-all"
                                                   >
                                                     Reject
                                                   </button>
@@ -2206,7 +2208,7 @@ export default function OrganizerDashboardPage() {
                                                       type="button"
                                                       onClick={() => confirmRefundForAttendee(a)}
                                                       disabled={busyRegId === a.id}
-                                                      className="px-3 py-1.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-lg font-bold text-[10px] uppercase shadow-xs transition-all"
+                                                      className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 disabled:opacity-60 rounded-lg font-bold text-[10px] uppercase shadow-xs transition-all"
                                                     >
                                                       Confirm Refund
                                                     </button>
@@ -2215,10 +2217,10 @@ export default function OrganizerDashboardPage() {
                                                     <button
                                                       onClick={() => confirmAttendeePresence(a)}
                                                       disabled={busyRegId === a.id}
-                                                      className={`px-3 py-1.5 disabled:opacity-60 text-white rounded-lg font-bold text-[10px] uppercase shadow-xs transition-all ${
+                                                      className={`px-3 py-1.5 disabled:opacity-60 rounded-lg font-bold text-[10px] uppercase shadow-xs transition-all ${
                                                         attendance === "marked"
-                                                          ? "bg-emerald-600 hover:bg-emerald-700"
-                                                          : "bg-blue-900 hover:bg-blue-800"
+                                                          ? "bg-emerald-700 hover:bg-emerald-600 text-white dark:bg-emerald-800 dark:hover:bg-emerald-700"
+                                                          : "bg-stone-700 hover:bg-stone-600 text-stone-50 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-100"
                                                       }`}
                                                     >
                                                       {attendance === "marked" ? "Confirm Check-In" : "Mark Present"}
@@ -2227,7 +2229,7 @@ export default function OrganizerDashboardPage() {
                                                     <button
                                                       onClick={() => revertAttendeePresence(a)}
                                                       disabled={busyRegId === a.id}
-                                                      className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-60 text-slate-700 rounded-lg font-bold text-[10px] uppercase transition-all"
+                                                      className="px-2.5 py-1.5 bg-stone-100 hover:bg-stone-200 border border-stone-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 disabled:opacity-60 text-slate-700 dark:text-slate-200 rounded-lg font-bold text-[10px] uppercase transition-all"
                                                     >
                                                       Undo Present
                                                     </button>
@@ -2236,7 +2238,7 @@ export default function OrganizerDashboardPage() {
                                                     <button
                                                       onClick={() => moveToPending(a)}
                                                       disabled={busyRegId === a.id}
-                                                      className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 rounded-lg font-bold text-[10px] uppercase transition-all"
+                                                      className="px-2.5 py-1.5 bg-amber-50/90 hover:bg-amber-100 border border-amber-200/80 text-amber-800 dark:bg-amber-950/40 dark:hover:bg-amber-950/70 dark:border-amber-800/60 dark:text-amber-300 rounded-lg font-bold text-[10px] uppercase transition-all"
                                                     >
                                                       Move to pending
                                                     </button>
@@ -2267,19 +2269,19 @@ export default function OrganizerDashboardPage() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Notifications & Updates</h1>
-                <p className="text-xs text-slate-500 font-semibold mt-0.5">Review decisions from the Tourism Office on your events.</p>
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Notifications & Updates</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">Review decisions from the Tourism Office on your events.</p>
               </div>
               <button
                 onClick={() => setActiveTab("overview")}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-all whitespace-nowrap self-start md:self-auto"
+                className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 border border-stone-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs transition-all whitespace-nowrap self-start md:self-auto"
               >
                 ← Overview
               </button>
             </div>
             <div className="space-y-3">
               {visibleNotifications.length === 0 && (
-                <div className="bg-white p-14 rounded-2xl border border-dashed border-slate-200 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">
+                <div className="bg-white dark:bg-slate-900 p-14 rounded-2xl border border-dashed border-stone-200 dark:border-slate-800 text-center text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-wider">
                   No notifications to display.
                 </div>
               )}
@@ -2307,7 +2309,7 @@ export default function OrganizerDashboardPage() {
                 return (
                   <div
                     key={event.id}
-                    className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm flex items-start justify-between gap-4 transition-all hover:border-slate-300"
+                    className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-stone-200/90 dark:border-slate-800 shadow-sm flex items-start justify-between gap-4 transition-all hover:border-stone-300 dark:hover:border-slate-700"
                   >
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2.5">
@@ -2315,16 +2317,16 @@ export default function OrganizerDashboardPage() {
                           {event.status || "Pending"}
                         </span>
                         {event.created_at && (
-                          <span className="text-[11px] text-slate-400 font-semibold">{new Date(event.created_at).toLocaleDateString()}</span>
+                          <span className="text-[11px] text-slate-400 dark:text-slate-400 font-semibold">{new Date(event.created_at).toLocaleDateString()}</span>
                         )}
                       </div>
-                      <p className="text-sm font-black text-slate-900">{event.event_name}</p>
-                      <p className="text-xs text-slate-600">{messages[status] || "Status updated by the Tourism Office."}</p>
+                      <p className="text-sm font-black text-slate-900 dark:text-slate-100">{event.event_name}</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300">{messages[status] || "Status updated by the Tourism Office."}</p>
                       {note && !["approved", "upcoming", "ongoing", "completed"].includes(status) && (
-                        <div className="text-xs text-purple-800 bg-purple-50/90 border border-purple-200/70 rounded-xl p-3 mt-2 space-y-1">
+                        <div className="text-xs text-purple-900 dark:text-purple-200 bg-purple-50/90 dark:bg-purple-950/40 border border-purple-200/70 dark:border-purple-800/70 rounded-xl p-3 mt-2 space-y-1">
                           <p><strong>Details / Admin note:</strong> {note}</p>
                           {actionMeta.organizer_contact_info && (
-                            <p className="text-[11px] text-blue-900 font-semibold">
+                            <p className="text-[11px] text-slate-800 dark:text-slate-200 font-semibold">
                               Tourist Support Contact: {actionMeta.organizer_contact_info}
                             </p>
                           )}
@@ -2333,7 +2335,7 @@ export default function OrganizerDashboardPage() {
                     </div>
                     <button
                       onClick={() => handleDismissNotification(event.id)}
-                      className="px-3.5 py-1.5 text-[11px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 hover:text-slate-800 rounded-xl transition-colors shrink-0 uppercase tracking-wider"
+                      className="px-3.5 py-1.5 text-[11px] font-bold text-slate-600 dark:text-slate-300 bg-stone-100 hover:bg-stone-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-colors shrink-0 uppercase tracking-wider"
                     >
                       Dismiss
                     </button>
@@ -2348,82 +2350,82 @@ export default function OrganizerDashboardPage() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Organizer Verification Profile</h1>
-                <p className="text-xs text-slate-500 font-semibold mt-0.5">Your official registered entity information.</p>
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Organizer Verification Profile</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">Your official registered entity information.</p>
               </div>
               <button
                 onClick={() => setActiveTab("overview")}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-all whitespace-nowrap self-start md:self-auto"
+                className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 border border-stone-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs transition-all whitespace-nowrap self-start md:self-auto"
               >
                 ← Overview
               </button>
             </div>
 
             <div className="max-w-2xl mx-auto py-2">
-              <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-8 text-center space-y-6">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-stone-200/90 dark:border-slate-800 shadow-sm p-8 text-center space-y-6">
                 <div className="flex flex-col items-center space-y-3">
                   {profile?.logo_url ? (
                     <img
                       src={profile.logo_url}
                       alt="Organization Logo"
-                      className="w-24 h-24 object-cover rounded-2xl shadow-md border border-slate-100"
+                      className="w-24 h-24 object-cover rounded-2xl shadow-md border border-stone-200 dark:border-slate-700"
                     />
                   ) : (
-                    <div className="w-24 h-24 rounded-2xl bg-blue-900 text-white font-black text-3xl flex items-center justify-center shadow-md uppercase">
+                    <div className="w-24 h-24 rounded-2xl bg-stone-800 text-stone-50 dark:bg-slate-700 dark:text-slate-100 font-black text-3xl flex items-center justify-center shadow-md uppercase">
                       {profile?.organization?.[0] || profile?.full_name?.[0] || "O"}
                     </div>
                   )}
                   <div>
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
                       {profile?.organization || profile?.full_name || "Organizer Profile"}
                     </h2>
-                    <p className="text-xs font-semibold text-slate-500 mt-1">{profile?.email}</p>
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">{profile?.email}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-left border-t border-slate-100 pt-6">
-                  <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Representative Full Name</p>
-                    <p className="text-sm font-bold text-slate-900 mt-1">{profile?.organizer_full_name || profile?.full_name || "Not provided"}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-left border-t border-stone-100 dark:border-slate-800 pt-6">
+                  <div className="p-4 bg-stone-50/80 dark:bg-slate-800 rounded-2xl border border-stone-200/70 dark:border-slate-700">
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Representative Full Name</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100 mt-1">{profile?.organizer_full_name || profile?.full_name || "Not provided"}</p>
                   </div>
-                  <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Contact Phone</p>
-                    <p className="text-sm font-bold text-slate-900 mt-1">{profile?.contact_number || "Not provided"}</p>
+                  <div className="p-4 bg-stone-50/80 dark:bg-slate-800 rounded-2xl border border-stone-200/70 dark:border-slate-700">
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Contact Phone</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100 mt-1">{profile?.contact_number || "Not provided"}</p>
                   </div>
-                  <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Organization Type</p>
-                    <p className="text-sm font-bold text-slate-900 mt-1">{profile?.org_type || "Not provided"}</p>
+                  <div className="p-4 bg-stone-50/80 dark:bg-slate-800 rounded-2xl border border-stone-200/70 dark:border-slate-700">
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Organization Type</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100 mt-1">{profile?.org_type || "Not provided"}</p>
                   </div>
-                  <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Office / Home Address</p>
-                    <p className="text-sm font-bold text-slate-900 mt-1">{profile?.address || "Not provided"}</p>
+                  <div className="p-4 bg-stone-50/80 dark:bg-slate-800 rounded-2xl border border-stone-200/70 dark:border-slate-700">
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">Office / Home Address</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100 mt-1">{profile?.address || "Not provided"}</p>
                   </div>
                 </div>
 
-                <div className="border-t border-slate-100 pt-6 text-left">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3.5">Verification Documents</p>
+                <div className="border-t border-stone-100 dark:border-slate-800 pt-6 text-left">
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-3.5">Verification Documents</p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
                     {profile?.business_permit_no ? (
                       <div className="space-y-1.5">
-                        <p className="text-[10px] font-bold text-slate-600 uppercase">Business Permit</p>
+                        <p className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase">Business Permit</p>
                         {profile.business_permit_no.startsWith("data:image") || profile.business_permit_no.startsWith("http") ? (
                           <button type="button" onClick={() => setViewerSrc(profile.business_permit_no)} className="w-full group">
                             <img
                               src={profile.business_permit_no}
                               alt="Business Permit"
-                              className="w-full h-24 object-cover rounded-xl border border-slate-200 shadow-xs group-hover:opacity-90 transition-opacity"
+                              className="w-full h-24 object-cover rounded-xl border border-stone-200 dark:border-slate-700 shadow-xs group-hover:opacity-90 transition-opacity"
                             />
                           </button>
                         ) : (
-                          <div className="w-full h-24 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center p-2 text-center text-xs font-bold text-slate-700 overflow-hidden break-all">
+                          <div className="w-full h-24 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl flex items-center justify-center p-2 text-center text-xs font-bold text-slate-700 dark:text-slate-200 overflow-hidden break-all">
                             {profile.business_permit_no}
                           </div>
                         )}
                       </div>
                     ) : (
                       <div className="space-y-1.5 opacity-55">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Business Permit</p>
-                        <div className="w-full h-24 bg-slate-50 border border-slate-200 border-dashed rounded-xl flex items-center justify-center text-[10px] font-bold text-slate-400 uppercase">
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Business Permit</p>
+                        <div className="w-full h-24 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 border-dashed rounded-xl flex items-center justify-center text-[10px] font-bold text-slate-400 uppercase">
                           N/A
                         </div>
                       </div>
@@ -2431,25 +2433,25 @@ export default function OrganizerDashboardPage() {
 
                     {profile?.bir_tin ? (
                       <div className="space-y-1.5">
-                        <p className="text-[10px] font-bold text-slate-600 uppercase">BIR TIN</p>
+                        <p className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase">BIR TIN</p>
                         {profile.bir_tin.startsWith("data:image") || profile.bir_tin.startsWith("http") ? (
                           <button type="button" onClick={() => setViewerSrc(profile.bir_tin)} className="w-full group">
                             <img
                               src={profile.bir_tin}
                               alt="BIR TIN"
-                              className="w-full h-24 object-cover rounded-xl border border-slate-200 shadow-xs group-hover:opacity-90 transition-opacity"
+                              className="w-full h-24 object-cover rounded-xl border border-stone-200 dark:border-slate-700 shadow-xs group-hover:opacity-90 transition-opacity"
                             />
                           </button>
                         ) : (
-                          <div className="w-full h-24 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center p-2 text-center text-xs font-bold text-slate-700 overflow-hidden break-all">
+                          <div className="w-full h-24 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl flex items-center justify-center p-2 text-center text-xs font-bold text-slate-700 dark:text-slate-200 overflow-hidden break-all">
                             {profile.bir_tin}
                           </div>
                         )}
                       </div>
                     ) : (
                       <div className="space-y-1.5 opacity-55">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">BIR TIN</p>
-                        <div className="w-full h-24 bg-slate-50 border border-slate-200 border-dashed rounded-xl flex items-center justify-center text-[10px] font-bold text-slate-400 uppercase">
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">BIR TIN</p>
+                        <div className="w-full h-24 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 border-dashed rounded-xl flex items-center justify-center text-[10px] font-bold text-slate-400 uppercase">
                           N/A
                         </div>
                       </div>
@@ -2457,25 +2459,25 @@ export default function OrganizerDashboardPage() {
 
                     {profile?.dti_sec_reg ? (
                       <div className="space-y-1.5">
-                        <p className="text-[10px] font-bold text-slate-600 uppercase">DTI / SEC</p>
+                        <p className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase">DTI / SEC</p>
                         {profile.dti_sec_reg.startsWith("data:image") || profile.dti_sec_reg.startsWith("http") ? (
                           <button type="button" onClick={() => setViewerSrc(profile.dti_sec_reg)} className="w-full group">
                             <img
                               src={profile.dti_sec_reg}
                               alt="DTI SEC Reg"
-                              className="w-full h-24 object-cover rounded-xl border border-slate-200 shadow-xs group-hover:opacity-90 transition-opacity"
+                              className="w-full h-24 object-cover rounded-xl border border-stone-200 dark:border-slate-700 shadow-xs group-hover:opacity-90 transition-opacity"
                             />
                           </button>
                         ) : (
-                          <div className="w-full h-24 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center p-2 text-center text-xs font-bold text-slate-700 overflow-hidden break-all">
+                          <div className="w-full h-24 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl flex items-center justify-center p-2 text-center text-xs font-bold text-slate-700 dark:text-slate-200 overflow-hidden break-all">
                             {profile.dti_sec_reg}
                           </div>
                         )}
                       </div>
                     ) : (
                       <div className="space-y-1.5 opacity-55">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">DTI / SEC</p>
-                        <div className="w-full h-24 bg-slate-50 border border-slate-200 border-dashed rounded-xl flex items-center justify-center text-[10px] font-bold text-slate-400 uppercase">
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">DTI / SEC</p>
+                        <div className="w-full h-24 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 border-dashed rounded-xl flex items-center justify-center text-[10px] font-bold text-slate-400 uppercase">
                           N/A
                         </div>
                       </div>
@@ -2483,19 +2485,19 @@ export default function OrganizerDashboardPage() {
 
                     {profile?.valid_id_url ? (
                       <div className="space-y-1.5">
-                        <p className="text-[10px] font-bold text-slate-600 uppercase">Valid ID</p>
+                        <p className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase">Valid ID</p>
                         <button type="button" onClick={() => setViewerSrc(profile.valid_id_url)} className="w-full group">
                           <img
                             src={profile.valid_id_url}
                             alt="Valid ID"
-                            className="w-full h-24 object-cover rounded-xl border border-slate-200 shadow-xs group-hover:opacity-90 transition-opacity"
+                            className="w-full h-24 object-cover rounded-xl border border-stone-200 dark:border-slate-700 shadow-xs group-hover:opacity-90 transition-opacity"
                           />
                         </button>
                       </div>
                     ) : (
                       <div className="space-y-1.5 opacity-55">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Valid ID</p>
-                        <div className="w-full h-24 bg-slate-50 border border-slate-200 border-dashed rounded-xl flex items-center justify-center text-[10px] font-bold text-slate-400 uppercase">
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Valid ID</p>
+                        <div className="w-full h-24 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 border-dashed rounded-xl flex items-center justify-center text-[10px] font-bold text-slate-400 uppercase">
                           N/A
                         </div>
                       </div>
@@ -2511,34 +2513,34 @@ export default function OrganizerDashboardPage() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">Account & Security Settings</h1>
-                <p className="text-xs text-slate-500 font-semibold mt-0.5">Manage your organizer login credentials.</p>
+                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Account & Security Settings</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold mt-0.5">Manage your organizer login credentials.</p>
               </div>
               <button
                 onClick={() => setActiveTab("overview")}
-                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-all whitespace-nowrap self-start md:self-auto"
+                className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 border border-stone-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs transition-all whitespace-nowrap self-start md:self-auto"
               >
                 ← Overview
               </button>
             </div>
-            <div className="bg-white p-8 rounded-3xl border border-slate-200/90 max-w-md space-y-5 text-xs font-semibold shadow-sm">
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-stone-200/90 dark:border-slate-800 max-w-md space-y-5 text-xs font-semibold shadow-sm">
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Registered Email</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Registered Email</label>
                 <input
                   type="email"
                   disabled
                   value={newEmail}
-                  className="w-full p-3.5 bg-slate-100 border border-slate-200/70 rounded-xl font-bold text-slate-600 cursor-not-allowed"
+                  className="w-full p-3.5 bg-stone-100 dark:bg-slate-800/80 border border-stone-200/70 dark:border-slate-700 rounded-xl font-bold text-slate-600 dark:text-slate-400 cursor-not-allowed"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">New Password</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">New Password</label>
                 <input
                   type="password"
                   placeholder="••••••••"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                  className="w-full p-3.5 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-400/30 transition-all"
                 />
               </div>
               <button
@@ -2553,7 +2555,7 @@ export default function OrganizerDashboardPage() {
                     setTimeout(() => setPwSaved(false), 2000);
                   }
                 }}
-                className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold uppercase tracking-wider shadow-sm transition-all"
+                className="w-full py-3.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold uppercase tracking-wider shadow-sm transition-all"
               >
                 {pwSaved ? "Saved ✓" : "Save Account Settings"}
               </button>
@@ -2563,24 +2565,24 @@ export default function OrganizerDashboardPage() {
       </DashboardShell>
 
       {calendarSelectedEvent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto border border-slate-100 text-xs font-semibold">
-            <div className="flex justify-between items-start gap-4 border-b border-slate-100 pb-4">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto border border-stone-100 dark:border-slate-800 text-xs font-semibold">
+            <div className="flex justify-between items-start gap-4 border-b border-stone-100 dark:border-slate-800 pb-4">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase ${statusBadge(calendarSelectedEvent.status)}`}>
                     {calendarSelectedEvent.status || "Official"}
                   </span>
-                  <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase bg-slate-100 text-slate-600">
+                  <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase bg-stone-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                     {REG_TYPE_LABEL[regTypeOf(calendarSelectedEvent)]}
                   </span>
                 </div>
-                <h3 className="text-lg font-black text-slate-900 mt-2">{calendarSelectedEvent.event_name}</h3>
+                <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 mt-2">{calendarSelectedEvent.event_name}</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setCalendarSelectedEvent(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold whitespace-nowrap transition-colors"
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold whitespace-nowrap transition-colors"
               >
                 Close
               </button>
@@ -2590,15 +2592,15 @@ export default function OrganizerDashboardPage() {
               <ImageCarousel
                 images={getImageList(calendarSelectedEvent.image_url)}
                 onPreview={setViewerSrc}
-                className="w-full h-44 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200"
+                className="w-full h-44 rounded-2xl overflow-hidden bg-stone-100 dark:bg-slate-800 border border-stone-200 dark:border-slate-700"
               />
             )}
 
-            <p className="text-slate-600 leading-relaxed whitespace-pre-line">
+            <p className="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
               {calendarSelectedEvent.description || "No description provided."}
             </p>
 
-            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-1.5 text-slate-700">
+            <div className="bg-stone-50 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700 rounded-2xl p-4 space-y-1.5 text-slate-700 dark:text-slate-200 [&_strong]:text-slate-900 dark:[&_strong]:text-white">
               <p><strong>Organizer:</strong> {calendarSelectedEvent.organizer_name || "Municipal Tourism"}</p>
               <p><strong>Venue:</strong> {calendarSelectedEvent.venue || "TBA"}</p>
               <p>
@@ -2615,16 +2617,16 @@ export default function OrganizerDashboardPage() {
       )}
 
       {viewingTeam && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl max-w-3xl w-full p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto border border-slate-100">
-            <div className="flex justify-between items-start gap-4 border-b border-slate-100 pb-4">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-3xl w-full p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto border border-stone-100 dark:border-slate-800">
+            <div className="flex justify-between items-start gap-4 border-b border-stone-100 dark:border-slate-800 pb-4">
               <div>
-                <h3 className="text-lg font-black text-slate-900 uppercase">Team details</h3>
-                <p className="text-xs text-slate-500 font-medium">Everything this team submitted when it registered.</p>
+                <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 uppercase">Team details</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Everything this team submitted when it registered.</p>
               </div>
               <button
                 onClick={() => setViewingTeam(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold whitespace-nowrap transition-colors"
+                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold whitespace-nowrap transition-colors"
               >
                 Close
               </button>
@@ -2638,15 +2640,15 @@ export default function OrganizerDashboardPage() {
       {feedbackUI}
 
       {requirementsEvent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto border border-slate-100">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-8 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto border border-stone-100 dark:border-slate-800">
             <div>
-              <span className="text-[10px] font-black text-teal-800 bg-teal-100 px-3 py-1 rounded-full uppercase tracking-wider">
+              <span className="text-[10px] font-black text-teal-800 dark:text-teal-300 bg-teal-100 dark:bg-teal-950/70 px-3 py-1 rounded-full uppercase tracking-wider">
                 Requirements
               </span>
-              <h2 className="text-xl font-black text-slate-900 mt-2.5">Send documents for "{requirementsEvent.event_name}"</h2>
+              <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 mt-2.5">Send documents for "{requirementsEvent.event_name}"</h2>
               {requirementsEvent.approval_instructions && (
-                <p className="text-xs text-teal-900 bg-teal-50 border border-teal-100 rounded-xl p-3.5 mt-3 font-medium whitespace-pre-line">
+                <p className="text-xs text-teal-900 dark:text-teal-200 bg-teal-50 dark:bg-teal-950/40 border border-teal-100 dark:border-teal-900/60 rounded-xl p-3.5 mt-3 font-medium whitespace-pre-line">
                   <strong>Tourism Office instructions:</strong> {requirementsEvent.approval_instructions}
                 </p>
               )}
@@ -2654,22 +2656,22 @@ export default function OrganizerDashboardPage() {
 
             <form onSubmit={handleSubmitRequirements} className="space-y-4 text-xs font-semibold">
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Your Statement</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Your Statement</label>
                 <textarea
                   rows="4"
                   placeholder="e.g. Attached is the approval letter stamped by the Municipal Hall, together with our mayor's permit."
                   value={reqNote}
                   onChange={(e) => setReqNote(e.target.value)}
-                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:bg-white transition-all"
+                  className="w-full p-3.5 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500/30 transition-all"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Documents / Photos</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Documents / Photos</label>
                 <FilePicker files={reqFiles} onChange={setReqFiles} label="Attach files" hint="PDF, Word, Excel, images - up to 10MB each" />
               </div>
               {Array.isArray(requirementsEvent.requirement_files) && requirementsEvent.requirement_files.length > 0 && (
                 <div className="space-y-1.5 pt-1">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Already sent (kept)</p>
+                  <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Already sent (kept)</p>
                   <AttachmentList files={requirementsEvent.requirement_files} onPreview={setViewerSrc} />
                 </div>
               )}
@@ -2678,7 +2680,7 @@ export default function OrganizerDashboardPage() {
                 <button
                   type="submit"
                   disabled={reqSaving}
-                  className="w-full py-3.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
+                  className="w-full py-3.5 bg-teal-700 hover:bg-teal-600 dark:bg-teal-800 dark:hover:bg-teal-700 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
                 >
                   {reqSaving ? "Uploading & sending..." : "Send to Tourism Office"}
                 </button>
@@ -2686,7 +2688,7 @@ export default function OrganizerDashboardPage() {
                   type="button"
                   onClick={() => setRequirementsEvent(null)}
                   disabled={reqSaving}
-                  className="px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all whitespace-nowrap"
+                  className="px-5 py-3.5 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold transition-all whitespace-nowrap"
                 >
                   ← Back
                 </button>
@@ -2697,16 +2699,16 @@ export default function OrganizerDashboardPage() {
       )}
 
       {rejectingReg && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-5 border border-slate-100">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-5 border border-stone-100 dark:border-slate-800">
             <div>
-              <span className="text-[10px] font-black text-red-700 bg-red-100 px-3 py-1 rounded-full uppercase tracking-wider">
+              <span className="text-[10px] font-black text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-950/70 px-3 py-1 rounded-full uppercase tracking-wider">
                 Reject Registration
               </span>
-              <h2 className="text-lg font-black text-slate-900 mt-2.5">
+              <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 mt-2.5">
                 {rejectingReg.first_name} {rejectingReg.last_name}
               </h2>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 The participant will see your reason and must resubmit their registration (and payment details).
               </p>
             </div>
@@ -2717,20 +2719,20 @@ export default function OrganizerDashboardPage() {
                 placeholder="e.g. We could not find your GCash payment. Please resubmit with the correct reference number."
                 value={rejectRegReason}
                 onChange={(e) => setRejectRegReason(e.target.value)}
-                className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:bg-white transition-all"
+                className="w-full p-3.5 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500/30 transition-all"
               />
               <div className="flex gap-3">
                 <button
                   type="submit"
                   disabled={busyRegId === rejectingReg.id}
-                  className="w-full py-3.5 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
+                  className="w-full py-3.5 bg-rose-700 hover:bg-rose-600 dark:bg-rose-800 dark:hover:bg-rose-700 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
                 >
                   Reject registration
                 </button>
                 <button
                   type="button"
                   onClick={() => setRejectingReg(null)}
-                  className="px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all whitespace-nowrap"
+                  className="px-5 py-3.5 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold transition-all whitespace-nowrap"
                 >
                   ← Back
                 </button>
@@ -2743,14 +2745,14 @@ export default function OrganizerDashboardPage() {
       {editingEvent && (() => {
         const modalDuplicates = findDuplicateEvents(editingEvent, allEvents);
         return (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-3xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100">
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-stone-100 dark:border-slate-800">
               <div className="p-8 pb-4 flex-shrink-0">
-                <span className="text-[10px] font-black text-blue-900 bg-blue-100 px-3 py-1 rounded-full uppercase tracking-wider">
+                <span className="text-[10px] font-black text-slate-700 dark:text-slate-200 bg-stone-100 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700 px-3 py-1 rounded-full uppercase tracking-wider">
                   Event Revision Form
                 </span>
-                <h2 className="text-2xl font-black text-slate-900 mt-2.5">Edit Event Details</h2>
-                <p className="text-xs text-slate-500 mt-1">
+                <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100 mt-2.5">Edit Event Details</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   Updating image, description, or schedule will resubmit your event for review.
                 </p>
               </div>
@@ -2758,8 +2760,8 @@ export default function OrganizerDashboardPage() {
               <form onSubmit={handleSaveEventEdit} className="flex flex-col flex-1 overflow-hidden">
                 <div className="p-8 pt-2 overflow-y-auto space-y-4 text-xs font-semibold flex-1">
                   {modalDuplicates.length > 0 && (
-                    <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                    <div className="bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300/80 dark:border-amber-800/70 rounded-xl p-3 text-xs text-amber-950 dark:text-amber-200 space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
                         Warning: Existing Matching Event Detected ({modalDuplicates.length})
                       </p>
                       <p className="font-medium">
@@ -2773,44 +2775,44 @@ export default function OrganizerDashboardPage() {
                   )}
 
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Event Photos / Banner</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Event Photos / Banner</label>
                     <FilePicker files={editFiles} onChange={setEditFiles} label="Add more photos" hint="Upload event banners or pictures" />
                     {getImageList(editingEvent.image_url).length > 0 && (
                       <div className="mt-3">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Current Photos</p>
-                        <ImageCarousel images={getImageList(editingEvent.image_url)} onPreview={setViewerSrc} className="w-full h-32 rounded-xl overflow-hidden bg-slate-100 border border-slate-200" />
+                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-2">Current Photos</p>
+                        <ImageCarousel images={getImageList(editingEvent.image_url)} onPreview={setViewerSrc} className="w-full h-32 rounded-xl overflow-hidden bg-stone-100 dark:bg-slate-800 border border-stone-200 dark:border-slate-700" />
                       </div>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Description</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Description</label>
                     <textarea
                       rows="3"
                       value={editingEvent.description || ""}
                       onChange={(e) => setEditingEvent({ ...editingEvent, description: e.target.value })}
-                      className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                      className="w-full p-3.5 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-400/30 transition-all"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Proposed Date *</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Proposed Date *</label>
                       <input
                         type="date"
                         required
                         value={editingEvent.event_date || ""}
                         onChange={(e) => setEditingEvent({ ...editingEvent, event_date: e.target.value })}
-                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                        className="w-full p-3.5 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-400/30 transition-all"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">End Date (optional)</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">End Date (optional)</label>
                       <input
                         type="date"
                         value={editingEvent.event_end_date || ""}
                         onChange={(e) => setEditingEvent({ ...editingEvent, event_end_date: e.target.value })}
-                        className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                        className="w-full p-3.5 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-400/30 transition-all"
                       />
                     </div>
                   </div>
@@ -2831,11 +2833,11 @@ export default function OrganizerDashboardPage() {
                   </div>
                 </div>
 
-                <div className="p-8 pt-4 bg-white border-t border-slate-100 flex gap-3 flex-shrink-0">
+                <div className="p-8 pt-4 bg-white dark:bg-slate-900 border-t border-stone-100 dark:border-slate-800 flex gap-3 flex-shrink-0">
                   <button
                     type="submit"
                     disabled={editSaving}
-                    className="w-full py-3.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
+                    className="w-full py-3.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 disabled:opacity-60 rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
                   >
                     {editSaving ? "Saving & Resubmitting..." : "Save & Resubmit"}
                   </button>
@@ -2843,7 +2845,7 @@ export default function OrganizerDashboardPage() {
                     type="button"
                     onClick={() => setEditingEvent(null)}
                     disabled={editSaving}
-                    className="px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all whitespace-nowrap"
+                    className="px-5 py-3.5 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold transition-all whitespace-nowrap"
                   >
                     ← Back
                   </button>
@@ -2855,35 +2857,35 @@ export default function OrganizerDashboardPage() {
       })()}
 
       {cancelingEvent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6 border border-slate-100 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6 border border-stone-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
             <div>
-              <span className="text-[10px] font-black text-red-700 bg-red-100 px-3 py-1 rounded-full uppercase tracking-wider">
+              <span className="text-[10px] font-black text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-950/70 px-3 py-1 rounded-full uppercase tracking-wider">
                 Event Cancellation
               </span>
-              <h2 className="text-xl font-black text-slate-900 mt-2.5">
+              <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 mt-2.5">
                 Request Cancellation for "{cancelingEvent.event_name}"
               </h2>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 Provide your reason and contact information so registered tourists can reach out to you for refunds or inquiries. This request awaits admin approval.
               </p>
             </div>
 
             <form onSubmit={handleRequestCancellation} className="space-y-4 text-xs font-semibold">
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Cancellation Reason *</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Cancellation Reason *</label>
                 <textarea
                   rows="3"
                   required
                   placeholder="State why this approved event must be cancelled..."
                   value={cancellationReason}
                   onChange={(e) => setCancellationReason(e.target.value)}
-                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:bg-white transition-all"
+                  className="w-full p-3.5 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500/30 transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
                   Organizer Contact Information for Refunds & Inquiries *
                 </label>
                 <textarea
@@ -2892,9 +2894,9 @@ export default function OrganizerDashboardPage() {
                   placeholder="e.g. Mobile: 0917 123 4567 | Email: organizer@email.com | Messenger / Page: @DaetEvents"
                   value={cancellationContact}
                   onChange={(e) => setCancellationContact(e.target.value)}
-                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                  className="w-full p-3.5 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-400/30 transition-all"
                 />
-                <p className="text-[11px] text-slate-400 font-medium mt-1">
+                <p className="text-[11px] text-slate-400 dark:text-slate-400 font-medium mt-1">
                   Tourists will see this contact information alongside their Serial ID to request a refund.
                 </p>
               </div>
@@ -2903,7 +2905,7 @@ export default function OrganizerDashboardPage() {
                 <button
                   type="submit"
                   disabled={submittingAction}
-                  className="w-full py-3.5 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
+                  className="w-full py-3.5 bg-rose-700 hover:bg-rose-600 dark:bg-rose-800 dark:hover:bg-rose-700 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
                 >
                   {submittingAction ? "Submitting..." : "Submit Request"}
                 </button>
@@ -2915,7 +2917,7 @@ export default function OrganizerDashboardPage() {
                     setCancellationReason("");
                     setCancellationContact("");
                   }}
-                  className="px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all whitespace-nowrap"
+                  className="px-5 py-3.5 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold transition-all whitespace-nowrap"
                 >
                   ← Back
                 </button>
@@ -2926,16 +2928,16 @@ export default function OrganizerDashboardPage() {
       )}
 
       {reschedulingEvent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl space-y-5 border border-slate-100 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-8 shadow-2xl space-y-5 border border-stone-100 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
             <div>
-              <span className="text-[10px] font-black text-blue-900 bg-blue-100 px-3 py-1 rounded-full uppercase tracking-wider">
+              <span className="text-[10px] font-black text-slate-700 dark:text-slate-200 bg-stone-100 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700 px-3 py-1 rounded-full uppercase tracking-wider">
                 Event Rescheduling
               </span>
-              <h2 className="text-xl font-black text-slate-900 mt-2.5">
+              <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 mt-2.5">
                 Request Rescheduling for "{reschedulingEvent.event_name}"
               </h2>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 Submit your proposed new schedule, reason, and contact details for admin approval. Once approved, joined tourists will be notified and can choose to continue or request a refund.
               </p>
             </div>
@@ -2943,22 +2945,22 @@ export default function OrganizerDashboardPage() {
             <form onSubmit={handleRequestReschedule} className="space-y-4 text-xs font-semibold">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Proposed New Start Date *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Proposed New Start Date *</label>
                   <input
                     type="date"
                     required
                     value={rescheduleDate}
                     onChange={(e) => setRescheduleDate(e.target.value)}
-                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                    className="w-full p-3.5 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-400/30 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">New End Date (optional)</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">New End Date (optional)</label>
                   <input
                     type="date"
                     value={rescheduleEndDate}
                     onChange={(e) => setRescheduleEndDate(e.target.value)}
-                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                    className="w-full p-3.5 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-400/30 transition-all"
                   />
                 </div>
               </div>
@@ -2979,19 +2981,19 @@ export default function OrganizerDashboardPage() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Reason for Rescheduling *</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Reason for Rescheduling *</label>
                 <textarea
                   rows="3"
                   required
                   placeholder="Explain why the event is being rescheduled (tourists will see this explanation once approved)..."
                   value={rescheduleReason}
                   onChange={(e) => setRescheduleReason(e.target.value)}
-                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                  className="w-full p-3.5 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-400/30 transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
                   Organizer Contact Information for Refund Requests *
                 </label>
                 <textarea
@@ -3000,9 +3002,9 @@ export default function OrganizerDashboardPage() {
                   placeholder="e.g. Mobile: 0917 123 4567 | Email: organizer@email.com | Messenger / Page: @DaetEvents"
                   value={rescheduleContact}
                   onChange={(e) => setRescheduleContact(e.target.value)}
-                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                  className="w-full p-3.5 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-400/30 transition-all"
                 />
-                <p className="text-[11px] text-slate-400 font-medium mt-1">
+                <p className="text-[11px] text-slate-400 dark:text-slate-400 font-medium mt-1">
                   Tourists who opt out of the rescheduled date will contact you here with their Serial ID to request a refund.
                 </p>
               </div>
@@ -3011,7 +3013,7 @@ export default function OrganizerDashboardPage() {
                 <button
                   type="submit"
                   disabled={submittingAction}
-                  className="w-full py-3.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
+                  className="w-full py-3.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 disabled:opacity-60 rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
                 >
                   {submittingAction ? "Submitting..." : "Submit Reschedule Request"}
                 </button>
@@ -3023,7 +3025,7 @@ export default function OrganizerDashboardPage() {
                     setRescheduleReason("");
                     setRescheduleContact("");
                   }}
-                  className="px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all whitespace-nowrap"
+                  className="px-5 py-3.5 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold transition-all whitespace-nowrap"
                 >
                   ← Back
                 </button>
@@ -3034,21 +3036,21 @@ export default function OrganizerDashboardPage() {
       )}
 
       {editingContactEvent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-5 border border-slate-100">
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-5 border border-stone-100 dark:border-slate-800">
             <div>
-              <span className="text-[10px] font-black text-blue-900 bg-blue-100 px-3 py-1 rounded-full uppercase tracking-wider">
+              <span className="text-[10px] font-black text-slate-700 dark:text-slate-200 bg-stone-100 dark:bg-slate-800 border border-stone-200/80 dark:border-slate-700 px-3 py-1 rounded-full uppercase tracking-wider">
                 Tourist Refund & Support Contact
               </span>
-              <h2 className="text-xl font-black text-slate-900 mt-2.5">{editingContactEvent.event_name}</h2>
-              <p className="text-xs text-slate-500 mt-1">
+              <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 mt-2.5">{editingContactEvent.event_name}</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 Provide or update the contact details shown to joined tourists who wish to request a refund or inquire about schedule changes.
               </p>
             </div>
 
             <form onSubmit={handleSaveOrganizerContact} className="space-y-4 text-xs font-semibold">
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
                   Organizer Contact Details *
                 </label>
                 <textarea
@@ -3057,7 +3059,7 @@ export default function OrganizerDashboardPage() {
                   placeholder="e.g. Mobile: 0917 123 4567 | Email: organizer@email.com | Messenger / Page: @DaetEvents"
                   value={contactEditValue}
                   onChange={(e) => setContactEditValue(e.target.value)}
-                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900/20 focus:bg-white transition-all"
+                  className="w-full p-3.5 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-400/30 transition-all"
                 />
               </div>
 
@@ -3065,7 +3067,7 @@ export default function OrganizerDashboardPage() {
                 <button
                   type="submit"
                   disabled={submittingAction}
-                  className="w-full py-3.5 bg-blue-900 hover:bg-blue-800 disabled:opacity-60 text-white rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
+                  className="w-full py-3.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 disabled:opacity-60 rounded-xl font-bold uppercase tracking-wider transition-all shadow-sm"
                 >
                   {submittingAction ? "Saving..." : "Save Contact Info"}
                 </button>
@@ -3073,7 +3075,7 @@ export default function OrganizerDashboardPage() {
                   type="button"
                   disabled={submittingAction}
                   onClick={() => setEditingContactEvent(null)}
-                  className="px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-all whitespace-nowrap"
+                  className="px-5 py-3.5 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold transition-all whitespace-nowrap"
                 >
                   ← Back
                 </button>

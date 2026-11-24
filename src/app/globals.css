@@ -1,26 +1,100 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fafaf9;
+  --foreground: #1e293b;
+  --surface: #ffffff;
+  --surface-muted: #f5f5f4;
+  --border-subtle: #e7e5e4;
+}
+
+:root.dark {
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+  --surface: #1e293b;
+  --surface-muted: #162032;
+  --border-subtle: #334155;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border-subtle: var(--border-subtle);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.dark .daet-ui {
+  color: #e2e8f0;
+}
+
+html.dark .daet-ui .dash-pagehead h1 {
+  color: #f1f5f9;
+}
+
+html.dark .daet-ui .dash-pagehead p {
+  color: #94a3b8;
+}
+
+html.dark .daet-ui .dash-stat {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark .daet-ui .dash-stat-label {
+  color: #94a3b8 !important;
+}
+
+html.dark .daet-ui .dash-stat-value {
+  color: #f8fafc !important;
+}
+
+html.dark .daet-ui table {
+  color: #e2e8f0;
+}
+
+html.dark .daet-ui table thead,
+html.dark .daet-ui table thead tr,
+html.dark .daet-ui table th {
+  background-color: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-color: #334155 !important;
+}
+
+html.dark .daet-ui table tbody tr,
+html.dark .daet-ui table tbody td {
+  background-color: transparent;
+  color: #e2e8f0;
+  border-color: #1e293b !important;
+}
+
+html.dark .daet-ui table tbody tr:hover,
+html.dark .daet-ui table tbody tr:hover td {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+html.dark .daet-ui p strong,
+html.dark .daet-ui dd strong,
+html.dark .daet-ui li strong {
+  color: #f8fafc;
+}
+
+html.dark .daet-ui input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+html.dark .daet-ui select,
+html.dark .daet-ui textarea {
+  background-color: #1e293b;
+  color: #f1f5f9;
+  border-color: #334155;
 }
