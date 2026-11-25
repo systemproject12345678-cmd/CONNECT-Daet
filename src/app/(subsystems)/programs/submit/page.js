@@ -112,6 +112,9 @@ export default function SubmitProposalPage() {
   const [feeAmount, setFeeAmount] = useState("");
   const [cashDetails, setCashDetails] = useState("");
   const [onlineDetails, setOnlineDetails] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [bankAccountName, setBankAccountName] = useState("");
+  const [bankAccountNumber, setBankAccountNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const [sessionUser, setSessionUser] = useState(null);
@@ -198,10 +201,21 @@ export default function SubmitProposalPage() {
       if (!(parseInt(maxSlots, 10) >= 1)) return notify("Please set the total number of team spots available for registration.");
     }
 
+    const trimmedBankName = bankName.trim();
+    const trimmedBankAccountName = bankAccountName.trim();
+    const trimmedBankAccountNumber = bankAccountNumber.trim();
+    const hasAnyBank = Boolean(trimmedBankName || trimmedBankAccountName || trimmedBankAccountNumber);
+    const hasCompleteBank = Boolean(trimmedBankName && trimmedBankAccountName && trimmedBankAccountNumber);
+
     if (paidEvent) {
       if (!(parseFloat(feeAmount) > 0)) return notify("Please enter the registration fee for this paid event.");
       if (!cashDetails.trim()) return notify("Please state where tourists should hand over their cash payment.");
-      if (!onlineDetails.trim()) return notify("Please add the online payment details (for example your GCash number or bank account).");
+      if (hasAnyBank && !hasCompleteBank) {
+        return notify("Please complete Bank Name, Account Name, and Account Number for Bank Payment.");
+      }
+      if (!onlineDetails.trim() && !hasCompleteBank) {
+        return notify("Please add the online payment details (for example your GCash number) or complete the bank payment details.");
+      }
     }
 
     if (duplicateWarnings.length > 0) {
@@ -236,6 +250,14 @@ export default function SubmitProposalPage() {
 
       const generatedSerial = generateProposalSerial(eventDate);
 
+      const bankPaymentBlock = hasCompleteBank
+        ? `Bank Payment — Bank: ${trimmedBankName} | Account Name: ${trimmedBankAccountName} | Account Number: ${trimmedBankAccountNumber}`
+        : "";
+
+      const combinedOnlineDetails = paidEvent
+        ? [onlineDetails.trim(), bankPaymentBlock].filter(Boolean).join("\n")
+        : null;
+
       const basePayload = {
         event_name: eventName.trim(),
         organizer_name: organizerName.trim(),
@@ -255,7 +277,7 @@ export default function SubmitProposalPage() {
         is_paid: paidEvent,
         fee_amount: paidEvent ? parseFloat(feeAmount) : null,
         cash_payment_details: paidEvent ? cashDetails.trim() : null,
-        online_payment_details: paidEvent ? onlineDetails.trim() : null,
+        online_payment_details: combinedOnlineDetails,
       };
 
       const fullPayload = {
@@ -326,6 +348,9 @@ export default function SubmitProposalPage() {
       setFeeAmount("");
       setCashDetails("");
       setOnlineDetails("");
+      setBankName("");
+      setBankAccountName("");
+      setBankAccountNumber("");
     } catch (err) {
       console.error("Proposal submission error:", err);
       notify("Error submitting proposal: " + (err.message || "Unknown error"));
@@ -561,7 +586,7 @@ export default function SubmitProposalPage() {
                           (match.end_date || match.event_end_date) !== (match.event_date || match.date)
                             ? ` – ${formatDisplayDate(match.end_date || match.event_end_date)}`
                             : ""}{" "}
-                          • {match.venue || "TBA"} • By {match.organizer_name || "Organizer"}
+- {match.venue || "TBA"} • By {match.organizer_name || "Organizer"}
                         </p>
                         <p className="text-[10px] font-bold text-amber-800 uppercase">
                           {match.matchReasons.join(" • ")}
@@ -751,7 +776,7 @@ export default function SubmitProposalPage() {
 
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                        Online Payment: how should tourists pay? *
+                        Online Payment: how should tourists pay?
                       </label>
                       <textarea
                         rows={2}
@@ -760,6 +785,58 @@ export default function SubmitProposalPage() {
                         onChange={(e) => setOnlineDetails(e.target.value)}
                         className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
                       />
+                    </div>
+
+                    <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                          Bank Payment (Bank Transfer Details)
+                        </label>
+                        <p className="text-[11px] text-gray-400 font-medium mt-0.5">
+                          Provide your bank account details below so tourists can pay via bank transfer in the participation form.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                            Bank Name
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Example: BPI, BDO, LANDBANK"
+                            value={bankName}
+                            onChange={(e) => setBankName(e.target.value)}
+                            className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                            Account Name
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Juan Dela Cruz"
+                            value={bankAccountName}
+                            onChange={(e) => setBankAccountName(e.target.value)}
+                            className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                            Account Number
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 1234-5678-90"
+                            value={bankAccountNumber}
+                            onChange={(e) => setBankAccountNumber(e.target.value)}
+                            className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}

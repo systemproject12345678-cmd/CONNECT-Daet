@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -29,12 +29,34 @@ const DEFAULT_EVENT_IMAGE =
 const PUBLIC_STATUSES = ["approved", "upcoming", "ongoing", "completed", "cancellation requested", "rescheduled"];
 const norm = (s) => (typeof s === "string" || typeof s === "number" ? String(s).trim().toLowerCase() : "");
 
+const readCachedRole = (userId) => {
+  if (!userId || typeof window === "undefined") return "";
+  try {
+    return norm(window.sessionStorage.getItem(`daet:role:${userId}`));
+  } catch {
+    return "";
+  }
+};
+
+const writeCachedRole = (userId, role) => {
+  if (!userId || typeof window === "undefined") return;
+  try {
+    if (role) {
+      window.sessionStorage.setItem(`daet:role:${userId}`, norm(role));
+    } else {
+      window.sessionStorage.removeItem(`daet:role:${userId}`);
+    }
+  } catch {
+  }
+};
+
 const resolveRegistrationSerial = (r) => {
   if (!r) return "";
   if (r.serial_id) return String(r.serial_id).trim().toUpperCase();
   if (r.ticket_serial) return String(r.ticket_serial).trim().toUpperCase();
   if (r.serial_number) return String(r.serial_number).trim().toUpperCase();
-  if (norm(r.registration_status) === "confirmed" && r.id != null) {
+  const st = norm(r.registration_status);
+  if ((st === "confirmed" || st === "approved") && r.id != null) {
     const evPart = String(r.event_id || "0").replace(/[^a-zA-Z0-9]/g, "").slice(0, 4).toUpperCase() || "EV";
     const idPart = String(r.id).replace(/[^a-zA-Z0-9]/g, "").slice(-6).toUpperCase().padStart(6, "0");
     return `DAET-${evPart}-${idPart}`;
@@ -93,6 +115,55 @@ const formatEventDateRange = (startDateStr, endDateStr) => {
   return `${startFormatted} – ${endFormatted}`;
 };
 
+const parseOrganizerPaymentDetails = (ev) => {
+  if (!ev) {
+    return {
+      onlineDetails: "",
+      bankName: "",
+      bankAccountName: "",
+      bankAccountNumber: "",
+      hasBank: false,
+      hasOnline: false,
+    };
+  }
+
+  const rawOnline = String(ev.online_payment_details || "");
+  const lines = rawOnline.split(/\r?\n/);
+
+  let parsedBankName = "";
+  let parsedAccountName = "";
+  let parsedAccountNumber = "";
+  const remainingLines = [];
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    const bankLineMatch = trimmed.match(
+      /^Bank Payment\s*[—-]\s*Bank:\s*([^|]+)\|\s*Account Name:\s*([^|]+)\|\s*Account Number:\s*(.+)$/i
+    );
+    if (bankLineMatch) {
+      parsedBankName = bankLineMatch[1].trim();
+      parsedAccountName = bankLineMatch[2].trim();
+      parsedAccountNumber = bankLineMatch[3].trim();
+    } else if (trimmed) {
+      remainingLines.push(trimmed);
+    }
+  });
+
+  const bankName = String(ev.bank_name || parsedBankName || "").trim();
+  const bankAccountName = String(ev.bank_account_name || parsedAccountName || "").trim();
+  const bankAccountNumber = String(ev.bank_account_number || parsedAccountNumber || "").trim();
+  const onlineDetails = remainingLines.join("\n").trim();
+
+  return {
+    onlineDetails,
+    bankName,
+    bankAccountName,
+    bankAccountNumber,
+    hasBank: Boolean(bankName || bankAccountName || bankAccountNumber),
+    hasOnline: Boolean(onlineDetails),
+  };
+};
+
 const phaseBadge = {
   Upcoming: "bg-blue-900 text-white dark:bg-blue-600 dark:text-white",
   Ongoing: "bg-emerald-600 text-white dark:bg-emerald-600 dark:text-white",
@@ -106,6 +177,8 @@ export default function ProgramsPage() {
 
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [cachedRoleState, setCachedRoleState] = useState({ userId: null, role: "" });
 
   const [rawEvents, setEvents] = useState([]);
   const now = useNow(30000);
@@ -136,8 +209,6 @@ export default function ProgramsPage() {
 
   const [payForm, setPayForm] = useState({ method: "cash", reference: "" });
   const [proofFile, setProofFile] = useState([]);
-  const [qrUrl, setQrUrl] = useState(null);
-  const [generatingQR, setGeneratingQR] = useState(false);
   const [acceptedTC, setAcceptedTC] = useState(false);
 
   const [regForm, setRegForm] = useState({
@@ -158,37 +229,101 @@ export default function ProgramsPage() {
 
   const OFFICIAL_ADMIN_EMAIL = "admin.daet@gmail.com";
 
+  const applyUserRegistrations = useCallback((rows) => {
+    const ordered = [...(rows || [])].sort((a, b) => {
+      const ca = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const cb = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (ca !== cb) return ca - cb;
+      return (Number(a.id) || 0) - (Number(b.id) || 0);
+    });
+
+    setMyRegisteredIds([...new Set(ordered.map((r) => String(r.event_id)))]);
+    const map = {};
+    const regMap = {};
+    ordered.forEach((r) => {
+      map[String(r.event_id)] = r.registration_status || "Confirmed";
+      regMap[String(r.event_id)] = r;
+    });
+    setMyRegStatus(map);
+    setMyRegistrationsByEventId(regMap);
+  }, []);
+
+  const refreshUserRegistrations = useCallback(
+    async (uid) => {
+      if (!uid) return;
+      const { data, error } = await supabase
+        .from("event_registrations")
+        .select("*")
+        .eq("user_id", uid);
+      if (!error && data) {
+        applyUserRegistrations(data);
+      }
+    },
+    [applyUserRegistrations]
+  );
+
   useEffect(() => {
+    let active = true;
+
+    const fetchProfileWithRetry = async (userId) => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+      if (!error && data) return data;
+      const retry = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+      return retry.data || null;
+    };
+
     const loadProfile = async (sessionUser) => {
+      if (!active) return;
       if (!sessionUser) {
         setUser(null);
         setUserProfile(null);
+        setCachedRoleState({ userId: null, role: "" });
+        setLoadingProfile(false);
         return;
       }
-      setUser(sessionUser);
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", sessionUser.id)
-        .single();
 
-      setUserProfile(profile);
-      setRegForm((prev) => ({
-        ...prev,
-        email: sessionUser.email || "",
-        firstName: profile?.full_name ? profile.full_name.split(" ")[0] : "",
-        lastName: profile?.full_name ? profile.full_name.split(" ").slice(1).join(" ") : "",
-      }));
+      setUser(sessionUser);
+      setUserProfile((prev) => (prev?.id === sessionUser.id ? prev : null));
+      setCachedRoleState({ userId: sessionUser.id, role: readCachedRole(sessionUser.id) });
+      setLoadingProfile(true);
+
+      const profile = await fetchProfileWithRetry(sessionUser.id);
+      if (!active) return;
+
+      if (profile) {
+        setUserProfile(profile);
+        if (profile.role) {
+          writeCachedRole(sessionUser.id, profile.role);
+          setCachedRoleState({ userId: sessionUser.id, role: norm(profile.role) });
+        }
+        setRegForm((prev) => ({
+          ...prev,
+          email: sessionUser.email || "",
+          firstName: profile?.full_name ? profile.full_name.split(" ")[0] : "",
+          lastName: profile?.full_name ? profile.full_name.split(" ").slice(1).join(" ") : "",
+        }));
+      }
+      setLoadingProfile(false);
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => loadProfile(session?.user || null));
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-      if (!session?.user) setUserProfile(null);
+      loadProfile(session?.user || null);
     });
 
-    return () => authListener.subscription.unsubscribe();
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -200,21 +335,7 @@ export default function ProgramsPage() {
       return;
     }
 
-    supabase
-      .from("event_registrations")
-      .select("*")
-      .eq("user_id", user.id)
-      .then(({ data }) => {
-        setMyRegisteredIds((data || []).map((r) => String(r.event_id)));
-        const map = {};
-        const regMap = {};
-        (data || []).forEach((r) => {
-          map[String(r.event_id)] = r.registration_status || "Confirmed";
-          regMap[String(r.event_id)] = r;
-        });
-        setMyRegStatus(map);
-        setMyRegistrationsByEventId(regMap);
-      });
+    refreshUserRegistrations(user.id);
 
     const loadInterestedEvents = async () => {
       const { data, error } = await supabase.from("interested_events").select("event_id").eq("user_id", user.id);
@@ -237,7 +358,27 @@ export default function ProgramsPage() {
       setInterestedEvents(ids);
     };
     loadInterestedEvents();
-  }, [user?.id]);
+
+    const channel = supabase
+      .channel(`programs-reg-sync-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "event_registrations",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          refreshUserRegistrations(user.id);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, refreshUserRegistrations]);
 
   useEffect(() => {
     if (!user?.id || events.length === 0 || interestedEvents.length === 0) return;
@@ -272,41 +413,75 @@ export default function ProgramsPage() {
     );
   }, [user?.id, events, interestedEvents]);
 
-  const fetchEvents = async (silent = false) => {
-    if (!silent) setFetchingEvents(true);
-    try {
-      const [evRes, regRes] = await Promise.all([
-        supabase.from("tourism_programs").select("*").order("created_at", { ascending: false }),
-        supabase.from("event_registrations").select("*"),
-      ]);
+  const fetchEvents = useCallback(
+    async (silent = false) => {
+      if (!silent) setFetchingEvents(true);
+      try {
+        const [evRes, regRes] = await Promise.all([
+          supabase.from("tourism_programs").select("*").order("created_at", { ascending: false }),
+          supabase.from("event_registrations").select("*"),
+        ]);
 
-      if (evRes.error) throw evRes.error;
-      setEvents((evRes.data || []).filter((e) => PUBLIC_STATUSES.includes(norm(e.status))));
-      setRegistrations(regRes.data || []);
-    } catch (error) {
-    } finally {
-      setFetchingEvents(false);
-    }
-  };
+        if (evRes.error) throw evRes.error;
+        setEvents((evRes.data || []).filter((e) => PUBLIC_STATUSES.includes(norm(e.status))));
+        const allRegs = regRes.data || [];
+        setRegistrations(allRegs);
+
+        if (user?.id) {
+          const mine = allRegs.filter((r) => String(r.user_id) === String(user.id));
+          if (mine.length > 0) {
+            applyUserRegistrations(mine);
+          } else {
+            refreshUserRegistrations(user.id);
+          }
+        }
+      } catch (error) {
+      } finally {
+        setFetchingEvents(false);
+      }
+    },
+    [user?.id, applyUserRegistrations, refreshUserRegistrations]
+  );
 
   useEffect(() => {
     fetchEvents();
     const onVisible = () => {
       if (document.visibilityState === "visible") fetchEvents(true);
     };
+    const onFocus = () => fetchEvents(true);
     document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
-  }, []);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [fetchEvents]);
 
   const handleLogout = async () => {
+    if (user?.id) writeCachedRole(user.id, "");
     await supabase.auth.signOut();
     setUser(null);
     setUserProfile(null);
+    setCachedRoleState({ userId: null, role: "" });
     router.push("/programs");
   };
 
+  const resolvedRole = norm(
+    userProfile?.role ||
+      (cachedRoleState.userId === user?.id ? cachedRoleState.role : "") ||
+      user?.user_metadata?.role
+  );
+
   const isAdmin =
-    user && (user.email?.toLowerCase() === OFFICIAL_ADMIN_EMAIL.toLowerCase() || userProfile?.role === "admin");
+    !!user && (user.email?.toLowerCase() === OFFICIAL_ADMIN_EMAIL.toLowerCase() || resolvedRole === "admin");
+
+  const isOrganizer = !!user && !isAdmin && resolvedRole === "organizer";
+
+  const isRoleReady =
+    !user ||
+    isAdmin ||
+    Boolean(resolvedRole) ||
+    !loadingProfile;
 
   const getConfirmedCount = (eventId) => {
     return registrations.filter((r) => String(r.event_id) === String(eventId) && (r.registration_status === "Confirmed" || r.registration_status === "Pending")).length;
@@ -426,7 +601,7 @@ export default function ProgramsPage() {
       const regStatusNorm = norm(matchedReg.registration_status) || "confirmed";
       setVerifyResult({
         status:
-          regStatusNorm === "confirmed"
+          regStatusNorm === "confirmed" || regStatusNorm === "approved"
             ? "verified"
             : regStatusNorm === "pending"
             ? "pending"
@@ -468,7 +643,7 @@ export default function ProgramsPage() {
         const { error } = await supabase.from("interested_events").insert([{ user_id: user.id, event_id: eventId }]);
         if (error && error.code !== "23505") throw error;
         setInterestedEvents((prev) => (prev.includes(key) ? prev : [...prev, key]));
-        if (isAdmin || userProfile?.role === "organizer") {
+        if (isAdmin || isOrganizer) {
           notify("Saved to your interested list.", "info");
         } else {
           notify("Marked as interested! You will get a reminder in your Tourist Portal 1 day before the event.", "info");
@@ -489,9 +664,11 @@ export default function ProgramsPage() {
     }
     if (!user) {
       setAuthRequiredEvent(event);
+    } else if (!isRoleReady) {
+      notify("Verifying your account role, please try again in a moment.", "info");
     } else if (isAdmin) {
       notify("Administrators manage events from the Admin Control Center and cannot register as participants.", "info");
-    } else if (userProfile?.role === "organizer") {
+    } else if (isOrganizer) {
       notify("Event organizers manage programs from the Organizer Control Center and cannot join as tourists.", "info");
     } else if (userProfile && userProfile.status !== "Approved") {
       notify("Your account is still pending admin verification.", "info");
@@ -521,7 +698,6 @@ export default function ProgramsPage() {
   const openRegistration = (event) => {
     setPayForm({ method: "cash", reference: "" });
     setProofFile([]);
-    setQrUrl(null);
     setAcceptedTC(false);
     setTeamName("");
     if (regTypeOf(event) === "group") {
@@ -537,26 +713,6 @@ export default function ProgramsPage() {
   };
 
   const updateMember = (i, patch) => setTeamMembers((prev) => prev.map((m, idx) => (idx === i ? { ...m, ...patch } : m)));
-
-  const handleGenerateQR = async () => {
-    setGeneratingQR(true);
-    try {
-      const res = await fetch("/api/create-qrph", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: participatingEvent.fee_amount, description: participatingEvent.event_name }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setQrUrl(data.qrImageUrl);
-      } else {
-        notify("Failed to generate QR code: " + data.error);
-      }
-    } catch (e) {
-      notify("Error: " + e.message);
-    }
-    setGeneratingQR(false);
-  };
 
   const regInfo = (eventId) => {
     const key = String(eventId);
@@ -598,10 +754,16 @@ export default function ProgramsPage() {
       }
 
       const paid = !!participatingEvent.is_paid;
-      const method = payForm.method === "online" ? "Online" : "Cash";
+      const isDigitalPayment = payForm.method === "online" || payForm.method === "bank";
+      const method = isDigitalPayment ? "Online" : "Cash";
 
-      if (paid && method === "Online" && !payForm.reference.trim() && proofFile.length === 0) {
-        notify("For online payments, please enter your payment reference number or attach a screenshot of your receipt.", "info");
+      if (paid && isDigitalPayment && !payForm.reference.trim() && proofFile.length === 0) {
+        notify(
+          payForm.method === "bank"
+            ? "For bank payments, please enter your payment reference number or attach a screenshot of your receipt."
+            : "For online payments, please enter your payment reference number or attach a screenshot of your receipt.",
+          "info"
+        );
         setSubmittingReg(false);
         return;
       }
@@ -655,7 +817,7 @@ export default function ProgramsPage() {
       }
 
       let proofUrl = null;
-      if (paid && method === "Online" && proofFile.length > 0) {
+      if (paid && isDigitalPayment && proofFile.length > 0) {
         const [uploaded] = await uploadAttachments(proofFile, `payment-proofs/${user.id}`);
         proofUrl = uploaded.url;
       }
@@ -673,7 +835,7 @@ export default function ProgramsPage() {
         email: regForm.email.trim(),
         registration_status: paid ? "Pending" : "Confirmed",
         payment_method: paid ? method : null,
-        payment_reference: paid && method === "Online" ? payForm.reference.trim() || null : null,
+        payment_reference: paid && isDigitalPayment ? payForm.reference.trim() || null : null,
         payment_proof_url: proofUrl,
         amount_due: paid ? participatingEvent.fee_amount : null,
         ...teamPayload,
@@ -720,8 +882,12 @@ export default function ProgramsPage() {
 
   const isGroupReg = !!participatingEvent && regTypeOf(participatingEvent) === "group";
 
+  const paymentMeta = useMemo(
+    () => parseOrganizerPaymentDetails(participatingEvent),
+    [participatingEvent]
+  );
+
   const visibleEvents = useMemo(() => {
-    const rank = { Ongoing: 0, Upcoming: 1, Rescheduled: 2, Completed: 3 };
     const q = search.trim().toLowerCase();
 
     return events
@@ -734,12 +900,12 @@ export default function ProgramsPage() {
           .some((field) => field.toLowerCase().includes(q));
       })
       .sort((a, b) => {
-        const pa = getPhase(a.status);
-        const pb = getPhase(b.status);
-        if (rank[pa] !== rank[pb]) return rank[pa] - rank[pb];
-        const da = parseDate(a.event_date || a.date)?.getTime() ?? Infinity;
-        const db = parseDate(b.event_date || b.date)?.getTime() ?? Infinity;
-        return pa === "Completed" ? db - da : da - db;
+        const ca = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const cb = b.created_at ? new Date(b.created_at).getTime() : 0;
+        if (cb !== ca) return cb - ca;
+        const ia = Number(a.id) || 0;
+        const ib = Number(b.id) || 0;
+        return ib - ia;
       });
   }, [events, activeFilter, search]);
 
@@ -797,17 +963,21 @@ export default function ProgramsPage() {
           <div className="flex flex-wrap items-center justify-center gap-3">
             {user ? (
               <>
-                {isAdmin ? (
+                {!isRoleReady ? (
+                  <span className="px-4 py-2 bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold animate-pulse">
+                    Loading portal...
+                  </span>
+                ) : isAdmin ? (
                   <Link href="/admin">
                     <button className="px-4 py-2 bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all shadow-sm">
                       ← Back to Admin Control Center
                     </button>
                   </Link>
-                ) : userProfile?.role === "organizer" ? (
+                ) : isOrganizer ? (
                   <Link href="/organizer/dashboard">
-                    <Button variant="primary" className="text-xs py-2 px-4 bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white border-none">
+                    <button className="px-4 py-2 bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all shadow-sm">
                       ← Back to Organizer Dashboard
-                    </Button>
+                    </button>
                   </Link>
                 ) : (
                   <Link href="/tourist/dashboard">
@@ -877,7 +1047,7 @@ export default function ProgramsPage() {
                 </div>
               </dl>
 
-              {userProfile?.role === "organizer" && (
+              {isOrganizer && (
                 <div>
                   <Link href="/programs/submit">
                     <button className="px-5 py-3 bg-white text-blue-900 hover:bg-blue-50 dark:bg-blue-600 dark:text-white dark:hover:bg-blue-500 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg transition-all">
@@ -1067,10 +1237,6 @@ export default function ProgramsPage() {
                         </div>
                       )}
 
-                      <span className={`absolute top-3 right-3 text-[10px] font-black px-3 py-1 rounded-full pointer-events-none z-20 ${phaseBadge[phase]}`}>
-                        {phase}
-                      </span>
-
                       {!isInterestOnly && (
                         <button
                           onClick={(e) => toggleInterest(e, item.id)}
@@ -1087,6 +1253,9 @@ export default function ProgramsPage() {
                     </div>
 
                     <div className="p-5 space-y-2 flex-grow">
+                      <span className={`inline-block text-[10px] font-black px-2.5 py-0.5 rounded-full ${phaseBadge[phase]}`}>
+                        {phase}
+                      </span>
                       <h3 className="font-black text-slate-900 dark:text-slate-100 text-lg leading-snug">{item.event_name}</h3>
                       <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed line-clamp-2">
                         {item.description || "No description provided."}
@@ -1239,7 +1408,7 @@ export default function ProgramsPage() {
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <span className="block text-[10px] font-bold uppercase tracking-widest text-blue-200 dark:text-blue-300">
-                            {matchedStatus === "confirmed"
+                            {matchedStatus === "confirmed" || matchedStatus === "approved"
                               ? "Your Official Attendee Serial ID"
                               : matchedStatus === "pending"
                               ? "Registration Pending Payment Approval"
@@ -1550,96 +1719,158 @@ export default function ProgramsPage() {
                   </>
                 )}
 
-                {participatingEvent.is_paid && (
-                  <div className="space-y-4 rounded-2xl border border-blue-200/80 dark:border-slate-700 bg-blue-50/50 dark:bg-slate-800/60 p-5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-600 dark:text-slate-400 uppercase">{isGroupReg ? "Registration fee (per team)" : "Registration fee"}</span>
-                      <span className="text-lg font-black text-blue-900 dark:text-blue-400">{peso(participatingEvent.fee_amount)}</span>
-                    </div>
+                {participatingEvent.is_paid && (() => {
+                  const methodOptions = [
+                    { value: "cash", label: "Cash" },
+                    ...(paymentMeta.hasBank ? [{ value: "bank", label: "Bank Payment" }] : []),
+                    ...(paymentMeta.hasOnline || !paymentMeta.hasBank
+                      ? [{ value: "online", label: "Online Payment" }]
+                      : []),
+                  ];
 
-                    <div>
-                      <label className="block text-slate-600 dark:text-slate-400 mb-2">PAYMENT METHOD *</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { value: "cash", label: "Cash" },
-                          { value: "online", label: "Online QR Ph" },
-                        ].map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => { setPayForm({ ...payForm, method: opt.value }); setQrUrl(null); }}
-                            className={`py-3 rounded-xl border-2 font-bold transition-all ${
-                              payForm.method === opt.value
-                                ? "border-blue-900 bg-white text-blue-900 shadow-sm dark:border-blue-500 dark:bg-blue-950/40 dark:text-blue-300"
-                                : "border-slate-200 bg-white text-slate-500 hover:border-blue-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-slate-600"
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
+                  return (
+                    <div className="space-y-4 rounded-2xl border border-blue-200/80 dark:border-slate-700 bg-blue-50/50 dark:bg-slate-800/60 p-5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600 dark:text-slate-400 uppercase">{isGroupReg ? "Registration fee (per team)" : "Registration fee"}</span>
+                        <span className="text-lg font-black text-blue-900 dark:text-blue-400">{peso(participatingEvent.fee_amount)}</span>
                       </div>
-                    </div>
 
-                    {payForm.method === "cash" && (
-                      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-1">
-                        <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Pay your cash here</p>
-                        <p className="text-slate-800 dark:text-slate-200 whitespace-pre-line leading-relaxed">
-                          {participatingEvent.cash_payment_details ||
-                            "The organizer has not stated a cash payment location yet. Please contact the organizer before paying."}
-                        </p>
-                      </div>
-                    )}
-
-                    {payForm.method === "online" && (
-                      <div className="space-y-4">
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3 text-center">
-                          <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Pay via QR Ph (GCash, Maya, Banks)</p>
-                          {qrUrl ? (
-                            <div className="space-y-2">
-                              <img src={qrUrl} alt="QR Ph Code" className="w-48 h-48 mx-auto border border-slate-200 dark:border-slate-700 rounded-lg p-2 bg-white" />
-                              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Scan using GCash, Maya, or any participating bank app to pay {peso(participatingEvent.fee_amount)}.</p>
-                            </div>
-                          ) : (
-                            <button type="button" onClick={handleGenerateQR} disabled={generatingQR} className="px-6 py-2.5 bg-blue-900 hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 disabled:opacity-60 text-white rounded-xl text-xs font-bold transition-all shadow-sm">
-                              {generatingQR ? "Generating QR Code..." : "Generate QR Ph Code"}
+                      <div>
+                        <label className="block text-slate-600 dark:text-slate-400 mb-2">PAYMENT METHOD *</label>
+                        <div className={`grid ${methodOptions.length === 3 ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2"} gap-2`}>
+                          {methodOptions.map((opt) => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => setPayForm({ ...payForm, method: opt.value })}
+                              className={`py-3 px-2 rounded-xl border-2 font-bold transition-all ${
+                                payForm.method === opt.value
+                                  ? "border-blue-900 bg-white text-blue-900 shadow-sm dark:border-blue-500 dark:bg-blue-950/40 dark:text-blue-300"
+                                  : "border-slate-200 bg-white text-slate-500 hover:border-blue-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-slate-600"
+                              }`}
+                            >
+                              {opt.label}
                             </button>
-                          )}
+                          ))}
                         </div>
+                      </div>
+
+                      {payForm.method === "cash" && (
                         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-1">
-                          <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Alternative Online Transfer Details</p>
+                          <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Pay your cash here</p>
                           <p className="text-slate-800 dark:text-slate-200 whitespace-pre-line leading-relaxed">
-                            {participatingEvent.online_payment_details ||
-                              "The organizer has not provided alternative direct bank details yet."}
+                            {participatingEvent.cash_payment_details ||
+                              "The organizer has not stated a cash payment location yet. Please contact the organizer before paying."}
                           </p>
                         </div>
-                        <div>
-                          <label className="block text-slate-600 dark:text-slate-400 mb-1">PAYMENT REFERENCE NO.</label>
-                          <input
-                            type="text"
-                            placeholder="Reference number from your receipt"
-                            value={payForm.reference}
-                            onChange={(e) => setPayForm({ ...payForm, reference: e.target.value })}
-                            className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-900/30 dark:focus:ring-blue-500/40"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-slate-600 dark:text-slate-400 mb-1">RECEIPT SCREENSHOT (OPTIONAL)</label>
-                          <FilePicker
-                            files={proofFile}
-                            onChange={setProofFile}
-                            multiple={false}
-                            accept="image/*"
-                            label="Attach receipt photo"
-                          />
-                        </div>
-                      </div>
-                    )}
+                      )}
 
-                    <p className="text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 rounded-xl p-3 font-medium">
-                      Your registration stays <strong>pending</strong> until the organizer confirms your payment. You will receive your official Serial ID in your Tourist Portal once it is approved.
-                    </p>
-                  </div>
-                )}
+                      {payForm.method === "bank" && (
+                        <div className="space-y-4">
+                          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
+                            <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">
+                              Bank Transfer Account Details
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div>
+                                <span className="block text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500">
+                                  Bank Name
+                                </span>
+                                <span className="font-black text-slate-900 dark:text-slate-100">
+                                  {paymentMeta.bankName || "N/A"}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="block text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500">
+                                  Account Name
+                                </span>
+                                <span className="font-bold text-slate-900 dark:text-slate-100">
+                                  {paymentMeta.bankAccountName || "N/A"}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="block text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500">
+                                  Account Number
+                                </span>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="font-mono font-black text-slate-900 dark:text-slate-100">
+                                    {paymentMeta.bankAccountNumber || "N/A"}
+                                  </span>
+                                  {paymentMeta.bankAccountNumber && (
+                                    <button
+                                      type="button"
+                                      onClick={() => copyText(paymentMeta.bankAccountNumber, "Account Number")}
+                                      className="px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200/70 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-blue-300 dark:border-slate-700 text-[10px] font-bold transition-all"
+                                    >
+                                      Copy
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-slate-600 dark:text-slate-400 mb-1">PAYMENT REFERENCE NO.</label>
+                            <input
+                              type="text"
+                              placeholder="Reference number from your bank transfer receipt"
+                              value={payForm.reference}
+                              onChange={(e) => setPayForm({ ...payForm, reference: e.target.value })}
+                              className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-900/30 dark:focus:ring-blue-500/40"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-600 dark:text-slate-400 mb-1">RECEIPT SCREENSHOT (OPTIONAL)</label>
+                            <FilePicker
+                              files={proofFile}
+                              onChange={setProofFile}
+                              multiple={false}
+                              accept="image/*"
+                              label="Attach receipt photo"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {payForm.method === "online" && (
+                        <div className="space-y-4">
+                          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-1">
+                            <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Online Payment Details</p>
+                            <p className="text-slate-800 dark:text-slate-200 whitespace-pre-line leading-relaxed">
+                              {paymentMeta.onlineDetails ||
+                                "The organizer has not provided online e-wallet payment details yet."}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="block text-slate-600 dark:text-slate-400 mb-1">PAYMENT REFERENCE NO.</label>
+                            <input
+                              type="text"
+                              placeholder="Reference number from your receipt"
+                              value={payForm.reference}
+                              onChange={(e) => setPayForm({ ...payForm, reference: e.target.value })}
+                              className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-900/30 dark:focus:ring-blue-500/40"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-600 dark:text-slate-400 mb-1">RECEIPT SCREENSHOT (OPTIONAL)</label>
+                            <FilePicker
+                              files={proofFile}
+                              onChange={setProofFile}
+                              multiple={false}
+                              accept="image/*"
+                              label="Attach receipt photo"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <p className="text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 rounded-xl p-3 font-medium">
+                        Your registration stays <strong>pending</strong> until the organizer confirms your payment. You will receive your official Serial ID in your Tourist Portal once it is approved.
+                      </p>
+                    </div>
+                  );
+                })()}
 
                 <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3 mt-4">
                   <h4 className="font-black text-slate-900 dark:text-slate-100 text-sm">Connect-Daet Tourism Events: Registration & Payment Terms and Conditions</h4>

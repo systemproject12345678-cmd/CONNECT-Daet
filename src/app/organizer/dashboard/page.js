@@ -34,8 +34,8 @@ const parseEventActionMeta = (ev) => {
   const contactMatch = raw.match(/\[CONTACT:\s*([^\]]+)\]/i);
   const reschedMatch = raw.match(/\[RESCHEDULE:\s*([^\]]+)\]/i);
   const cleanReason = raw
-    .replace(/\[CONTACT:\s*[^\]]+\]/gi, "")
-    .replace(/\[RESCHEDULE:\s*[^\]]+\]/gi, "")
+    .replace(/\[CONTACT:\s*([^\]]+)\]/gi, "")
+    .replace(/\[RESCHEDULE:\s*([^\]]+)\]/gi, "")
     .trim();
 
   const parsedSchedule = {};
@@ -97,6 +97,12 @@ const findDuplicateEvents = (targetEvent, allEvents) => {
 
     return sameName || (sameDate && sameVenue);
   });
+};
+
+const isResubmittedReg = (r) => {
+  if (!r) return false;
+  const raw = norm(r.registration_status);
+  return raw === "resubmitted" || norm(regState(r)) === "resubmitted";
 };
 
 const resolveRegistrationSerial = (r) => {
@@ -517,7 +523,33 @@ export default function OrganizerDashboardPage() {
       .select("*")
       .order("created_at", { ascending: false });
 
-    setAttendees(attendeesData || []);
+    const freshAttendees = attendeesData || [];
+
+    setRegOverrides((prev) => {
+      if (!prev || Object.keys(prev).length === 0) return prev;
+      let changed = false;
+      const next = { ...prev };
+      freshAttendees.forEach((row) => {
+        const key = String(row.id);
+        const cached = next[key];
+        if (!cached) return;
+        const liveStatus = norm(row.registration_status);
+        const cachedStatus = norm(cached.registration_status);
+        if (cachedStatus === "rejected" && liveStatus && liveStatus !== "rejected") {
+          delete next[key];
+          changed = true;
+        }
+      });
+      if (changed) {
+        try {
+          window.localStorage.setItem(REG_OVERRIDE_STORAGE_KEY, JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      }
+      return prev;
+    });
+
+    setAttendees(freshAttendees);
     setLoading(false);
   };
 
@@ -1105,7 +1137,10 @@ export default function OrganizerDashboardPage() {
     (a) => managedEventIds.includes(String(a.event_id)) && regState(a) === "confirmed" && resolveRefundState(a) !== "refunded"
   );
   const pendingPaymentCount = attendees.filter(
-    (a) => managedEventIds.includes(String(a.event_id)) && regState(a) === "pending"
+    (a) =>
+      managedEventIds.includes(String(a.event_id)) &&
+      (regState(a) === "pending" || isResubmittedReg(a)) &&
+      resolveRefundState(a) !== "refunded"
   ).length;
   const pendingAttendanceCount = approvedAttendees.filter((a) => resolveAttendanceState(a) === "marked").length;
   const pendingRefundRequestsCount = attendees.filter(
@@ -1718,16 +1753,30 @@ export default function OrganizerDashboardPage() {
                   const official = eventRegs.filter(
                     (a) => regState(a) === "confirmed" && resolveRefundState(a) !== "refunded"
                   );
+                  const resubmittedRegs = eventRegs.filter(
+                    (a) => isResubmittedReg(a) && resolveRefundState(a) !== "refunded"
+                  );
                   const pendingCash = eventRegs.filter(
-                    (a) => regState(a) === "pending" && !isOnline(a) && resolveRefundState(a) !== "refunded"
+                    (a) =>
+                      regState(a) === "pending" &&
+                      !isResubmittedReg(a) &&
+                      !isOnline(a) &&
+                      resolveRefundState(a) !== "refunded"
                   );
                   const pendingOnline = eventRegs.filter(
-                    (a) => regState(a) === "pending" && isOnline(a) && resolveRefundState(a) !== "refunded"
+                    (a) =>
+                      regState(a) === "pending" &&
+                      !isResubmittedReg(a) &&
+                      isOnline(a) &&
+                      resolveRefundState(a) !== "refunded"
                   );
                   const rejected = eventRegs.filter(
-                    (a) => regState(a) === "rejected" && resolveRefundState(a) !== "refunded"
+                    (a) =>
+                      regState(a) === "rejected" &&
+                      !isResubmittedReg(a) &&
+                      resolveRefundState(a) !== "refunded"
                   );
-                  const pendingTotal = pendingCash.length + pendingOnline.length;
+                  const pendingTotal = pendingCash.length + pendingOnline.length + resubmittedRegs.length;
                   const refundReqCount = official.filter((a) => resolveRefundState(a) === "requested").length;
                   const presentCount = official.filter((a) => resolveAttendanceState(a) === "confirmed").length;
                   const checkedInAwaitingCount = official.filter((a) => resolveAttendanceState(a) === "marked").length;
@@ -1749,6 +1798,7 @@ export default function OrganizerDashboardPage() {
                     attendance: official,
                     "pending-cash": pendingCash,
                     "pending-online": pendingOnline,
+                    resubmitted: resubmittedRegs,
                     rejected,
                     refunded,
                   };
@@ -1759,6 +1809,7 @@ export default function OrganizerDashboardPage() {
                       ? [
                           ["pending-cash", "Pending - Cash", pendingCash.length],
                           ["pending-online", "Pending - Online", pendingOnline.length],
+                          ["resubmitted", "Resubmitted", resubmittedRegs.length],
                           ["rejected", "Rejected", rejected.length],
                         ]
                       : []),
@@ -1796,6 +1847,7 @@ export default function OrganizerDashboardPage() {
                     attendance: "No official attendees match the attendance filter for this event.",
                     "pending-cash": "No participants are waiting to pay in cash.",
                     "pending-online": "No participants are waiting for an online payment check.",
+                    resubmitted: "No resubmitted registrations are waiting for review.",
                     rejected: "No rejected registrations.",
                     refunded: "No attendees have been marked as refunded for this event yet.",
                   }[tab];
@@ -1819,6 +1871,11 @@ export default function OrganizerDashboardPage() {
                             {pendingTotal > 0 && (
                               <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-amber-300/90 text-amber-950 dark:bg-amber-900/80 dark:text-amber-200">
                                 {pendingTotal} payment pending
+                              </span>
+                            )}
+                            {resubmittedRegs.length > 0 && (
+                              <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase bg-violet-100 text-violet-900 border border-violet-300 dark:bg-violet-950/70 dark:text-violet-300 dark:border-violet-800">
+                                {resubmittedRegs.length} resubmitted
                               </span>
                             )}
                             {refundReqCount > 0 && (
@@ -1955,8 +2012,10 @@ export default function OrganizerDashboardPage() {
                                 {label}{" "}
                                 <span
                                   className={`ml-1 ${
-                                    (key.startsWith("pending") && Number(count) > 0) ||
-                                    (key === "attendance" && checkedInAwaitingCount > 0)
+                                    key === "resubmitted" && Number(count) > 0
+                                      ? "text-violet-700 dark:text-violet-400 font-black"
+                                      : (key.startsWith("pending") && Number(count) > 0) ||
+                                        (key === "attendance" && checkedInAwaitingCount > 0)
                                       ? "text-amber-600 dark:text-amber-400 font-black"
                                       : "text-slate-400 dark:text-slate-500 font-semibold"
                                   }`}
@@ -2007,6 +2066,16 @@ export default function OrganizerDashboardPage() {
                                 {event.online_payment_details || "The organizer did not state online payment details on the proposal."}
                               </p>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400">Check the reference number / receipt against your account, then confirm to assign their official Serial ID.</p>
+                            </div>
+                          )}
+                          {tab === "resubmitted" && (
+                            <div className="text-xs text-violet-950 dark:text-violet-200 bg-violet-50/70 dark:bg-violet-950/40 border border-violet-200/80 dark:border-violet-800/60 rounded-xl p-3.5 font-medium space-y-1">
+                              <p className="font-black uppercase text-[10px] tracking-wider text-violet-800 dark:text-violet-300">
+                                Resubmitted Registrations
+                              </p>
+                              <p className="text-[11px] text-violet-900/90 dark:text-violet-200/90">
+                                These participants updated their registration and payment details after a previous rejection. Review their updated payment method, reference number, or receipt before approving or rejecting.
+                              </p>
                             </div>
                           )}
 
@@ -2101,12 +2170,17 @@ export default function OrganizerDashboardPage() {
                                     const attendance = resolveAttendanceState(a);
                                     const attMeta = attendanceBadgeMeta(attendance);
                                     const refundState = resolveRefundState(a);
+                                    const isResubmitted = isResubmittedReg(a);
 
                                     return (
                                       <tr
                                         key={a.id}
                                         className={`transition-colors ${
-                                          refundState === "requested" ? "bg-amber-50/60 dark:bg-amber-950/30" : ""
+                                          refundState === "requested"
+                                            ? "bg-amber-50/60 dark:bg-amber-950/30"
+                                            : isResubmitted
+                                            ? "bg-violet-50/40 dark:bg-violet-950/20"
+                                            : ""
                                         }`}
                                       >
                                         {isOfficialOrAttendanceTab && (
@@ -2116,6 +2190,11 @@ export default function OrganizerDashboardPage() {
                                         )}
                                         <td className="p-3.5 font-bold text-slate-900 dark:text-slate-100">
                                           {a.first_name} {a.last_name}
+                                          {isResubmitted && (
+                                            <span className="block w-fit mt-1 px-2 py-0.5 rounded-full bg-violet-100 text-violet-900 border border-violet-300 dark:bg-violet-950/80 dark:text-violet-300 dark:border-violet-800 text-[9px] font-black uppercase">
+                                              Resubmitted
+                                            </span>
+                                          )}
                                           {refundState === "requested" && (
                                             <span className="block w-fit mt-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800 text-[9px] font-black uppercase">
                                               Refund Requested
@@ -2181,7 +2260,7 @@ export default function OrganizerDashboardPage() {
                                                 >
                                                   Revert Refund
                                                 </button>
-                                              ) : regState(a) === "pending" ? (
+                                              ) : regState(a) === "pending" || isResubmitted ? (
                                                 <>
                                                   <button
                                                     onClick={() => confirmRegistration(a)}

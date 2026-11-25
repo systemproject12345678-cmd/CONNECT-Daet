@@ -88,8 +88,8 @@ const parseEventActionMeta = (ev) => {
   const contactMatch = raw.match(/\[CONTACT:\s*([^\]]+)\]/i);
   const reschedMatch = raw.match(/\[RESCHEDULE:\s*([^\]]+)\]/i);
   const cleanReason = raw
-    .replace(/\[CONTACT:\s*[^\]]+\]/gi, "")
-    .replace(/\[RESCHEDULE:\s*[^\]]+\]/gi, "")
+    .replace(/\[CONTACT:\s*([^\]]+)\]/gi, "")
+    .replace(/\[RESCHEDULE:\s*([^\]]+)\]/gi, "")
     .trim();
 
   const parsedSchedule = {};
@@ -1271,18 +1271,18 @@ export default function UnifiedAdminDashboard() {
           <div className="space-y-8">
             <div className="flex flex-wrap justify-between items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">System Overview Dashboard</h1>
+                <h1 className="text-xl font-black !text-slate-900 dark:!text-white uppercase tracking-tight">System Overview Dashboard</h1>
                 <p className="text-xs text-stone-500 dark:text-slate-400 font-semibold mt-0.5">Real-time portal metrics across Daet Municipal Tourism Operations</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => setActiveTab("organizer-approvals")} className="px-4 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all">
+                <button onClick={() => setActiveTab("organizer-approvals")} className="px-4 py-2 bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl transition-all">
                   Review Organizers ({activePendingOrganizersCount})
                 </button>
-                <button onClick={() => setActiveTab("event-approvals")} className="px-4 py-2 bg-slate-700 hover:bg-slate-800 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 text-xs font-bold rounded-xl transition-all shadow-sm">
+                <button onClick={() => setActiveTab("event-approvals")} className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-stone-50 dark:bg-stone-100 dark:hover:bg-white dark:text-stone-900 text-xs font-bold rounded-xl transition-all shadow-sm">
                   Review Events ({activePendingEventsCount})
                 </button>
                 {totalScheduleRequestsCount > 0 && (
-                  <button onClick={() => setActiveTab("cancellation-requests")} className="px-4 py-2 bg-amber-700/90 hover:bg-amber-800 text-amber-50 dark:bg-amber-900/70 dark:hover:bg-amber-900 dark:text-amber-100 text-xs font-bold rounded-xl transition-all shadow-sm">
+                  <button onClick={() => setActiveTab("cancellation-requests")} className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/70 dark:text-amber-200 dark:border-amber-800/70 text-xs font-bold rounded-xl transition-all">
                     Schedule & Cancel Requests ({totalScheduleRequestsCount})
                   </button>
                 )}
@@ -1329,7 +1329,7 @@ export default function UnifiedAdminDashboard() {
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200 dark:border-slate-800 p-6 space-y-4 shadow-sm">
                 <div className="flex justify-between items-center border-b border-stone-200/80 dark:border-slate-800 pb-3">
                   <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm uppercase">Pending Organizer Applications</h3>
-                  <button onClick={() => setActiveTab("organizer-approvals")} className="text-xs text-slate-700 dark:text-slate-300 font-bold hover:underline">
+                  <button onClick={() => setActiveTab("organizer-approvals")} className="text-xs text-stone-800 dark:text-stone-200 font-bold hover:underline">
                     View All →
                   </button>
                 </div>
@@ -1345,7 +1345,7 @@ export default function UnifiedAdminDashboard() {
                         </div>
                         <button
                           onClick={() => setInspectingOrganizer(org)}
-                          className="px-3.5 py-2 bg-slate-700 hover:bg-slate-800 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl text-[10px] font-bold uppercase shadow-sm transition-all whitespace-nowrap"
+                          className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-stone-50 dark:bg-stone-100 dark:hover:bg-white dark:text-stone-900 rounded-xl text-[10px] font-bold uppercase shadow-sm transition-all whitespace-nowrap"
                         >
                           Inspect & Verify
                         </button>
@@ -1358,7 +1358,7 @@ export default function UnifiedAdminDashboard() {
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-stone-200 dark:border-slate-800 p-6 space-y-4 shadow-sm">
                 <div className="flex justify-between items-center border-b border-stone-200/80 dark:border-slate-800 pb-3">
                   <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm uppercase">Event Proposals Needing Review</h3>
-                  <button onClick={() => setActiveTab("event-approvals")} className="text-xs text-slate-700 dark:text-slate-300 font-bold hover:underline">
+                  <button onClick={() => setActiveTab("event-approvals")} className="text-xs text-stone-800 dark:text-stone-200 font-bold hover:underline">
                     View All →
                   </button>
                 </div>
@@ -1380,7 +1380,7 @@ export default function UnifiedAdminDashboard() {
                           {event.status === "Requirements Submitted" ? (
                             <button
                               onClick={() => setActiveTab("event-approvals")}
-                              className="px-3.5 py-2 bg-teal-700/90 hover:bg-teal-800 text-teal-50 dark:bg-teal-900/70 dark:hover:bg-teal-900 dark:text-teal-100 rounded-xl text-[10px] font-bold uppercase transition-all whitespace-nowrap"
+                              className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-stone-50 dark:bg-stone-100 dark:hover:bg-white dark:text-stone-900 rounded-xl text-[10px] font-bold uppercase shadow-sm transition-all whitespace-nowrap"
                             >
                               Review files
                             </button>
@@ -1388,7 +1388,7 @@ export default function UnifiedAdminDashboard() {
                             <button
                               onClick={() => updateEventStatus(event.id, "Approved")}
                               disabled={busyActionId === event.id}
-                              className="px-3.5 py-2 bg-slate-700 hover:bg-slate-800 disabled:opacity-60 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl text-[10px] font-bold uppercase shadow-sm transition-all whitespace-nowrap"
+                              className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 disabled:opacity-60 text-stone-50 dark:bg-stone-100 dark:hover:bg-white dark:text-stone-900 rounded-xl text-[10px] font-bold uppercase shadow-sm transition-all whitespace-nowrap"
                             >
                               {busyActionId === event.id ? "Approving..." : "Approve"}
                             </button>
@@ -1407,10 +1407,10 @@ export default function UnifiedAdminDashboard() {
           <div className="space-y-6">
             <div className="flex justify-between items-center dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Organizer Approvals & Verifications</h1>
+                <h1 className="text-xl font-black !text-slate-900 dark:!text-white uppercase tracking-tight">Organizer Approvals & Verifications</h1>
                 <p className="text-xs text-stone-500 dark:text-slate-400 font-semibold mt-0.5">Inspect organizer accounts, valid ID, logo, BIR TIN photo, DTI/SEC photo, and business permit photo.</p>
               </div>
-              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all">
+              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl transition-all">
                 ← Back to Overview
               </button>
             </div>
@@ -1476,14 +1476,14 @@ export default function UnifiedAdminDashboard() {
                               <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-1.5">
                                 <button
                                   onClick={() => setInspectingOrganizer(org)}
-                                  className="px-3.5 py-2 bg-slate-700 hover:bg-slate-800 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
+                                  className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-stone-50 dark:bg-stone-100 dark:hover:bg-white dark:text-stone-900 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
                                 >
                                   Inspect Documents
                                 </button>
                                 {org.status === "Approved" && (
                                   <button
                                     onClick={() => openOrganizerDeepDive(org)}
-                                    className="px-3.5 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
+                                    className="px-3.5 py-2 bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl font-bold text-[10px] uppercase transition-all text-center whitespace-nowrap"
                                   >
                                     View Profile & Events
                                   </button>
@@ -1491,7 +1491,7 @@ export default function UnifiedAdminDashboard() {
                                 {org.status !== "Rejected" && (
                                   <button
                                     onClick={() => setFeedbackModal({ isOpen: true, type: "reject-organizer", targetId: org.id, reason: "" })}
-                                    className="px-3.5 py-2 bg-stone-100 hover:bg-rose-800/90 hover:text-rose-50 text-slate-700 dark:bg-slate-800/60 dark:hover:bg-rose-900 dark:text-slate-300 dark:hover:text-rose-100 rounded-xl font-bold text-[10px] uppercase transition-all text-center whitespace-nowrap"
+                                    className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/50 dark:hover:bg-rose-900/70 dark:text-rose-200 dark:border-rose-800/70 rounded-xl font-bold text-[10px] uppercase transition-all text-center whitespace-nowrap"
                                   >
                                     Reject
                                   </button>
@@ -1513,10 +1513,10 @@ export default function UnifiedAdminDashboard() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Event Proposals Management Hub</h1>
+                <h1 className="text-xl font-black !text-slate-900 dark:!text-white uppercase tracking-tight">Event Proposals Management Hub</h1>
                 <p className="text-xs text-stone-500 dark:text-slate-400 font-semibold mt-0.5">Evaluate event details, manage compliance, and handle event proposals.</p>
               </div>
-              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all whitespace-nowrap">
+              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl transition-all whitespace-nowrap">
                 ← Back to Overview
               </button>
             </div>
@@ -1530,11 +1530,11 @@ export default function UnifiedAdminDashboard() {
                     onClick={() => setEventStatusFilter(f)}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                       eventStatusFilter === f
-                        ? "bg-slate-700 text-stone-50 dark:bg-slate-200 dark:text-slate-900 shadow-sm"
-                        : "text-slate-600 hover:bg-stone-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                        ? "bg-stone-900 text-stone-50 dark:bg-stone-100 dark:text-stone-900 shadow-sm"
+                        : "text-stone-600 hover:bg-stone-100 dark:text-slate-400 dark:hover:bg-slate-800"
                     }`}
                   >
-                    {f} <span className={eventStatusFilter === f ? "text-stone-300 dark:text-slate-600" : "text-stone-400 dark:text-slate-500"}>{count}</span>
+                    {f} <span className={eventStatusFilter === f ? "text-stone-300 dark:text-stone-600" : "text-stone-400 dark:text-slate-500"}>{count}</span>
                   </button>
                 );
               })}
@@ -1566,7 +1566,7 @@ export default function UnifiedAdminDashboard() {
                     <div className="space-y-3 flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-3">
                         <h3 className="font-black text-slate-900 dark:text-slate-100 text-base">
-                          <button type="button" onClick={() => { setReviewTab("details"); setReviewingEventId(event.id); }} className="text-left hover:text-slate-600 dark:hover:text-slate-300 hover:underline">
+                          <button type="button" onClick={() => { setReviewTab("details"); setReviewingEventId(event.id); }} className="text-left hover:text-stone-700 dark:hover:text-stone-300 hover:underline">
                             {event.event_name}
                           </button>
                         </h3>
@@ -1669,14 +1669,14 @@ export default function UnifiedAdminDashboard() {
                     <div className="flex flex-col justify-center gap-2 md:min-w-[180px]">
                       <button
                         onClick={() => { setReviewTab("details"); setReviewingEventId(event.id); }}
-                        className="w-full py-2.5 bg-slate-700 hover:bg-slate-800 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-xs transition-all shadow-sm"
+                        className="w-full py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-xs transition-all shadow-sm"
                       >
                         Review full details
                       </button>
                       {(isRescheduleReq || isCancellationReq) && (
                         <button
                           onClick={() => setActiveTab("cancellation-requests")}
-                          className="w-full py-2.5 bg-amber-700/90 hover:bg-amber-800 text-amber-50 dark:bg-amber-900/70 dark:hover:bg-amber-900 dark:text-amber-100 rounded-xl font-bold text-xs shadow-sm transition-all"
+                          className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/70 dark:text-amber-200 dark:border-amber-800/70 rounded-xl font-bold text-xs transition-all"
                         >
                           {isRescheduleReq ? "Review Reschedule" : "Review Cancellation"}
                         </button>
@@ -1686,28 +1686,28 @@ export default function UnifiedAdminDashboard() {
                           <button
                             onClick={() => updateEventStatus(event.id, "Approved")}
                             disabled={isApproved || isBusy}
-                            className="w-full py-2.5 bg-teal-700/90 hover:bg-teal-800 disabled:bg-stone-100 disabled:text-stone-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 disabled:cursor-not-allowed text-teal-50 dark:bg-teal-900/70 dark:hover:bg-teal-900 dark:text-teal-100 rounded-xl font-bold text-xs shadow-sm transition-all"
+                            className="w-full py-2.5 bg-teal-700 hover:bg-teal-800 disabled:bg-stone-100 disabled:text-stone-400 disabled:border disabled:border-stone-200 dark:disabled:bg-slate-800 dark:disabled:text-slate-500 dark:disabled:border-slate-700 disabled:cursor-not-allowed text-white dark:bg-teal-600 dark:hover:bg-teal-500 rounded-xl font-bold text-xs shadow-sm transition-all"
                           >
                             {isApproved ? "Approved" : isBusy ? "Updating..." : "Approve Event"}
                           </button>
                           <button
                             onClick={() => setFeedbackModal({ isOpen: true, type: "revision-event", targetId: event.id, reason: "" })}
                             disabled={isBusy}
-                            className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 disabled:opacity-60 text-slate-700 border border-stone-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs transition-all"
+                            className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 disabled:opacity-60 text-slate-700 border border-stone-200/90 dark:bg-slate-800/70 dark:hover:bg-slate-700/80 dark:text-slate-200 dark:border-slate-700 rounded-xl font-bold text-xs transition-all"
                           >
                             Requires Changes
                           </button>
                           <button
                             onClick={() => openApprovalModal(event)}
                             disabled={isBusy}
-                            className="w-full py-2.5 bg-teal-50/90 hover:bg-teal-100 disabled:opacity-60 text-teal-900 border border-teal-200 dark:bg-teal-950/50 dark:hover:bg-teal-900/70 dark:text-teal-200 dark:border-teal-800/70 rounded-xl font-bold text-xs transition-all"
+                            className="w-full py-2.5 bg-white hover:bg-stone-100 disabled:opacity-60 text-slate-800 border border-stone-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 dark:border-slate-600 rounded-xl font-bold text-xs transition-all"
                           >
                             {approvalFiles.length > 0 || event.approval_instructions ? "Send New Approval Letter" : "Send Approval Letter"}
                           </button>
                           <button
                             onClick={() => setFeedbackModal({ isOpen: true, type: "reject-event", targetId: event.id, reason: "" })}
                             disabled={isBusy}
-                            className="w-full py-2.5 bg-stone-50 hover:bg-rose-50 disabled:opacity-60 text-rose-800 border border-rose-200 dark:bg-slate-900 dark:hover:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/70 rounded-xl font-bold text-xs transition-all"
+                            className="w-full py-2.5 bg-stone-50 hover:bg-stone-200/80 disabled:opacity-60 text-slate-600 hover:text-slate-900 border border-stone-200 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 dark:hover:text-white dark:border-slate-700 rounded-xl font-bold text-xs transition-all"
                           >
                             Reject Event
                           </button>
@@ -1716,7 +1716,7 @@ export default function UnifiedAdminDashboard() {
                       <button
                         onClick={() => deleteEvent(event.id)}
                         disabled={isBusy}
-                        className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 disabled:opacity-60 text-slate-600 dark:bg-slate-800/60 dark:hover:bg-slate-800 dark:text-slate-400 rounded-xl font-bold text-xs transition-all"
+                        className="w-full py-2.5 bg-stone-50 hover:bg-stone-200/80 disabled:opacity-60 text-slate-600 hover:text-slate-900 border border-stone-200 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 dark:hover:text-white dark:border-slate-700 rounded-xl font-bold text-xs transition-all"
                       >
                         Delete
                       </button>
@@ -1737,7 +1737,7 @@ export default function UnifiedAdminDashboard() {
                   <button
                     type="button"
                     onClick={() => setEventStatusFilter("All")}
-                    className="px-4 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all"
+                    className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-stone-50 dark:bg-stone-100 dark:hover:bg-white dark:text-stone-900 text-xs font-bold rounded-xl transition-all"
                   >
                     Show All Events
                   </button>
@@ -1751,14 +1751,14 @@ export default function UnifiedAdminDashboard() {
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Official Event Calendar</h1>
+                <h1 className="text-xl font-black !text-slate-900 dark:!text-white uppercase tracking-tight">Official Event Calendar</h1>
                 <p className="text-xs text-stone-500 dark:text-slate-400 font-semibold mt-0.5">
                   Click any month to view its complete schedule and full event list, or select a date to inspect all events scheduled on that day.
                 </p>
               </div>
               <button
                 onClick={() => setActiveTab("overview")}
-                className="px-4 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all whitespace-nowrap"
+                className="px-4 py-2 bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl transition-all whitespace-nowrap"
               >
                 ← Back to Overview
               </button>
@@ -1779,12 +1779,12 @@ export default function UnifiedAdminDashboard() {
           <div className="space-y-8">
             <div className="flex justify-between items-center dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Schedule Change & Cancellation Requests</h1>
+                <h1 className="text-xl font-black !text-slate-900 dark:!text-white uppercase tracking-tight">Schedule Change & Cancellation Requests</h1>
                 <p className="text-xs text-stone-500 dark:text-slate-400 font-semibold mt-0.5">
                   Approve or reject organizer rescheduling and cancellation requests. Approving immediately notifies all joined tourists with the reason and organizer refund contact details.
                 </p>
               </div>
-              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all">
+              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl transition-all">
                 ← Back to Overview
               </button>
             </div>
@@ -1854,14 +1854,14 @@ export default function UnifiedAdminDashboard() {
                           <button
                             onClick={() => handleApproveReschedule(event)}
                             disabled={isBusy}
-                            className="w-full py-2.5 bg-slate-700 hover:bg-slate-800 disabled:opacity-60 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-xs shadow-sm transition-all"
+                            className="w-full py-2.5 bg-stone-900 hover:bg-stone-800 disabled:opacity-60 text-stone-50 dark:bg-stone-100 dark:hover:bg-white dark:text-stone-900 rounded-xl font-bold text-xs shadow-sm transition-all"
                           >
                             {isBusy ? "Processing..." : "Approve Reschedule"}
                           </button>
                           <button
                             onClick={() => setFeedbackModal({ isOpen: true, type: "reject-reschedule", targetId: event.id, reason: "" })}
                             disabled={isBusy}
-                            className="w-full py-2.5 bg-stone-50 hover:bg-rose-50 disabled:opacity-60 text-rose-800 border border-rose-200 dark:bg-slate-900 dark:hover:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/70 rounded-xl font-bold text-xs transition-all"
+                            className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 disabled:opacity-60 text-rose-800 border border-rose-200 dark:bg-rose-950/50 dark:hover:bg-rose-900/70 dark:text-rose-200 dark:border-rose-800/70 rounded-xl font-bold text-xs transition-all"
                           >
                             Reject Reschedule
                           </button>
@@ -1924,14 +1924,14 @@ export default function UnifiedAdminDashboard() {
                           <button
                             onClick={() => handleApproveCancellation(event)}
                             disabled={isBusy}
-                            className="w-full py-2.5 bg-slate-700 hover:bg-slate-800 disabled:opacity-60 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-xs shadow-sm transition-all"
+                            className="w-full py-2.5 bg-stone-900 hover:bg-stone-800 disabled:opacity-60 text-stone-50 dark:bg-stone-100 dark:hover:bg-white dark:text-stone-900 rounded-xl font-bold text-xs shadow-sm transition-all"
                           >
                             {isBusy ? "Processing..." : "Approve Cancellation"}
                           </button>
                           <button
                             onClick={() => setFeedbackModal({ isOpen: true, type: "reject-cancellation", targetId: event.id, reason: "" })}
                             disabled={isBusy}
-                            className="w-full py-2.5 bg-stone-50 hover:bg-rose-50 disabled:opacity-60 text-rose-800 border border-rose-200 dark:bg-slate-900 dark:hover:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/70 rounded-xl font-bold text-xs transition-all"
+                            className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 disabled:opacity-60 text-rose-800 border border-rose-200 dark:bg-rose-950/50 dark:hover:bg-rose-900/70 dark:text-rose-200 dark:border-rose-800/70 rounded-xl font-bold text-xs transition-all"
                           >
                             Reject Cancellation
                           </button>
@@ -1949,10 +1949,10 @@ export default function UnifiedAdminDashboard() {
           <div className="space-y-6">
             <div className="flex justify-between items-center dash-pagehead">
               <div>
-                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">System User Management</h1>
+                <h1 className="text-xl font-black !text-slate-900 dark:!text-white uppercase tracking-tight">System User Management</h1>
                 <p className="text-xs text-stone-500 dark:text-slate-400 font-semibold mt-0.5">Manage and inspect tourist and organizer accounts.</p>
               </div>
-              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all">
+              <button onClick={() => setActiveTab("overview")} className="px-4 py-2 bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 text-xs font-bold rounded-xl transition-all">
                 ← Back to Overview
               </button>
             </div>
@@ -1968,7 +1968,7 @@ export default function UnifiedAdminDashboard() {
                 onChange={(e) => setUserSearch(e.target.value)}
                 placeholder="Search accounts by name, organization, email, phone or address..."
                 aria-label="Search accounts"
-                className="w-full pl-11 pr-24 py-3 bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 rounded-2xl text-sm font-medium text-slate-700 dark:text-slate-200 placeholder:text-stone-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                className="w-full pl-11 pr-24 py-3 bg-white dark:bg-slate-900 border border-stone-200 dark:border-slate-800 rounded-2xl text-sm font-medium text-slate-700 dark:text-slate-200 placeholder:text-stone-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-stone-800 dark:focus:ring-stone-200"
               />
               {userSearch && (
                 <button
@@ -1991,8 +1991,8 @@ export default function UnifiedAdminDashboard() {
                 onClick={() => setUserManagementSubTab("tourists")}
                 className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${
                   userManagementSubTab === "tourists"
-                    ? "bg-slate-700 text-stone-50 dark:bg-slate-200 dark:text-slate-900 shadow-md"
-                    : "bg-white text-slate-600 hover:bg-stone-100 border border-stone-200 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:border-slate-800"
+                    ? "bg-stone-900 text-stone-50 dark:bg-stone-100 dark:text-stone-900 shadow-md"
+                    : "bg-white text-stone-600 hover:bg-stone-100 border border-stone-200 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:border-slate-800"
                 }`}
               >
                 Tourist Accounts ({userQuery ? `${shownTourists.length}/${tourists.length}` : tourists.length})
@@ -2001,8 +2001,8 @@ export default function UnifiedAdminDashboard() {
                 onClick={() => setUserManagementSubTab("organizers")}
                 className={`px-5 py-2.5 rounded-xl text-xs font-bold uppercase transition-all ${
                   userManagementSubTab === "organizers"
-                    ? "bg-slate-700 text-stone-50 dark:bg-slate-200 dark:text-slate-900 shadow-md"
-                    : "bg-white text-slate-600 hover:bg-stone-100 border border-stone-200 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:border-slate-800"
+                    ? "bg-stone-900 text-stone-50 dark:bg-stone-100 dark:text-stone-900 shadow-md"
+                    : "bg-white text-stone-600 hover:bg-stone-100 border border-stone-200 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:border-slate-800"
                 }`}
               >
                 Organizer Accounts ({userQuery ? `${shownOrganizers.length}/${organizers.length}` : organizers.length})
@@ -2057,17 +2057,17 @@ export default function UnifiedAdminDashboard() {
                               <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-1.5">
                                 <button
                                   onClick={() => setViewingAccount({ kind: "tourist", data: usr })}
-                                  className="px-3.5 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
+                                  className="px-3.5 py-2 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
                                 >
                                   View Account
                                 </button>
                                 <button
                                   onClick={() => handleToggleUserSuspension(usr.id, usr.is_suspended)}
                                   disabled={busyActionId === usr.id}
-                                  className={`px-3.5 py-2 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap disabled:opacity-60 ${
+                                  className={`px-3.5 py-2 rounded-xl font-bold text-[10px] uppercase transition-all text-center whitespace-nowrap disabled:opacity-60 ${
                                     usr.is_suspended
-                                      ? "bg-teal-700/90 hover:bg-teal-800 text-teal-50 dark:bg-teal-900/70 dark:hover:bg-teal-900 dark:text-teal-200"
-                                      : "bg-amber-100/90 hover:bg-amber-200/80 text-amber-900 dark:bg-amber-950/60 dark:hover:bg-amber-900/70 dark:text-amber-200"
+                                      ? "bg-white hover:bg-stone-100 text-slate-800 border border-stone-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
+                                      : "bg-stone-100 hover:bg-stone-200 text-slate-700 border border-stone-200/90 dark:bg-slate-800/70 dark:hover:bg-slate-700/80 dark:text-slate-200 dark:border-slate-700"
                                   }`}
                                 >
                                   {usr.is_suspended ? "Reactivate" : "Suspend Account"}
@@ -2075,7 +2075,7 @@ export default function UnifiedAdminDashboard() {
                                 <button
                                   onClick={() => handleDeleteAccount(usr, "tourist")}
                                   disabled={deletingId === usr.id}
-                                  className="px-3.5 py-2 bg-rose-800/90 hover:bg-rose-900 disabled:opacity-60 text-rose-50 dark:bg-rose-950/85 dark:hover:bg-rose-900 dark:text-rose-200 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
+                                  className="px-3.5 py-2 bg-stone-50 hover:bg-stone-200/80 disabled:opacity-60 text-slate-600 hover:text-slate-900 border border-stone-200 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 dark:hover:text-white dark:border-slate-700 rounded-xl font-bold text-[10px] uppercase transition-all text-center whitespace-nowrap"
                                 >
                                   {deletingId === usr.id ? "Deleting..." : "Delete"}
                                 </button>
@@ -2140,17 +2140,17 @@ export default function UnifiedAdminDashboard() {
                               <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-1.5">
                                 <button
                                   onClick={() => setViewingAccount({ kind: "organizer", data: org })}
-                                  className="px-3.5 py-2 bg-stone-200/80 hover:bg-stone-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
+                                  className="px-3.5 py-2 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
                                 >
                                   View Account
                                 </button>
                                 <button
                                   onClick={() => handleToggleUserSuspension(org.id, org.is_suspended)}
                                   disabled={busyActionId === org.id}
-                                  className={`px-3.5 py-2 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap disabled:opacity-60 ${
+                                  className={`px-3.5 py-2 rounded-xl font-bold text-[10px] uppercase transition-all text-center whitespace-nowrap disabled:opacity-60 ${
                                     org.is_suspended
-                                      ? "bg-teal-700/90 hover:bg-teal-800 text-teal-50 dark:bg-teal-900/70 dark:hover:bg-teal-900 dark:text-teal-200"
-                                      : "bg-amber-100/90 hover:bg-amber-200/80 text-amber-900 dark:bg-amber-950/60 dark:hover:bg-amber-900/70 dark:text-amber-200"
+                                      ? "bg-white hover:bg-stone-100 text-slate-800 border border-stone-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 dark:border-slate-600"
+                                      : "bg-stone-100 hover:bg-stone-200 text-slate-700 border border-stone-200/90 dark:bg-slate-800/70 dark:hover:bg-slate-700/80 dark:text-slate-200 dark:border-slate-700"
                                   }`}
                                 >
                                   {org.is_suspended ? "Reactivate" : "Suspend Account"}
@@ -2158,7 +2158,7 @@ export default function UnifiedAdminDashboard() {
                                 <button
                                   onClick={() => handleDeleteAccount(org, "organizer")}
                                   disabled={deletingId === org.id}
-                                  className="px-3.5 py-2 bg-rose-800/90 hover:bg-rose-900 disabled:opacity-60 text-rose-50 dark:bg-rose-950/85 dark:hover:bg-rose-900 dark:text-rose-200 rounded-xl font-bold text-[10px] uppercase transition-all shadow-sm text-center whitespace-nowrap"
+                                  className="px-3.5 py-2 bg-stone-50 hover:bg-stone-200/80 disabled:opacity-60 text-slate-600 hover:text-slate-900 border border-stone-200 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 dark:hover:text-white dark:border-slate-700 rounded-xl font-bold text-[10px] uppercase transition-all text-center whitespace-nowrap"
                                 >
                                   {deletingId === org.id ? "Deleting..." : "Delete"}
                                 </button>
@@ -2182,7 +2182,7 @@ export default function UnifiedAdminDashboard() {
                 <button onClick={() => setActiveTab("overview")} className="absolute left-0 top-1 text-stone-400 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors" aria-label="Back">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                 </button>
-                <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Admin Profile</h1>
+                <h1 className="text-xl font-black !text-slate-900 dark:!text-white uppercase tracking-tight">Admin Profile</h1>
                 <p className="text-[11px] text-stone-500 dark:text-slate-400 font-semibold mt-1 uppercase tracking-widest">Municipal Tourism Office Settings</p>
               </div>
               <form
@@ -2216,13 +2216,13 @@ export default function UnifiedAdminDashboard() {
                     placeholder="••••••••"
                     value={adminPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full p-3.5 bg-stone-50 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-400 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-100 text-center transition-all"
+                    className="w-full p-3.5 bg-stone-50 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-stone-800 dark:focus:ring-stone-200 focus:bg-white dark:focus:bg-slate-800 text-slate-800 dark:text-slate-100 text-center transition-all"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={savingPassword}
-                  className="w-full py-3.5 mt-2 bg-slate-700 hover:bg-slate-800 disabled:opacity-60 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 rounded-xl font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all"
+                  className="w-full py-3.5 mt-2 bg-stone-900 hover:bg-stone-800 disabled:opacity-60 text-stone-50 dark:bg-stone-100 dark:hover:bg-white dark:text-stone-900 rounded-xl font-black uppercase tracking-wider shadow-md hover:shadow-lg transition-all"
                 >
                   {savingPassword ? "Saving..." : pwSaved ? "Saved ✓" : "Save Admin Settings"}
                 </button>
@@ -2241,7 +2241,7 @@ export default function UnifiedAdminDashboard() {
               </h3>
               <p className="text-stone-500 dark:text-slate-400 font-medium">Review attached credibility credentials and photos</p>
             </div>
-            <button onClick={() => setInspectingOrganizer(null)} className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-all">← Back</button>
+            <button onClick={() => setInspectingOrganizer(null)} className="px-4 py-2 bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all">← Back</button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2286,7 +2286,7 @@ export default function UnifiedAdminDashboard() {
             <button
               onClick={() => handleApproveOrganizer(inspectingOrganizer.id)}
               disabled={busyActionId === inspectingOrganizer.id}
-              className="w-full py-2.5 bg-teal-700/90 hover:bg-teal-800 disabled:opacity-60 text-teal-50 dark:bg-teal-900/70 dark:hover:bg-teal-900 dark:text-teal-100 font-bold rounded-xl uppercase shadow-sm transition-all"
+              className="w-full py-2.5 bg-stone-900 hover:bg-stone-800 disabled:opacity-60 text-stone-50 dark:bg-stone-100 dark:hover:bg-white dark:text-stone-900 font-bold rounded-xl uppercase shadow-sm transition-all"
             >
               {busyActionId === inspectingOrganizer.id ? "Approving..." : "Approve & Verify Organizer Account"}
             </button>
@@ -2296,7 +2296,7 @@ export default function UnifiedAdminDashboard() {
                 setInspectingOrganizer(null);
                 setFeedbackModal({ isOpen: true, type: "reject-organizer", targetId, reason: "" });
               }}
-              className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/60 dark:hover:bg-rose-900/80 dark:text-rose-200 dark:border-rose-800/70 font-bold rounded-xl uppercase transition-all"
+              className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/50 dark:hover:bg-rose-900/70 dark:text-rose-200 dark:border-rose-800/70 font-bold rounded-xl uppercase transition-all"
             >
               Reject Application
             </button>
@@ -2334,7 +2334,7 @@ export default function UnifiedAdminDashboard() {
                 </div>
                 <p className="text-stone-500 dark:text-slate-400 font-medium mt-1">Review everything the organizer submitted for this event.</p>
               </div>
-              <button onClick={() => setReviewingEventId(null)} className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold whitespace-nowrap transition-all">← Back</button>
+              <button onClick={() => setReviewingEventId(null)} className="px-4 py-2 bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold whitespace-nowrap transition-all">← Back</button>
             </div>
 
             {duplicateMatches.length > 0 && (
@@ -2359,7 +2359,7 @@ export default function UnifiedAdminDashboard() {
                   onClick={() => setReviewTab(key)}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                     tab === key
-                      ? "bg-white text-slate-900 dark:bg-slate-700 dark:text-slate-100 shadow-sm"
+                      ? "bg-stone-900 text-stone-50 dark:bg-stone-100 dark:text-stone-900 shadow-sm"
                       : "text-stone-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
                   }`}
                 >
@@ -2495,7 +2495,7 @@ export default function UnifiedAdminDashboard() {
                             </span>
                           )}
                           {r.payment_proof_url && (
-                            <button type="button" onClick={() => setViewerSrc(getImageUrl(r.payment_proof_url))} className="text-slate-800 dark:text-slate-200 hover:underline">View receipt</button>
+                            <button type="button" onClick={() => setViewerSrc(getImageUrl(r.payment_proof_url))} className="text-stone-800 dark:text-stone-200 hover:underline">View receipt</button>
                           )}
                         </div>
                         <TeamDetails registration={r} onPreview={(url) => setViewerSrc(getImageUrl(url))} />
@@ -2553,7 +2553,7 @@ export default function UnifiedAdminDashboard() {
               </h3>
               <p className="text-stone-500 dark:text-slate-400 font-medium">Viewing hosted events and participant records</p>
             </div>
-            <button onClick={() => setViewingProfileOrganizer(null)} className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold whitespace-nowrap transition-all">← Back</button>
+            <button onClick={() => setViewingProfileOrganizer(null)} className="px-4 py-2 bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold whitespace-nowrap transition-all">← Back</button>
           </div>
 
           <div className="space-y-3">
@@ -2770,7 +2770,7 @@ export default function UnifiedAdminDashboard() {
               <button
                 type="button"
                 onClick={() => setViewingAccount(null)}
-                className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold whitespace-nowrap transition-all"
+                className="px-4 py-2 bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold whitespace-nowrap transition-all"
               >
                 ← Back to User Management
               </button>
@@ -2887,7 +2887,7 @@ export default function UnifiedAdminDashboard() {
               placeholder="e.g. Print the attached approval letter and submit it to the Municipal Hall, then upload the stamped copy together with your mayor's permit."
               value={approvalModal.message}
               onChange={(e) => setApprovalModal({ ...approvalModal, message: e.target.value })}
-              className="w-full p-3 bg-stone-50 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-600"
+              className="w-full p-3 bg-stone-50 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-800 dark:focus:ring-stone-200"
             />
           </div>
 
@@ -2905,14 +2905,14 @@ export default function UnifiedAdminDashboard() {
             <button
               onClick={handleSendApprovalLetter}
               disabled={sendingApproval}
-              className="w-full py-2.5 bg-teal-700/90 hover:bg-teal-800 disabled:opacity-60 text-teal-50 dark:bg-teal-900/70 dark:hover:bg-teal-900 dark:text-teal-100 font-bold rounded-xl uppercase shadow-sm transition-all"
+              className="w-full py-2.5 bg-stone-900 hover:bg-stone-800 disabled:opacity-60 text-stone-50 dark:bg-stone-100 dark:hover:bg-white dark:text-stone-900 font-bold rounded-xl uppercase shadow-sm transition-all"
             >
               {sendingApproval ? "Uploading & sending..." : "Send to organizer"}
             </button>
             <button
               onClick={closeApprovalModal}
               disabled={sendingApproval}
-              className="px-5 py-2.5 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 font-bold rounded-xl transition-all"
+              className="px-5 py-2.5 bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 font-bold rounded-xl transition-all"
             >
               ← Back
             </button>
@@ -2943,7 +2943,7 @@ export default function UnifiedAdminDashboard() {
             placeholder="Type reason or feedback here..."
             value={feedbackModal.reason}
             onChange={(e) => setFeedbackModal({ ...feedbackModal, reason: e.target.value })}
-            className="w-full p-3 bg-stone-50 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            className="w-full p-3 bg-stone-50 dark:bg-slate-800/70 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-800 dark:focus:ring-stone-200"
           />
 
           <div className="flex gap-3 pt-2">
@@ -2953,14 +2953,14 @@ export default function UnifiedAdminDashboard() {
                 else handleSubmitEventFeedback();
               }}
               disabled={submittingFeedback}
-              className="w-full py-2.5 bg-slate-700 hover:bg-slate-800 disabled:opacity-60 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 font-bold rounded-xl uppercase shadow-sm transition-all"
+              className="w-full py-2.5 bg-stone-900 hover:bg-stone-800 disabled:opacity-60 text-stone-50 dark:bg-stone-100 dark:hover:bg-white dark:text-stone-900 font-bold rounded-xl uppercase shadow-sm transition-all"
             >
               {submittingFeedback ? "Submitting..." : "Submit Feedback"}
             </button>
             <button
               onClick={() => setFeedbackModal({ isOpen: false, type: "", targetId: null, reason: "" })}
               disabled={submittingFeedback}
-              className="px-5 py-2.5 bg-stone-100 hover:bg-stone-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 font-bold rounded-xl transition-all"
+              className="px-5 py-2.5 bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 font-bold rounded-xl transition-all"
             >
               ← Back
             </button>

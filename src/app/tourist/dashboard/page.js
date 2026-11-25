@@ -82,8 +82,8 @@ const parseEventActionMeta = (ev) => {
   const contactMatch = raw.match(/\[CONTACT:\s*([^\]]+)\]/i);
   const reschedMatch = raw.match(/\[RESCHEDULE:\s*([^\]]+)\]/i);
   const cleanReason = raw
-    .replace(/\[CONTACT:\s*[^\]]+\]/gi, "")
-    .replace(/\[RESCHEDULE:\s*[^\]]+\]/gi, "")
+    .replace(/\[CONTACT:\s*([^\]]+)\]/gi, "")
+    .replace(/\[RESCHEDULE:\s*([^\]]+)\]/gi, "")
     .trim();
 
   const parsedSchedule = {};
@@ -105,6 +105,55 @@ const parseEventActionMeta = (ev) => {
     reschedule_time: ev.reschedule_time || parsedSchedule.reschedule_time || "",
     reschedule_end_time: ev.reschedule_end_time || parsedSchedule.reschedule_end_time || "",
     action_reason: ev.reschedule_reason || cleanReason,
+  };
+};
+
+const parseOrganizerPaymentDetails = (ev) => {
+  if (!ev) {
+    return {
+      onlineDetails: "",
+      bankName: "",
+      bankAccountName: "",
+      bankAccountNumber: "",
+      hasBank: false,
+      hasOnline: false,
+    };
+  }
+
+  const rawOnline = String(ev.online_payment_details || "");
+  const lines = rawOnline.split(/\r?\n/);
+
+  let parsedBankName = "";
+  let parsedAccountName = "";
+  let parsedAccountNumber = "";
+  const remainingLines = [];
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    const bankLineMatch = trimmed.match(
+      /^Bank Payment\s*[—-]\s*Bank:\s*([^|]+)\|\s*Account Name:\s*([^|]+)\|\s*Account Number:\s*(.+)$/i
+    );
+    if (bankLineMatch) {
+      parsedBankName = bankLineMatch[1].trim();
+      parsedAccountName = bankLineMatch[2].trim();
+      parsedAccountNumber = bankLineMatch[3].trim();
+    } else if (trimmed) {
+      remainingLines.push(trimmed);
+    }
+  });
+
+  const bankName = String(ev.bank_name || parsedBankName || "").trim();
+  const bankAccountName = String(ev.bank_account_name || parsedAccountName || "").trim();
+  const bankAccountNumber = String(ev.bank_account_number || parsedAccountNumber || "").trim();
+  const onlineDetails = remainingLines.join("\n").trim();
+
+  return {
+    onlineDetails,
+    bankName,
+    bankAccountName,
+    bankAccountNumber,
+    hasBank: Boolean(bankName || bankAccountName || bankAccountNumber),
+    hasOnline: Boolean(onlineDetails),
   };
 };
 
@@ -252,8 +301,6 @@ export default function TouristDashboardPage() {
   const [resubmitReg, setResubmitReg] = useState(null);
   const [resubForm, setResubForm] = useState({ method: "cash", reference: "" });
   const [resubProof, setResubProof] = useState([]);
-  const [resubQrUrl, setResubQrUrl] = useState(null);
-  const [generatingResubQR, setGeneratingResubQR] = useState(false);
   const [resubSaving, setResubSaving] = useState(false);
 
   const [newEmail, setNewEmail] = useState("");
@@ -270,14 +317,14 @@ export default function TouristDashboardPage() {
     });
   };
 
-  const handleCopySerial = async (serialText) => {
+  const handleCopySerial = async (serialText, label = "Serial ID") => {
     if (!serialText) return;
     try {
       await navigator.clipboard.writeText(serialText);
       setCopiedSerialId(serialText);
       setTimeout(() => setCopiedSerialId(""), 2000);
     } catch (e) {
-      notify(`Serial ID: ${serialText}`, "info");
+      notify(`${label}: ${serialText}`, "info");
     }
   };
 
@@ -320,6 +367,34 @@ export default function TouristDashboardPage() {
       }
 
       const userRegs = regsData || [];
+
+      setRegOverrides((prev) => {
+        if (!prev || Object.keys(prev).length === 0) return prev;
+        let changed = false;
+        const next = { ...prev };
+        userRegs.forEach((row) => {
+          const key = String(row.id);
+          const cached = next[key];
+          if (!cached) return;
+          const liveStatus = norm(row.registration_status);
+          const cachedStatus = norm(cached.registration_status);
+          if (
+            (cachedStatus === "resubmitted" || cachedStatus === "pending") &&
+            (liveStatus === "confirmed" || liveStatus === "rejected")
+          ) {
+            delete next[key];
+            changed = true;
+          }
+        });
+        if (changed) {
+          try {
+            window.localStorage.setItem(TOURIST_REG_OVERRIDE_KEY, JSON.stringify(next));
+          } catch (e) {}
+          return next;
+        }
+        return prev;
+      });
+
       setRegistrations(userRegs);
 
       const eventIds = [...new Set(userRegs.map((r) => r.event_id))];
@@ -576,43 +651,30 @@ export default function TouristDashboardPage() {
   };
 
   const openResubmit = (reg) => {
+    const ev = eventsMap[reg.event_id] || {};
+    const meta = parseOrganizerPaymentDetails(ev);
+    const wasOnline = (reg.payment_method || "").toLowerCase() === "online";
+    const defaultDigital = meta.hasBank && !meta.hasOnline ? "bank" : "online";
     setResubForm({
-      method: (reg.payment_method || "").toLowerCase() === "online" ? "online" : "cash",
+      method: wasOnline ? defaultDigital : "cash",
       reference: reg.payment_reference || "",
     });
     setResubProof([]);
-    setResubQrUrl(null);
     setResubmitReg(reg);
-  };
-
-  const handleGenerateResubQR = async () => {
-    const event = eventsMap[resubmitReg.event_id];
-    setGeneratingResubQR(true);
-    try {
-      const res = await fetch("/api/create-qrph", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: event.fee_amount, description: event.event_name }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setResubQrUrl(data.qrImageUrl);
-      } else {
-        notify("Failed to generate QR code: " + data.error);
-      }
-    } catch (e) {
-      notify("Error: " + e.message);
-    }
-    setGeneratingResubQR(false);
   };
 
   const handleResubmit = async () => {
     const reg = resubmitReg;
     const event = eventsMap[reg.event_id] || {};
-    const method = resubForm.method === "online" ? "Online" : "Cash";
+    const isDigitalPayment = resubForm.method === "online" || resubForm.method === "bank";
+    const method = isDigitalPayment ? "Online" : "Cash";
 
-    if (event.is_paid && method === "Online" && !resubForm.reference.trim() && resubProof.length === 0 && !reg.payment_proof_url) {
-      return notify("For online payments, please enter your payment reference number or attach a screenshot of your receipt.");
+    if (event.is_paid && isDigitalPayment && !resubForm.reference.trim() && resubProof.length === 0 && !reg.payment_proof_url) {
+      return notify(
+        resubForm.method === "bank"
+          ? "For bank payments, please enter your payment reference number or attach a screenshot of your receipt."
+          : "For online payments, please enter your payment reference number or attach a screenshot of your receipt."
+      );
     }
     const proofError = validateFiles(resubProof);
     if (proofError) return notify(proofError);
@@ -620,25 +682,50 @@ export default function TouristDashboardPage() {
     setResubSaving(true);
     try {
       let proofUrl = reg.payment_proof_url || null;
-      if (method === "Online" && resubProof.length > 0) {
+      if (isDigitalPayment && resubProof.length > 0) {
         const [uploaded] = await uploadAttachments(resubProof, `payment-proofs/${user.id}`);
         proofUrl = uploaded.url;
       }
 
-      const { error } = await supabase
+      const basePatch = {
+        payment_method: method,
+        payment_reference: isDigitalPayment ? resubForm.reference.trim() || null : null,
+        payment_proof_url: isDigitalPayment ? proofUrl : null,
+        rejection_reason: null,
+      };
+
+      let { data: updatedRows, error } = await supabase
         .from("event_registrations")
         .update({
-          registration_status: "Pending",
-          payment_method: method,
-          payment_reference: method === "Online" ? resubForm.reference.trim() || null : null,
-          payment_proof_url: method === "Online" ? proofUrl : null,
-          rejection_reason: null,
+          ...basePatch,
+          registration_status: "Resubmitted",
         })
         .eq("id", reg.id)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .select();
+
+      if (error && norm(error.message).includes("check")) {
+        ({ data: updatedRows, error } = await supabase
+          .from("event_registrations")
+          .update({
+            ...basePatch,
+            registration_status: "Pending",
+          })
+          .eq("id", reg.id)
+          .eq("user_id", user.id)
+          .select());
+      }
 
       if (error) throw error;
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error("Your resubmission could not be saved. Please refresh the page and try again.");
+      }
+
+      const savedRow = updatedRows[0];
+      persistRegOverride(reg.id, savedRow);
+      setRegistrations((prev) => prev.map((r) => (r.id === reg.id ? { ...r, ...savedRow } : r)));
       setResubmitReg(null);
+      notify("Registration resubmitted! Waiting for the organizer to verify your payment.", "info");
       await fetchData(true);
     } catch (err) {
       console.error("Resubmit registration error:", err);
@@ -789,6 +876,8 @@ export default function TouristDashboardPage() {
                 {visibleRegistrations.map((reg) => {
                   const event = eventsMap[reg.event_id] || {};
                   const st = regState(reg);
+                  const isResubmitted = norm(reg.registration_status) === "resubmitted" || st === "resubmitted";
+                  const isPendingReview = st === "pending" || isResubmitted;
                   const evStatusNorm = norm(event.status);
                   const isCancelled = evStatusNorm === "cancelled";
                   const isRescheduled = evStatusNorm === "rescheduled";
@@ -850,6 +939,8 @@ export default function TouristDashboardPage() {
                                 ? "bg-stone-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
                                 : refundState === "requested"
                                 ? "bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-300"
+                                : isResubmitted
+                                ? "bg-violet-100 text-violet-900 dark:bg-violet-950/70 dark:text-violet-300"
                                 : st === "pending"
                                 ? "bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300"
                                 : st === "rejected"
@@ -861,6 +952,8 @@ export default function TouristDashboardPage() {
                               ? "Refunded"
                               : refundState === "requested"
                               ? "Refund Requested"
+                              : isResubmitted
+                              ? "Resubmitted"
                               : st === "pending"
                               ? "Pending approval"
                               : st === "rejected"
@@ -1090,7 +1183,7 @@ export default function TouristDashboardPage() {
                                 ? "bg-stone-100 border-stone-300 text-slate-800 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200"
                                 : refundState === "requested"
                                 ? "bg-amber-50/80 border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-800/70 dark:text-amber-200"
-                                : st === "pending"
+                                : isPendingReview
                                 ? "bg-amber-50/80 border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-800/70 dark:text-amber-200"
                                 : st === "rejected"
                                 ? "bg-rose-50/80 border-rose-200 text-rose-800 dark:bg-rose-950/40 dark:border-rose-800/70 dark:text-rose-200"
@@ -1102,6 +1195,8 @@ export default function TouristDashboardPage() {
                                 ? "Refund confirmed by the organizer"
                                 : refundState === "requested"
                                 ? "Refund requested — awaiting organizer confirmation"
+                                : isResubmitted
+                                ? "Resubmitted — waiting for the organizer to confirm your payment"
                                 : st === "pending"
                                 ? "Waiting for the organizer to confirm your payment"
                                 : st === "rejected"
@@ -1113,14 +1208,14 @@ export default function TouristDashboardPage() {
                               {reg.payment_reference ? ` | Ref: ${reg.payment_reference}` : ""}
                             </p>
 
-                            {!isCancelled && st === "pending" && (
+                            {!isCancelled && isPendingReview && (
                               <p className="font-medium whitespace-pre-line">
                                 {(reg.payment_method || "").toLowerCase() === "online"
                                   ? `Send your payment to: ${event.online_payment_details || "ask the organizer for payment details."}`
                                   : `Pay your cash at: ${event.cash_payment_details || "ask the organizer where to pay."}`}
                               </p>
                             )}
-                            {!isCancelled && st === "pending" && (
+                            {!isCancelled && isPendingReview && (
                               <p className="font-medium">
                                 You will receive your official Serial ID once the organizer approves your payment. Until then you are not on the official attendee list.
                               </p>
@@ -1435,6 +1530,7 @@ export default function TouristDashboardPage() {
                     const isRescheduled = evStatusNorm === "rescheduled";
                     const phase = getPhase(event.status);
                     const st = regState(reg);
+                    const isResubmitted = norm(reg.registration_status) === "resubmitted" || st === "resubmitted";
                     const serialId = resolveRegistrationSerial(reg);
                     const refundState = resolveRefundState(reg);
                     const attendance = resolveAttendanceState(reg);
@@ -1460,6 +1556,8 @@ export default function TouristDashboardPage() {
                                     ? "text-rose-700 dark:text-rose-300"
                                     : isRescheduled
                                     ? "text-amber-800 dark:text-amber-300"
+                                    : isResubmitted
+                                    ? "text-violet-700 dark:text-violet-300"
                                     : "text-slate-700 dark:text-slate-200"
                                 }`}
                               >
@@ -1467,6 +1565,8 @@ export default function TouristDashboardPage() {
                                   ? "Event Cancelled"
                                   : isRescheduled
                                   ? "Event Rescheduled"
+                                  : isResubmitted
+                                  ? "Registration Resubmitted"
                                   : st === "pending"
                                   ? "Awaiting Approval"
                                   : st === "rejected"
@@ -1499,6 +1599,8 @@ export default function TouristDashboardPage() {
                               ? "has been cancelled. Use your Serial ID and the organizer contact details below to claim a refund."
                               : isRescheduled
                               ? `has been rescheduled to ${formatDate(event.event_date || event.date)}${formatTimeRange(event) ? ` (${formatTimeRange(event)})` : ""}. Open My Events to continue attending or request a refund.`
+                              : isResubmitted
+                              ? "resubmission was received. The organizer is checking your updated payment details."
                               : st === "pending"
                               ? "registration is pending. The organizer is checking your payment."
                               : st === "rejected"
@@ -1767,6 +1869,15 @@ export default function TouristDashboardPage() {
 
       {resubmitReg && (() => {
         const event = eventsMap[resubmitReg.event_id] || {};
+        const paymentMeta = parseOrganizerPaymentDetails(event);
+        const methodOptions = [
+          { value: "cash", label: "Cash" },
+          ...(paymentMeta.hasBank ? [{ value: "bank", label: "Bank Payment" }] : []),
+          ...(paymentMeta.hasOnline || !paymentMeta.hasBank
+            ? [{ value: "online", label: "Online Payment" }]
+            : []),
+        ];
+
         return (
           <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-white dark:bg-slate-900 rounded-[35px] max-w-md w-full p-8 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto border border-stone-100 dark:border-slate-800 text-xs font-semibold">
@@ -1787,16 +1898,13 @@ export default function TouristDashboardPage() {
                 <span className="text-lg font-black text-slate-900 dark:text-slate-100">{peso(event.fee_amount)}</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { value: "cash", label: "Cash" },
-                  { value: "online", label: "Online QR Ph" },
-                ].map((opt) => (
+              <div className={`grid ${methodOptions.length === 3 ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2"} gap-2`}>
+                {methodOptions.map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => { setResubForm({ ...resubForm, method: opt.value }); setResubQrUrl(null); }}
-                    className={`py-3 rounded-xl border-2 font-bold transition-all text-center ${
+                    onClick={() => setResubForm({ ...resubForm, method: opt.value })}
+                    className={`py-3 px-2 rounded-xl border-2 font-bold transition-all text-center ${
                       resubForm.method === opt.value
                         ? "border-stone-800 bg-stone-50 text-slate-900 shadow-sm dark:border-slate-200 dark:bg-slate-800 dark:text-slate-100"
                         : "border-stone-200 bg-white text-slate-500 hover:border-stone-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-slate-500"
@@ -1807,38 +1915,89 @@ export default function TouristDashboardPage() {
                 ))}
               </div>
 
-              {resubForm.method === "cash" ? (
+              {resubForm.method === "cash" && (
                 <div className="bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl p-3 space-y-1">
                   <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Pay your cash here</p>
                   <p className="text-slate-800 dark:text-slate-200 whitespace-pre-line">
                     {event.cash_payment_details || "The organizer has not stated a cash payment location yet."}
                   </p>
                 </div>
-              ) : (
+              )}
+
+              {resubForm.method === "bank" && (
                 <div className="space-y-4">
-                  <div className="bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl p-4 space-y-3 text-center">
-                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Pay via QR Ph (GCash, Maya, Banks)</p>
-                    {resubQrUrl ? (
-                      <div className="space-y-2">
-                        <img src={resubQrUrl} alt="QR Ph Code" className="w-48 h-48 mx-auto border border-stone-200 dark:border-slate-700 rounded-lg p-2 bg-white" />
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Scan using GCash, Maya, or any participating bank app to pay {peso(event.fee_amount)}.</p>
+                  <div className="bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl p-3.5 space-y-2.5">
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">
+                      Bank Transfer Account Details
+                    </p>
+                    <div className="space-y-1.5">
+                      <div>
+                        <span className="block text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500">
+                          Bank Name
+                        </span>
+                        <span className="font-black text-slate-900 dark:text-slate-100">
+                          {paymentMeta.bankName || "N/A"}
+                        </span>
                       </div>
-                    ) : (
-                      <button type="button" onClick={handleGenerateResubQR} disabled={generatingResubQR} className="px-6 py-2.5 bg-stone-800 hover:bg-stone-700 text-stone-50 dark:bg-slate-200 dark:hover:bg-white dark:text-slate-900 disabled:opacity-60 rounded-xl text-xs font-bold transition-all shadow-sm">
-                        {generatingResubQR ? "Generating QR Code..." : "Generate QR Ph Code"}
-                      </button>
-                    )}
+                      <div>
+                        <span className="block text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500">
+                          Account Name
+                        </span>
+                        <span className="font-bold text-slate-900 dark:text-slate-100">
+                          {paymentMeta.bankAccountName || "N/A"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500">
+                          Account Number
+                        </span>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="font-mono font-black text-slate-900 dark:text-slate-100">
+                            {paymentMeta.bankAccountNumber || "N/A"}
+                          </span>
+                          {paymentMeta.bankAccountNumber && (
+                            <button
+                              type="button"
+                              onClick={() => handleCopySerial(paymentMeta.bankAccountNumber, "Account Number")}
+                              className="px-2 py-0.5 rounded-md bg-stone-200 hover:bg-stone-300 text-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-100 text-[10px] font-bold transition-all"
+                            >
+                              {copiedSerialId === paymentMeta.bankAccountNumber ? "Copied ✓" : "Copy"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
+                  <div>
+                    <label className="block text-slate-600 dark:text-slate-400 mb-1">PAYMENT REFERENCE NO.</label>
+                    <input
+                      type="text"
+                      placeholder="Reference number from your bank transfer receipt"
+                      value={resubForm.reference}
+                      onChange={(e) => setResubForm({ ...resubForm, reference: e.target.value })}
+                      className="w-full p-3 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-400/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-600 dark:text-slate-400 mb-1">RECEIPT SCREENSHOT (OPTIONAL)</label>
+                    <FilePicker files={resubProof} onChange={setResubProof} multiple={false} accept="image/*" label="Attach receipt photo" />
+                  </div>
+                </div>
+              )}
+
+              {resubForm.method === "online" && (
+                <div className="space-y-4">
                   <div className="bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl p-3 space-y-1">
-                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Alternative Online Transfer</p>
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">Online Payment Details</p>
                     <p className="text-slate-800 dark:text-slate-200 whitespace-pre-line">
-                      {event.online_payment_details || "The organizer has not provided alternative bank details yet."}
+                      {paymentMeta.onlineDetails || "The organizer has not provided online e-wallet payment details yet."}
                     </p>
                   </div>
                   <div>
                     <label className="block text-slate-600 dark:text-slate-400 mb-1">PAYMENT REFERENCE NO.</label>
                     <input
                       type="text"
+                      placeholder="Reference number from your receipt"
                       value={resubForm.reference}
                       onChange={(e) => setResubForm({ ...resubForm, reference: e.target.value })}
                       className="w-full p-3 bg-stone-50 dark:bg-slate-800 border border-stone-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-stone-400/30"

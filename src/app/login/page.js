@@ -11,15 +11,20 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!email || !password) return alert("Please fill in email and password.");
+    setErrorMsg("");
+
+    if (!email || !password) {
+      setErrorMsg("Please fill in email and password.");
+      return;
+    }
 
     setLoading(true);
 
     try {
-      // 1. Authenticate with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
@@ -29,7 +34,6 @@ export default function LoginPage() {
 
       const userId = authData.user?.id;
 
-      // 2. Fetch user profile status & role
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("*")
@@ -40,21 +44,18 @@ export default function LoginPage() {
         console.warn("Profile fetch warning:", profileError.message);
       }
 
-      // 3. Redirection Logic
       if (profile?.role === "admin") {
         router.push("/admin");
       } else if (profile?.status === "Approved") {
         router.push("/programs");
       } else if (profile?.status === "Rejected") {
-        alert("Your account registration was declined. Please contact the Municipal Tourism Office.");
+        setErrorMsg("Your account registration was declined. Please contact the Municipal Tourism Office.");
         await supabase.auth.signOut();
       } else {
-        // Pending or missing status default
         router.push("/pending-approval");
       }
     } catch (error) {
-      console.error("Login error:", error);
-      alert(error.message || "Invalid login credentials.");
+      setErrorMsg(error?.message || "Invalid login credentials.");
     } finally {
       setLoading(false);
     }
@@ -75,13 +76,41 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {errorMsg && (
+          <div
+            role="alert"
+            className="flex items-start gap-2.5 px-4 py-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="flex-shrink-0 mt-0.5 text-rose-600"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span className="leading-relaxed">{errorMsg}</span>
+          </div>
+        )}
+
         <form onSubmit={handleLogin} className="space-y-4">
           <Input
             label="Email Address"
             type="email"
             placeholder="user@example.com"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (errorMsg) setErrorMsg("");
+            }}
           />
 
           <div>
@@ -92,7 +121,10 @@ export default function LoginPage() {
               type="password"
               placeholder="••••••••"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (errorMsg) setErrorMsg("");
+              }}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
